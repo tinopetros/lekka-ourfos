@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# uv
+.uv/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars.local
+
+# Build output
+.build/
+dist/
+*.tar.gz
+
+# Local environment
+.env
+.env.local
+
+# Editors
+.DS_Store
+.idea/
+*.swp
