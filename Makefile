@@ -5,7 +5,8 @@ FIXTURE ?= happy
 CLOUDSHELL_DEST ?= ~/lekka-ourfos
 
 # The image tag is a hash of services/, so an unchanged service is never rebuilt
-TAG := $(shell git ls-files -co --exclude-standard services | grep -v requirements.txt | sort | xargs cat | shasum | cut -c1-12)
+# No git here: Cloud Shell gets a plain copy
+TAG := $(shell find services -type f -not -path '*/.venv/*' -not -path '*/__pycache__/*' -not -name requirements.txt | LC_ALL=C sort | xargs cat | shasum | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
 TF_ARGS ?=
@@ -49,7 +50,7 @@ logs:
 
 copy-to-cloudshell:
 	gcloud cloud-shell ssh --command "mkdir -p $(CLOUDSHELL_DEST)"
-	git ls-files | tar -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
+	git ls-files | COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
 
 tf-init:
 	cd $(TF_DIR) && terraform init -reconfigure -backend-config=bucket=$(PROJECT)-tfstate
