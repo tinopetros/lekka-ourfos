@@ -16,7 +16,7 @@ def log(request: Request, message: str, severity: str = "INFO", **fields):
 
 def simulate(request: Request, step: str, code):
     """Force a failure from the fixture: an HTTP status, or "timeout" to hang past the workflow's timeout."""
-    if code is None:
+    if not code:
         return
     log(request, f"simulating {code}", "WARNING", step=step)
     if code == "timeout":
