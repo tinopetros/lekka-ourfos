@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+# Generated from uv.lock at package time
+requirements.txt
+.terraform/
+*.tfstate*
+.build/
