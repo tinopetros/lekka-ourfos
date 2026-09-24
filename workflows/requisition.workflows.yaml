@@ -11,6 +11,7 @@ main:
     - log_start:
         call: sys.log
         args:
+          severity: INFO
           json: { message: "requisition started", execution_id: "${execution_id}", requisition: "${requisition}" }
     - run:
         try:
