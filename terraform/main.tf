@@ -36,18 +36,3 @@ locals {
   sa             = { for k, v in data.google_service_account.this : k => v.email }
   sources_bucket = "${var.project_id}-ourfos-sources"
 }
-
-# We made these in phase 1, before infra owned them. Forget, never destroy
-removed {
-  from = google_service_account.this
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = google_storage_bucket.sources
-  lifecycle {
-    destroy = false
-  }
-}
