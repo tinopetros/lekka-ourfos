@@ -42,6 +42,7 @@ Google Form ─▶ intake ─▶ Workflows execution ─▶ one email, then done
 envs/dev|prod/     Terraform: service accounts, IAM, Firestore indexes, triggers
 packages/          shared libraries, never deployed alone
 services/          called BY workflows — invoker is the workflow's SA only
+agents/            ADK agents, run inside services for now (expenser, behind Model Armor)
 apps/              user-facing — behind IAP
 workflows/         the definitions, plus fixtures for running them
 ```
@@ -49,6 +50,8 @@ workflows/         the definitions, plus fixtures for running them
 ## Testing by hand
 
 The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
+
+Classify answers with a stub unless a fixture says `"simulate": {"classify": "llm"}`, the only runs that spend tokens. `make agent` runs expenser on its own, locally. See [phase 3](docs/tdd/phase3.md).
 
 ## Deployment
 
