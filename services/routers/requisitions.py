@@ -1,15 +1,24 @@
 from fastapi import APIRouter, Request
+from fastapi.concurrency import run_in_threadpool
 
+import expenser_runner
 from common import log, simulate
 
 router = APIRouter(prefix="/requisitions")
 
 
 @router.post("/classify")
-def classify(request: Request, body: dict):
+async def classify(request: Request, body: dict):
     code = body.get("simulate")
-    simulate(request, "classify", code)
     amount = body["requisition"]["amount"]
+    # The only path that spends tokens (ADR 4)
+    if code == "llm":
+        classification = await expenser_runner.classify(body["requisition"])
+        log(request, "classify", amount=amount, approve=classification["approve"], by="expenser")
+        return classification
+
+    # Async now, so a simulated hang must not block the event loop
+    await run_in_threadpool(simulate, request, "classify", code)
     log(request, "classify", amount=amount)
 
     if code == "rejected":
