@@ -6,3 +6,5 @@ requirements.txt
 .terraform-*/
 *.tfstate*
 .build/
+# Local config for adk run/web
+.env
