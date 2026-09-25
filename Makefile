@@ -13,7 +13,7 @@ TF_ARGS ?=
 TF_VARS := $(TF_ARGS) -var project_id=$(PROJECT) -var region=$(REGION) -var services_image=$(IMAGE)
 
 .DEFAULT_GOAL := help
-.PHONY: help package build deploy run logs copy-to-cloudshell tf-init tf-plan tf-apply tf-destroy tf-output clean
+.PHONY: help package build deploy destroy run logs copy copy-to-cloudshell tf-init tf-plan tf-apply tf-destroy tf-output clean
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
@@ -21,7 +21,8 @@ help:
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
-	@echo "make copy-to-cloudshell  sync the repo to Cloud Shell"
+	@echo "make copy                build, then sync the repo to Cloud Shell"
+	@echo "make destroy             terraform destroy"
 	@echo "make tf-init|tf-plan|tf-apply|tf-destroy|tf-output"
 	@echo "PROJECT=$(PROJECT) REGION=$(REGION)"
 
@@ -40,6 +41,8 @@ build: package
 
 deploy: build tf-apply
 
+destroy: tf-destroy
+
 run:
 	curl -s -X POST -H 'content-type: application/json' \
 		--data @workflows/fixtures/$(FIXTURE).json $$(cd $(TF_DIR) && terraform output -raw trigger_url)
@@ -48,9 +51,13 @@ logs:
 	gcloud logging read 'jsonPayload.execution_id="$(ID)"' --project $(PROJECT) --freshness 1d --order asc \
 		--format 'table(timestamp, severity, resource.type, jsonPayload.message)'
 
-copy-to-cloudshell:
+# Tracked files plus what package made, so Cloud Shell has the same build
+copy: build
 	gcloud cloud-shell ssh --command "mkdir -p $(CLOUDSHELL_DEST)"
-	git ls-files | COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
+	{ git ls-files; echo $(TRIGGER_ZIP) services/requirements.txt functions/trigger/requirements.txt | tr ' ' '\n'; } \
+		| COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
+
+copy-to-cloudshell: copy
 
 tf-init:
 	cd $(TF_DIR) && terraform init -reconfigure -backend-config=bucket=$(PROJECT)-tfstate
