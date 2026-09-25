@@ -1,0 +1,10 @@
+{
+    "requisition": {
+        "response_number": 482,
+        "amount": 250,
+        "payable_to": "City parking"
+    },
+    "simulate": {
+        "classify": "llm"
+    }
+}
