@@ -63,6 +63,9 @@ for P in ourfos-dev ourfos-prod; do
   for B in "$P-ourfos-sources" "$P-tfstate"; do
     gcloud storage buckets add-iam-policy-binding "gs://$B" --member="serviceAccount:$SA" --role=roles/storage.objectAdmin
   done
+  # gcloud builds submit looks the staging bucket up before uploading to it
+  gcloud storage buckets add-iam-policy-binding "gs://$P-ourfos-sources" \
+    --member="serviceAccount:$SA" --role=roles/storage.legacyBucketReader
   gcloud artifacts repositories add-iam-policy-binding ourfos --project="$P" --location=africa-south1 \
     --member="serviceAccount:$SA" --role=roles/artifactregistry.reader
 done
