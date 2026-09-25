@@ -31,7 +31,69 @@ tag 0.1.0 ────▶ Cloud Build lekka-ourfos-prod  dev passed on this comm
 
 By hand on purpose: this is the identity Terraform runs as, so Terraform does not manage its own permissions.
 
-_Filled in as it is done._
+In order, from a shell logged in as a project owner.
+
+**1. The deployer.** Done.
+
+```bash
+gcloud iam service-accounts create ourfos-app-deployer --project=ourfos-prod \
+  --display-name="Cloud Build deployer for lekka-ourfos"
+```
+
+**2. What it may do, in both projects.** Everything our Terraform touches, plus the nested `gcloud builds submit` that `make build` runs:
+
+```bash
+SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
+
+for P in ourfos-dev ourfos-prod; do
+  for R in run.admin cloudfunctions.admin workflows.admin iam.serviceAccountAdmin \
+           iam.serviceAccountUser storage.admin cloudbuild.builds.editor serviceusage.serviceUsageConsumer; do
+    gcloud projects add-iam-policy-binding "$P" --condition=None \
+      --member="serviceAccount:$SA" --role="roles/$R"
+  done
+  # Project IAM, but only ever these two roles (ADR 2)
+  gcloud projects add-iam-policy-binding "$P" \
+    --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin \
+    --condition='expression=api.getAttribute("iam.googleapis.com/modifiedGrantsByRole", []).hasOnly(["roles/logging.logWriter", "roles/workflows.invoker"]),title=only-two-roles'
+  # Read the registry infra owns
+  gcloud artifacts repositories add-iam-policy-binding ourfos --project="$P" --location=africa-south1 \
+    --member="serviceAccount:$SA" --role=roles/artifactregistry.reader
+done
+
+# The build itself: its logs, and reading history for "dev passed?"
+for R in logging.logWriter cloudbuild.builds.viewer; do
+  gcloud projects add-iam-policy-binding ourfos-prod --condition=None \
+    --member="serviceAccount:$SA" --role="roles/$R"
+done
+```
+
+**3. Link the repo** to the connection infra already made (the GitHub app must be allowed to see it):
+
+```bash
+gcloud builds repositories create lekka-ourfos --project=ourfos-prod --region=africa-south1 \
+  --connection=tinopetros-github --remote-uri=https://github.com/tinopetros/lekka-ourfos.git
+```
+
+**4. The two triggers**, both running `cloudbuild.yaml` as the deployer:
+
+```bash
+REPO=projects/ourfos-prod/locations/africa-south1/connections/tinopetros-github/repositories/lekka-ourfos
+SA=projects/ourfos-prod/serviceAccounts/ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
+
+gcloud builds triggers create github --project=ourfos-prod --region=africa-south1 \
+  --name=lekka-ourfos-dev --repository=$REPO --branch-pattern='^main$' \
+  --build-config=cloudbuild.yaml --service-account=$SA --substitutions=_ENV=dev
+
+gcloud builds triggers create github --project=ourfos-prod --region=africa-south1 \
+  --name=lekka-ourfos-prod --repository=$REPO --tag-pattern='^[0-9]+\.[0-9]+\.[0-9]+$' \
+  --build-config=cloudbuild.yaml --service-account=$SA --substitutions=_ENV=prod
+```
+
+**5. Try it before merging**, on this branch through the real dev trigger:
+
+```bash
+gcloud builds triggers run lekka-ourfos-dev --project=ourfos-prod --region=africa-south1 --branch=cicd
+```
 
 ## Done when
 
