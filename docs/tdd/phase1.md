@@ -88,9 +88,9 @@ Makefile                            sits on top of terraform, like hello-agent-d
 
 ```bash
 make deploy                      # or: make copy, then make deploy in Cloud Shell. Waits for a "yes"
-make run                         # happy path
+make run                         # happy path: waits for it, then shows its logs
 make run FIXTURE=classify-503    # retries, then hands over
-make logs ID=<execution id>      # the whole story of one run
+make logs ID=<execution id>      # any earlier run's logs again
 ```
 
 ## Python

@@ -17,7 +17,7 @@ TF_VARS := $(TF_ARGS) -var project_id=$(PROJECT) -var region=$(REGION) -var serv
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
-	@echo "make run [FIXTURE=happy] curl the trigger with workflows/fixtures/<FIXTURE>.json"
+	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
@@ -43,9 +43,15 @@ deploy: build tf-apply
 
 destroy: tf-destroy
 
+# Starts a run, waits for it to finish, then shows its logs (which land a few seconds late)
 run:
-	curl -s -X POST -H 'content-type: application/json' \
-		--data @workflows/fixtures/$(FIXTURE).json $$(cd $(TF_DIR) && terraform output -raw trigger_url)
+	@id=$$(curl -s -X POST -H 'content-type: application/json' \
+		--data @workflows/fixtures/$(FIXTURE).json $$(cd $(TF_DIR) && terraform output -raw trigger_url) \
+		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])') && \
+	echo "execution $$id" && \
+	gcloud workflows executions wait $$id --workflow requisition --location $(REGION) --project $(PROJECT) \
+		--format 'value(state, result, error.payload)' && \
+	sleep 5 && $(MAKE) -s logs ID=$$id
 
 logs:
 	gcloud logging read 'jsonPayload.execution_id="$(ID)"' --project $(PROJECT) --freshness 1d --order asc \
