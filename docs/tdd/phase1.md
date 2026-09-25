@@ -86,9 +86,12 @@ Makefile                            sits on top of terraform, like hello-agent-d
 
 ## Testing it by hand
 
-- From here: `make deploy`, or `make copy` then `make deploy` in Cloud Shell. Terraform shows the plan and waits for a `yes`
-- `make run` for the happy path, or `make run FIXTURE=classify-503` for one that retries and hands over
-- Each run prints an execution id: `make logs ID=<id>` tells its whole story
+```bash
+make deploy                      # or: make copy, then make deploy in Cloud Shell. Waits for a "yes"
+make run                         # happy path
+make run FIXTURE=classify-503    # retries, then hands over
+make logs ID=<execution id>      # the whole story of one run
+```
 
 ## Python
 
