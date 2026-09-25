@@ -1,84 +1,138 @@
-PROJECT ?= ourfos-dev
-REGION ?= africa-south1
-TF_DIR ?= terraform
+ENV ?= dev
+VALID_ENVS := dev prod
+PROJECT := ourfos-$(ENV)
+REGION := africa-south1
+TF_DIR := terraform
 FIXTURE ?= happy
 CLOUDSHELL_DEST ?= ~/lekka-ourfos
+RUFF := uvx ruff@0.16.9
 
-# The image tag is a hash of services/, so an unchanged service is never rebuilt
-# No git here: Cloud Shell gets a plain copy
-TAG := $(shell find services -type f -not -path '*/.venv/*' -not -path '*/__pycache__/*' -not -name requirements.txt | LC_ALL=C sort | xargs cat | shasum | cut -c1-12)
+# One Terraform data dir per env, so dev's state can never be planned against prod
+export TF_DATA_DIR := .terraform-$(ENV)
+
+# The image tag is a hash of services/, so an unchanged service is never rebuilt.
+# No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
+SERVICES_SRC := $(shell find services -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' ! -name requirements.txt | LC_ALL=C sort)
+TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
+REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
-TF_VARS := $(TF_ARGS) -var project_id=$(PROJECT) -var region=$(REGION) -var services_image=$(IMAGE)
+TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
+TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help package build deploy destroy run logs copy copy-to-cloudshell tf-init tf-plan tf-apply tf-destroy tf-output clean
+.PHONY: help check-env package build deploy destroy run start wait logs smoke check lint lock-check \
+	copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
+	@echo "make smoke               happy ends done, classify-400 ends handed_over (what CI runs)"
+	@echo "make check               fmt, validate, lock and lint (what a PR runs)"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
 	@echo "make destroy             terraform destroy"
 	@echo "make tf-init|tf-plan|tf-apply|tf-destroy|tf-output"
-	@echo "PROJECT=$(PROJECT) REGION=$(REGION)"
+	@echo "ENV=$(ENV) -> $(PROJECT)"
+
+check-env:
+	@case " $(VALID_ENVS) " in *" $(ENV) "*) ;; *) echo "ENV must be one of: $(VALID_ENVS)" >&2; exit 1 ;; esac
+
+# File targets, so a later CI step without uv reuses what an earlier one made
+%/requirements.txt: %/uv.lock %/pyproject.toml
+	cd $* && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
 
 # Fixed mtimes so the zip, and so the function, only changes when the code does
-package:
-	cd services && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
-	cd functions/trigger && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
-	rm -rf .build/trigger $(TRIGGER_ZIP) && mkdir -p .build/trigger
-	cp functions/trigger/main.py functions/trigger/requirements.txt .build/trigger/
+$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/requirements.txt
+	rm -rf .build/trigger $@ && mkdir -p .build/trigger
+	cp $^ .build/trigger/
 	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *
 
-build: package
+package: $(REQUIREMENTS) $(TRIGGER_ZIP)
+
+# As ourfos-build rather than the compute account (roles/editor), staged in our
+# africa-south1 bucket rather than the US default
+build: check-env services/requirements.txt
 	@gcloud artifacts docker images describe $(IMAGE) --project $(PROJECT) >/dev/null 2>&1 \
 		&& echo "$(IMAGE) already built" \
-		|| gcloud builds submit services --project $(PROJECT) --region $(REGION) --tag $(IMAGE)
+		|| gcloud builds submit services --project $(PROJECT) --region $(REGION) --tag $(IMAGE) \
+			--service-account projects/$(PROJECT)/serviceAccounts/ourfos-build@$(PROJECT).iam.gserviceaccount.com \
+			--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs
 
 deploy: build tf-apply
 
 destroy: tf-destroy
 
+start:
+	@curl -sf -X POST -H 'content-type: application/json' --data @workflows/fixtures/$(FIXTURE).json $(TRIGGER_URL) \
+		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])'
+
+wait:
+	@gcloud workflows executions wait $(ID) --workflow requisition --location $(REGION) --project $(PROJECT) \
+		--format 'value(state, result, error.payload)'
+
 # Starts a run, waits for it to finish, then shows its logs (which land a few seconds late)
 run:
-	@id=$$(curl -s -X POST -H 'content-type: application/json' \
-		--data @workflows/fixtures/$(FIXTURE).json $$(cd $(TF_DIR) && terraform output -raw trigger_url) \
-		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])') && \
-	echo "execution $$id" && \
-	gcloud workflows executions wait $$id --workflow requisition --location $(REGION) --project $(PROJECT) \
-		--format 'value(state, result, error.payload)' && \
-	sleep 5 && $(MAKE) -s logs ID=$$id
+	@id=$$($(MAKE) -s start) && echo "execution $$id" && $(MAKE) -s wait ID=$$id && sleep 5 && $(MAKE) -s logs ID=$$id
 
 logs:
 	gcloud logging read 'jsonPayload.execution_id="$(ID)"' --project $(PROJECT) --freshness 1d --order asc \
 		--format 'table(timestamp, severity, resource.type, jsonPayload.message)'
 
+# Up to three tries each: after a first deploy, IAM takes a minute to catch up
+smoke: check-env
+	@for case in happy:done classify-400:handed_over; do \
+		fixture=$${case%%:*}; want=$${case#*:}; \
+		for try in 1 2 3; do \
+			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
+			echo "$$fixture: $$result"; \
+			echo "$$result" | grep -q "\"status\":\"$$want\"" && break; \
+			[ $$try = 3 ] && exit 1; sleep 30; \
+		done; \
+	done
+
+check: tf-fmt-check tf-validate-ci lock-check lint
+
+lint:
+	$(RUFF) check .
+	$(RUFF) format --check .
+
+lock-check:
+	cd services && uv lock --check
+	cd functions/trigger && uv lock --check
+
 # Tracked files plus what package made, so Cloud Shell has the same build
-copy: build
+copy: build package
 	gcloud cloud-shell ssh --command "mkdir -p $(CLOUDSHELL_DEST)"
-	{ git ls-files; echo $(TRIGGER_ZIP) services/requirements.txt functions/trigger/requirements.txt | tr ' ' '\n'; } \
+	{ git ls-files; echo $(TRIGGER_ZIP) $(REQUIREMENTS) | tr ' ' '\n'; } \
 		| COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
 
 copy-to-cloudshell: copy
 
-tf-init:
-	cd $(TF_DIR) && terraform init -reconfigure -backend-config=bucket=$(PROJECT)-tfstate
+tf-init: check-env
+	cd $(TF_DIR) && terraform init -input=false -backend-config=bucket=$(PROJECT)-tfstate
 
-tf-plan: package
-	cd $(TF_DIR) && terraform plan $(TF_VARS)
+tf-fmt-check:
+	terraform fmt -check -recursive $(TF_DIR)
 
-tf-apply: package
-	cd $(TF_DIR) && terraform apply $(TF_VARS)
+# No backend and no credentials: validate checks configuration, not state
+tf-validate-ci:
+	cd $(TF_DIR) && export TF_DATA_DIR=.terraform-validate && terraform init -backend=false -input=false >/dev/null && terraform validate
 
-tf-destroy:
+tf-plan: tf-init package
+	cd $(TF_DIR) && terraform plan -input=false -lock-timeout=5m $(TF_VARS)
+
+tf-apply: tf-init package
+	cd $(TF_DIR) && terraform apply -lock-timeout=5m $(TF_VARS)
+
+tf-destroy: tf-init
 	cd $(TF_DIR) && terraform destroy $(TF_VARS)
 
-tf-output:
+tf-output: tf-init
 	cd $(TF_DIR) && terraform output
 
 clean:
-	rm -rf .build services/requirements.txt functions/trigger/requirements.txt
+	rm -rf .build $(REQUIREMENTS)

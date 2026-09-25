@@ -3,5 +3,6 @@ __pycache__/
 # Generated from uv.lock at package time
 requirements.txt
 .terraform/
+.terraform-*/
 *.tfstate*
 .build/

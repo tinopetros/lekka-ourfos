@@ -48,7 +48,11 @@ workflows/         the definitions, plus fixtures for running them
 
 ## Testing by hand
 
-The Makefile is for manual testing on `ourfos-dev`, which is its default. Don't point it at prod with `PROJECT=ourfos-prod`: Terraform's state bucket is set at `make tf-init`, so it would plan dev's state against prod.
+The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
+
+## Deployment
+
+A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans prod. Tagging that commit (`0.1.0`) releases it to prod. See [phase 2](docs/tdd/phase2.md).
 
 ## TODO
 

@@ -1,0 +1,59 @@
+# Run by both triggers in ourfos-prod (docs/tdd/phase2.md, "Bootstrapped, once"):
+#
+#   lekka-ourfos-dev   push to main  _ENV=dev   package, build, apply dev, smoke, plan prod
+#   lekka-ourfos-prod  tag 0.1.0     _ENV=prod  dev passed? package, build, apply prod, smoke
+#
+# Every step is a make target, so a run by hand does what this does.
+# The PR has already run `make check`.
+
+substitutions:
+  _ENV: dev
+
+options:
+  # Required when a build runs as its own service account and has no logs bucket
+  logging: CLOUD_LOGGING_ONLY
+
+# A ceiling, not a duration. A build killed mid-apply leaves the state locked
+timeout: 1800s
+
+steps:
+  # A tag can point at any commit. Refuse one that did not pass the dev trigger.
+  # $$ is a literal $ to the shell; a bare $NAME is a Cloud Build substitution
+  - id: dev-passed
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        [ "${_ENV}" = prod ] || exit 0
+        ok=$(gcloud builds list --region="${LOCATION}" --limit=1 \
+          --filter='substitutions.TRIGGER_NAME="lekka-ourfos-dev" AND substitutions.COMMIT_SHA="${COMMIT_SHA}" AND status="SUCCESS"' \
+          --format='value(id)')
+        [ -n "$$ok" ] || { echo "No successful lekka-ourfos-dev build of ${COMMIT_SHA}; merge it to main first."; exit 1; }
+        echo "lekka-ourfos-dev passed on ${COMMIT_SHA}: build $$ok"
+
+  - id: package
+    name: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    entrypoint: bash
+    args: [-c, "apt-get -qq update && apt-get -qq install -y make zip >/dev/null && make package"]
+
+  - id: build
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args: [-c, "apt-get -qq update && apt-get -qq install -y make >/dev/null && make build ENV=${_ENV}"]
+
+  - id: apply
+    name: hashicorp/terraform:1.16.4
+    entrypoint: sh
+    args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} TF_ARGS='-auto-approve -input=false'"]
+
+  - id: smoke
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args: [-c, "apt-get -qq update && apt-get -qq install -y make >/dev/null && make smoke ENV=${_ENV}"]
+
+  # What tagging this commit would do to prod. Read it here before tagging
+  - id: plan-prod
+    name: hashicorp/terraform:1.16.4
+    entrypoint: sh
+    args: [-c, "[ ${_ENV} = dev ] || exit 0; apk add -q make && make tf-plan ENV=prod"]

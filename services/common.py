@@ -6,12 +6,8 @@ from fastapi import HTTPException, Request
 
 def log(request: Request, message: str, severity: str = "INFO", **fields):
     # One JSON line per event, so Cloud Logging can filter on jsonPayload.execution_id
-    print(json.dumps({
-        "severity": severity,
-        "message": message,
-        "execution_id": request.headers.get("x-execution-id"),
-        **fields,
-    }), flush=True)
+    entry = {"severity": severity, "message": message, "execution_id": request.headers.get("x-execution-id")}
+    print(json.dumps(entry | fields), flush=True)
 
 
 def simulate(request: Request, step: str, code):

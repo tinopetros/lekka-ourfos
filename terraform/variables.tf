@@ -1,11 +1,10 @@
+# Both from env/<env>.tfvars
 variable "project_id" {
-  type    = string
-  default = "ourfos-dev"
+  type = string
 }
 
 variable "region" {
-  type    = string
-  default = "africa-south1"
+  type = string
 }
 
 variable "services_image" {

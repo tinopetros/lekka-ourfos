@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.5.0"
+  # 1.16.4 in CI and Cloud Build too. A newer one would rewrite state they cannot read
+  required_version = "~> 1.16.4"
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -24,11 +25,14 @@ data "google_artifact_registry_repository" "ourfos" {
   repository_id = "ourfos"
 }
 
-resource "google_service_account" "this" {
-  for_each   = toset(["trigger", "workflow", "services"])
+# Infra makes what we run as and build with (modules/ourfos-app). Fails here
+# until it exists, like the registry
+data "google_service_account" "this" {
+  for_each   = toset(["trigger", "workflow", "services", "build"])
   account_id = "ourfos-${each.key}"
 }
 
 locals {
-  sa = { for k, v in google_service_account.this : k => v.email }
+  sa             = { for k, v in data.google_service_account.this : k => v.email }
+  sources_bucket = "${var.project_id}-ourfos-sources"
 }

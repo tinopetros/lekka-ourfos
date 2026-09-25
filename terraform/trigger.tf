@@ -1,13 +1,6 @@
-resource "google_storage_bucket" "sources" {
-  name                        = "${var.project_id}-ourfos-sources"
-  location                    = var.region
-  uniform_bucket_level_access = true
-  force_destroy               = true
-}
-
 resource "google_storage_bucket_object" "trigger" {
   name   = "trigger-${filemd5(var.trigger_zip)}.zip"
-  bucket = google_storage_bucket.sources.name
+  bucket = local.sources_bucket
   source = var.trigger_zip
 }
 
@@ -19,9 +12,10 @@ resource "google_cloudfunctions2_function" "trigger" {
     runtime           = "python313"
     entry_point       = "trigger"
     docker_repository = data.google_artifact_registry_repository.ourfos.id
+    service_account   = data.google_service_account.this["build"].name
     source {
       storage_source {
-        bucket = google_storage_bucket.sources.name
+        bucket = local.sources_bucket
         object = google_storage_bucket_object.trigger.name
       }
     }
