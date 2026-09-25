@@ -19,5 +19,5 @@ jobs:
         with:
           terraform_version: 1.16.4
           terraform_wrapper: false
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # no major tag published
       - run: make check
