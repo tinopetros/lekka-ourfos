@@ -53,10 +53,14 @@ $(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/requirements.txt
 
 package: $(REQUIREMENTS) $(TRIGGER_ZIP)
 
+# As ourfos-build rather than the compute account (roles/editor), staged in our
+# africa-south1 bucket rather than the US default
 build: check-env services/requirements.txt
 	@gcloud artifacts docker images describe $(IMAGE) --project $(PROJECT) >/dev/null 2>&1 \
 		&& echo "$(IMAGE) already built" \
-		|| gcloud builds submit services --project $(PROJECT) --region $(REGION) --tag $(IMAGE)
+		|| gcloud builds submit services --project $(PROJECT) --region $(REGION) --tag $(IMAGE) \
+			--service-account projects/$(PROJECT)/serviceAccounts/ourfos-build@$(PROJECT).iam.gserviceaccount.com \
+			--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs
 
 deploy: build tf-apply
 
