@@ -39,3 +39,9 @@ What we chose in phase 1 and, mostly, what we knowingly left temporary. When a l
 - Terraform here only looks up an `ourfos` repository and fails if it is missing
 - The one used for the manual build is made by hand and deleted in the teardown
 - **Revisit when** infra creates it (Terraform here fails until it does)
+
+### 8. `trigger` can start any workflow in the project
+
+- Workflows only grants `roles/workflows.invoker` at project level, and Terraform has no per-workflow IAM either
+- An IAM condition on the workflow name might work, but it's undocumented and Terraform wouldn't know whether it's actually enforced
+- Accepted for good. The trigger only ever starts the workflow named in its `WORKFLOW` env var, which Terraform sets
