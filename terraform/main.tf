@@ -1,0 +1,34 @@
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 8.2"
+    }
+  }
+
+  # bucket comes from `make tf-init`, one per project: <project>-tfstate
+  backend "gcs" {
+    prefix = "ourfos"
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+# Infra owns registries (ADR 7). Fails here until it exists
+data "google_artifact_registry_repository" "ourfos" {
+  location      = var.region
+  repository_id = "ourfos"
+}
+
+resource "google_service_account" "this" {
+  for_each   = toset(["trigger", "workflow", "services"])
+  account_id = "ourfos-${each.key}"
+}
+
+locals {
+  sa = { for k, v in google_service_account.this : k => v.email }
+}

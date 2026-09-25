@@ -1,0 +1,7 @@
+FROM python:3.13-slim
+WORKDIR /app
+# requirements.txt is generated from uv.lock at package time, never committed
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

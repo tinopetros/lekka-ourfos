@@ -1,0 +1,361 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+          - requisition: ${args.requisition}
+          - simulate: {}
+          - simulate: ${default(map.get(args, "simulate"), simulate)}
+          - thread_id: null
+    - log_start:
+        call: sys.log
+        args:
+          severity: INFO
+          json: { message: "requisition started", execution_id: "${execution_id}", requisition: "${requisition}" }
+    - run:
+        try:
+          steps:
+            - classify:
+                try:
+                  call: call_service
+                  args:
+                    method: POST
+                    path: /requisitions/classify
+                    body:
+                      requisition: ${requisition}
+                      simulate: ${map.get(simulate, "classify")}
+                    # A real model call can take 40s. Fewer, longer attempts: each one costs
+                    timeout: 60
+                  result: classification
+                retry:
+                  predicate: ${is_retryable_read}
+                  max_retries: 2
+                  backoff: { initial_delay: 4, max_delay: 30, multiplier: 4 }
+            - check:
+                call: check
+                args:
+                  c: ${classification}
+            - get_thread:
+                call: get_thread
+                args:
+                  response_number: ${requisition.response_number}
+                  code: ${map.get(simulate, "get_thread")}
+                result: thread_id
+            - notify:
+                try:
+                  call: call_service
+                  args:
+                    method: POST
+                    path: ${"/workspace/gmail/notify/thread/" + thread_id}
+                    body:
+                      classification: ${classification}
+                      simulate: ${map.get(simulate, "notify")}
+                retry:
+                  predicate: ${is_transient}
+                  max_retries: 3
+                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+            - rejected:
+                switch:
+                  - condition: ${not classification.approve}
+                    return: { status: "rejected", reason: "${classification.reason}" }
+            - post:
+                call: post
+                args:
+                  classification: ${classification}
+                  reference: ${execution_id}
+                  code: ${map.get(simulate, "mifos_post")}
+                result: transaction_id
+            - read_back:
+                try:
+                  call: call_service
+                  args:
+                    method: GET
+                    path: ${"/mifos/journal-entries/" + transaction_id}
+                    query:
+                      simulate: ${default(map.get(simulate, "mifos_read"), "")}
+                  result: entry
+                retry:
+                  predicate: ${is_retryable_read}
+                  max_retries: 3
+                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+            - verify:
+                switch:
+                  - condition: ${len(entry.lines) != len(classification.debit) + len(classification.credit)}
+                    raise:
+                      tags: [Unconfirmed]
+                      message: ${"Posted as " + transaction_id + " but the read-back has " + string(len(entry.lines)) + " lines. Please check it by hand"}
+            - confirm:
+                try:
+                  call: call_service
+                  args:
+                    method: POST
+                    path: ${"/workspace/gmail/notify/thread/" + thread_id}
+                    body:
+                      confirmation: { transaction_id: "${transaction_id}" }
+                      simulate: ${map.get(simulate, "confirm")}
+                retry:
+                  predicate: ${is_transient}
+                  max_retries: 3
+                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+            - done:
+                return: { status: "done", transaction_id: "${transaction_id}" }
+        except:
+          as: e
+          steps:
+            - no_thread:
+                switch:
+                  # Nobody to email, so fail red. Re-run with the same input once it's fixed
+                  - condition: ${"ThreadMissing" in default(map.get(e, "tags"), [])}
+                    steps:
+                      - log_failed:
+                          call: sys.log
+                          args:
+                            severity: ERROR
+                            json: { message: "failed: thread missing, nobody was emailed", execution_id: "${execution_id}", reason: "${e.message}" }
+                      - fail:
+                          raise: ${e}
+            - handover:
+                call: handover
+                args:
+                  e: ${e}
+                  thread_id: ${thread_id}
+                  response_number: ${requisition.response_number}
+                  code: ${map.get(simulate, "notify")}
+                result: reason
+            - handed_over:
+                return: { status: "handed_over", reason: "${reason}" }
+
+# Every HTTP call: OIDC, a timeout, the execution id, and where it failed. Retries are the caller's call
+call_service:
+  params: [method, path, body: null, query: null, timeout: 20]
+  steps:
+    - request:
+        try:
+          call: http.request
+          args:
+            method: ${method}
+            url: ${sys.get_env("SERVICES_URL") + path}
+            auth:
+              type: OIDC
+              audience: ${sys.get_env("SERVICES_URL")}
+            headers:
+              X-Execution-Id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+            body: ${body}
+            query: ${query}
+            timeout: ${timeout}
+          result: response
+        except:
+          as: e
+          steps:
+            - add_where:
+                assign:
+                  - e.at: ${method + " " + path}
+            - rethrow:
+                raise: ${e}
+    - ok:
+        return: ${response.body}
+
+# Approved and balanced, or rejected with a reason. Anything else is ours to hand over
+check:
+  params: [c]
+  steps:
+    - rejected:
+        switch:
+          - condition: ${not c.approve and default(map.get(c, "reason"), "") != ""}
+            return: ok
+          - condition: ${not c.approve}
+            raise: { tags: [CheckFailed], message: "Rejected without a reason" }
+          - condition: ${len(c.debit) == 0}
+            raise: { tags: [CheckFailed], message: "Approved with no entries" }
+    - init:
+        assign:
+          - debits: 0
+          - credits: 0
+    - sum_debits:
+        for:
+          value: line
+          in: ${c.debit}
+          steps:
+            - add_debit:
+                assign:
+                  - debits: ${debits + line.amount}
+    - sum_credits:
+        for:
+          value: line
+          in: ${c.credit}
+          steps:
+            - add_credit:
+                assign:
+                  - credits: ${credits + line.amount}
+    - balanced:
+        switch:
+          - condition: ${math.abs(debits - credits) > 0.005}
+            raise:
+              tags: [CheckFailed]
+              message: ${"Debits (" + string(debits) + ") and credits (" + string(credits) + ") do not balance"}
+    - ok:
+        return: ok
+
+# Waits a few minutes for a late Forms email, then gives up loudly
+get_thread:
+  params: [response_number, code: null]
+  steps:
+    - lookup:
+        try:
+          try:
+            call: call_service
+            args:
+              method: GET
+              path: /workspace/gmail/thread
+              query:
+                response_number: ${response_number}
+                simulate: ${default(code, "")}
+            result: thread
+          retry:
+            predicate: ${is_retryable_read_or_missing}
+            max_retries: 3
+            backoff: { initial_delay: 30, max_delay: 120, multiplier: 2 }
+        except:
+          as: e
+          steps:
+            - missing:
+                raise:
+                  tags: [ThreadMissing]
+                  message: '${"Thread missing for response #" + string(response_number) + " after retries. Last error: " + default(map.get(e, "at"), "") + " " + default(map.get(e, "message"), "")}'
+    - found:
+        return: ${thread.thread_id}
+
+# Only a connection that never got there is retried. A timeout may have landed, so never retry it blind
+post:
+  params: [classification, reference, code: null]
+  steps:
+    - send:
+        try:
+          try:
+            call: call_service
+            args:
+              method: POST
+              path: /mifos/journal-entries
+              body:
+                reference: ${reference}
+                debit: ${classification.debit}
+                credit: ${classification.credit}
+                simulate: ${code}
+            result: posted
+          retry:
+            predicate: ${is_connection_failed}
+            max_retries: 3
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: e
+          steps:
+            - uncertain:
+                switch:
+                  - condition: ${"TimeoutError" in default(map.get(e, "tags"), [])}
+                    raise:
+                      tags: [PostUncertain]
+                      message: ${"Mifos did not answer in time and the entry may have landed. Check reference " + reference + " before booking it again"}
+            - rethrow:
+                raise: ${e}
+    - posted:
+        return: ${posted.transaction_id}
+
+# The one place every failure ends up. If this fails too, the execution goes red
+handover:
+  params: [e, thread_id, response_number, code: null]
+  steps:
+    - reason:
+        assign:
+          - reason: ${default(map.get(e, "message"), json.encode_to_string(e))}
+    - where:
+        switch:
+          - condition: ${map.get(e, "at") != null}
+            assign:
+              - reason: '${e.at + ": " + reason}'
+    - log:
+        call: sys.log
+        args:
+          severity: WARNING
+          json: { message: "handing over", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', reason: "${reason}" }
+    - thread:
+        switch:
+          - condition: ${thread_id == null}
+            steps:
+              - lookup:
+                  call: get_thread
+                  args:
+                    response_number: ${response_number}
+                  result: thread_id
+    - send:
+        try:
+          try:
+            call: call_service
+            args:
+              method: POST
+              path: ${"/workspace/gmail/notify/thread/" + thread_id}
+              body:
+                error: ${reason}
+                simulate: ${code}
+          retry:
+            predicate: ${is_transient}
+            max_retries: 3
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: notify_error
+          steps:
+            - log_failed:
+                call: sys.log
+                args:
+                  severity: ERROR
+                  json: { message: "handover email failed", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', reason: "${reason}", error: "${notify_error}" }
+            - fail:
+                raise: ${notify_error}
+    - done:
+        return: ${reason}
+
+is_transient:
+  params: [e]
+  steps:
+    - tags:
+        assign:
+          - tags: ${default(map.get(e, "tags"), [])}
+    - decide:
+        return: ${default(map.get(e, "code"), 0) in [429, 502, 503, 504] or "ConnectionError" in tags or "ConnectionFailedError" in tags}
+
+# Reads and classify have no side effects, so a timeout is safe to retry too
+is_retryable_read:
+  params: [e]
+  steps:
+    - timeout:
+        switch:
+          - condition: ${"TimeoutError" in default(map.get(e, "tags"), [])}
+            return: true
+    - transient:
+        call: is_transient
+        args:
+          e: ${e}
+        result: transient
+    - decide:
+        return: ${transient}
+
+is_retryable_read_or_missing:
+  params: [e]
+  steps:
+    - missing:
+        switch:
+          - condition: ${default(map.get(e, "code"), 0) == 404}
+            return: true
+    - retryable:
+        call: is_retryable_read
+        args:
+          e: ${e}
+        result: retryable
+    - decide:
+        return: ${retryable}
+
+is_connection_failed:
+  params: [e]
+  steps:
+    - decide:
+        return: ${"ConnectionFailedError" in default(map.get(e, "tags"), [])}
