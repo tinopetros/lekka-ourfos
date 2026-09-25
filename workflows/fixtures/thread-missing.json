@@ -5,6 +5,6 @@
         "payable_to": "City parking"
     },
     "simulate": {
-        "get_thread": 404
+        "get_thread": "missing"
     }
 }

@@ -107,7 +107,14 @@ main:
                 switch:
                   # Nobody to email, so fail red. Re-run with the same input once it's fixed
                   - condition: ${"ThreadMissing" in default(map.get(e, "tags"), [])}
-                    raise: ${e}
+                    steps:
+                      - log_failed:
+                          call: sys.log
+                          args:
+                            severity: ERROR
+                            json: { message: "failed: thread missing, nobody was emailed", execution_id: "${execution_id}", reason: "${e.message}" }
+                      - fail:
+                          raise: ${e}
             - handover:
                 call: handover
                 args:
@@ -215,8 +222,7 @@ get_thread:
             - missing:
                 raise:
                   tags: [ThreadMissing]
-                  message: '${"No thread for response #" + string(response_number) + " after retries"}'
-                  cause: ${e}
+                  message: '${"Thread missing for response #" + string(response_number) + " after retries. Last error: " + default(map.get(e, "at"), "") + " " + default(map.get(e, "message"), "")}'
     - found:
         return: ${thread.thread_id}
 
