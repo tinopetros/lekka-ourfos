@@ -10,30 +10,33 @@ RUFF := uvx ruff@0.16.9
 # One Terraform data dir per env, so dev's state can never be planned against prod
 export TF_DATA_DIR := .terraform-$(ENV)
 
-# The image tag is a hash of services/, so an unchanged service is never rebuilt.
+# The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
-SERVICES_SRC := $(shell find services -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' ! -name requirements.txt | LC_ALL=C sort)
+SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
+	! -name requirements.txt ! -name .env | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
+SERVICES_BUILD := .build/services
 REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build deploy destroy run start wait logs smoke check lint lock-check \
-	copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
+.PHONY: help check-env package build stage deploy destroy run start wait logs smoke check lint lock-check \
+	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
-	@echo "make smoke               happy ends done, classify-400 ends handed_over (what CI runs)"
+	@echo "make smoke               four fixtures end as they should, two through expenser (what CI runs)"
 	@echo "make check               fmt, validate, lock and lint (what a PR runs)"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
+	@echo "make agent|agent-web     expenser locally, in the terminal or the browser"
 	@echo "make destroy             terraform destroy"
 	@echo "make tf-init|tf-plan|tf-apply|tf-destroy|tf-output"
 	@echo "ENV=$(ENV) -> $(PROJECT)"
@@ -53,14 +56,20 @@ $(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/requirements.txt
 
 package: $(REQUIREMENTS) $(TRIGGER_ZIP)
 
+# services/ with expenser beside it, as the image sees them. Never a local .env or venv
+stage: services/requirements.txt
+	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
+	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ -C services . | tar -xf - -C $(SERVICES_BUILD)
+	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
+
 # As ourfos-build rather than the compute account (roles/editor), staged in our
 # africa-south1 bucket rather than the US default
-build: check-env services/requirements.txt
+build: check-env
 	@gcloud artifacts docker images describe $(IMAGE) --project $(PROJECT) >/dev/null 2>&1 \
 		&& echo "$(IMAGE) already built" \
-		|| gcloud builds submit services --project $(PROJECT) --region $(REGION) --tag $(IMAGE) \
+		|| { $(MAKE) -s stage && gcloud builds submit $(SERVICES_BUILD) --project $(PROJECT) --region $(REGION) --tag $(IMAGE) \
 			--service-account projects/$(PROJECT)/serviceAccounts/ourfos-build@$(PROJECT).iam.gserviceaccount.com \
-			--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs
+			--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs; }
 
 deploy: build tf-apply
 
@@ -84,7 +93,7 @@ logs:
 
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up
 smoke: check-env
-	@for case in happy:done classify-400:handed_over; do \
+	@for case in happy:done happy-llm:done classify-jailbreak:handed_over classify-400:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
@@ -93,6 +102,13 @@ smoke: check-env
 			[ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
+
+# Reads agents/expenser/.env, which make agent can't do without (TDD, Testing by hand)
+agent:
+	cd agents && uv run -q --project ../services adk run expenser
+
+agent-web:
+	cd agents && uv run -q --project ../services adk web
 
 check: tf-fmt-check tf-validate-ci lock-check lint
 
