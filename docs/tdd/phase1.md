@@ -84,6 +84,12 @@ Makefile                            sits on top of terraform, like hello-agent-d
    - `make deploy` = Cloud Build builds the service image (tagged with a hash of the source) and then `terraform apply` points Cloud Run at it. Terraform never builds anything itself, it just takes the image as a variable
    - The same build-then-apply is what prod lines up with later
 
+## Testing it by hand
+
+- From here: `make deploy`, or `make copy` then `make deploy` in Cloud Shell. Terraform shows the plan and waits for a `yes`
+- `make run` for the happy path, or `make run FIXTURE=classify-503` for one that retries and hands over
+- Each run prints an execution id: `make logs ID=<id>` tells its whole story
+
 ## Python
 
 - `uv` for everything, so a venv is one `uv sync` away
