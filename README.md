@@ -45,3 +45,7 @@ services/          called BY workflows — invoker is the workflow's SA only
 apps/              user-facing — behind IAP
 workflows/         the definitions, plus fixtures for running them
 ```
+
+## Testing by hand
+
+The Makefile is for manual testing on `ourfos-dev`, which is its default. Don't point it at prod with `PROJECT=ourfos-prod`: Terraform's state bucket is set at `make tf-init`, so it would plan dev's state against prod.
