@@ -25,3 +25,9 @@
 - ADR 5 of phase 1 still stands: anyone with the URL can start a run, now in prod too
 - Accepted for now: only stubs are behind it, and nothing reaches prod without a human pushing a tag
 - **Revisit** before anything real is behind it
+
+### 6. Infra makes what we run as, build with and upload to
+
+- The three runtime accounts, `ourfos-build` and the sources bucket live in infra's `modules/ourfos-app`. Our Terraform only looks them up
+- So the deployer never creates identities or buckets, and can act as exactly four accounts instead of any in the project, including the compute one that carries `roles/editor`
+- Builds, of the image and of the function, run as `ourfos-build` rather than the compute account, and stage in our `africa-south1` bucket rather than the US default

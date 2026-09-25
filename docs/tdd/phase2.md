@@ -33,29 +33,36 @@ By hand on purpose: this is the identity Terraform runs as, so Terraform does no
 
 In order, from a shell logged in as a project owner.
 
-**1. The deployer.** Done.
+**1. The deployer.** After infra has made our accounts and bucket (`modules/ourfos-app`).
 
 ```bash
 gcloud iam service-accounts create ourfos-app-deployer --project=ourfos-prod \
   --display-name="Cloud Build deployer for lekka-ourfos"
 ```
 
-**2. What it may do, in both projects.** Everything our Terraform touches, plus the nested `gcloud builds submit` that `make build` runs:
+**2. What it may do, in both projects.** Deploy our three kinds of resource, and act as only the accounts infra made for us (ADR 6):
 
 ```bash
 SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
 
 for P in ourfos-dev ourfos-prod; do
-  for R in run.admin cloudfunctions.admin workflows.admin iam.serviceAccountAdmin \
-           iam.serviceAccountUser storage.admin cloudbuild.builds.editor serviceusage.serviceUsageConsumer; do
+  for R in run.admin cloudfunctions.admin workflows.admin cloudbuild.builds.editor serviceusage.serviceUsageConsumer; do
     gcloud projects add-iam-policy-binding "$P" --condition=None \
       --member="serviceAccount:$SA" --role="roles/$R"
   done
-  # Project IAM, but only ever these two roles (ADR 2)
+  # Project IAM, but only ever these two roles (ADR 2). ^;^ because the expression has commas
   gcloud projects add-iam-policy-binding "$P" \
     --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin \
-    --condition='expression=api.getAttribute("iam.googleapis.com/modifiedGrantsByRole", []).hasOnly(["roles/logging.logWriter", "roles/workflows.invoker"]),title=only-two-roles'
-  # Read the registry infra owns
+    --condition='^;^expression=api.getAttribute("iam.googleapis.com/modifiedGrantsByRole", []).hasOnly(["roles/logging.logWriter", "roles/workflows.invoker"]);title=only-two-roles'
+  # Act as ours, and nobody else
+  for A in trigger workflow services build; do
+    gcloud iam service-accounts add-iam-policy-binding "ourfos-$A@$P.iam.gserviceaccount.com" --project="$P" \
+      --member="serviceAccount:$SA" --role=roles/iam.serviceAccountUser
+  done
+  # Our bucket and state, the registry infra owns
+  for B in "$P-ourfos-sources" "$P-tfstate"; do
+    gcloud storage buckets add-iam-policy-binding "gs://$B" --member="serviceAccount:$SA" --role=roles/storage.objectAdmin
+  done
   gcloud artifacts repositories add-iam-policy-binding ourfos --project="$P" --location=africa-south1 \
     --member="serviceAccount:$SA" --role=roles/artifactregistry.reader
 done
