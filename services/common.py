@@ -20,6 +20,6 @@ def simulate(request: Request, step: str, code):
         return
     log(request, f"simulating {code}", "WARNING", step=step)
     if code == "timeout":
-        time.sleep(40)
+        time.sleep(70)  # past every step timeout, including classify's 60s
     elif isinstance(code, int) or str(code).isdigit():
         raise HTTPException(int(code), f"simulated {code} at {step}")

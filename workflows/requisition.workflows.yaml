@@ -25,11 +25,13 @@ main:
                     body:
                       requisition: ${requisition}
                       simulate: ${map.get(simulate, "classify")}
+                    # A real model call can take 40s. Fewer, longer attempts: each one costs
+                    timeout: 60
                   result: classification
                 retry:
-                  predicate: ${is_transient}
-                  max_retries: 3
-                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+                  predicate: ${is_retryable_read}
+                  max_retries: 2
+                  backoff: { initial_delay: 4, max_delay: 30, multiplier: 4 }
             - check:
                 call: check
                 args:
@@ -74,7 +76,7 @@ main:
                       simulate: ${default(map.get(simulate, "mifos_read"), "")}
                   result: entry
                 retry:
-                  predicate: ${is_transient}
+                  predicate: ${is_retryable_read}
                   max_retries: 3
                   backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
             - verify:
@@ -119,7 +121,7 @@ main:
 
 # Every HTTP call: OIDC, a timeout, the execution id, and where it failed. Retries are the caller's call
 call_service:
-  params: [method, path, body: null, query: null]
+  params: [method, path, body: null, query: null, timeout: 20]
   steps:
     - request:
         try:
@@ -134,7 +136,7 @@ call_service:
               X-Execution-Id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
             body: ${body}
             query: ${query}
-            timeout: 20
+            timeout: ${timeout}
           result: response
         except:
           as: e
@@ -204,7 +206,7 @@ get_thread:
                 simulate: ${default(code, "")}
             result: thread
           retry:
-            predicate: ${is_transient_or_missing}
+            predicate: ${is_retryable_read_or_missing}
             max_retries: 3
             backoff: { initial_delay: 30, max_delay: 120, multiplier: 2 }
         except:
@@ -313,14 +315,15 @@ is_transient:
         assign:
           - tags: ${default(map.get(e, "tags"), [])}
     - decide:
-        return: ${default(map.get(e, "code"), 0) in [429, 500, 502, 503, 504] or "ConnectionError" in tags or "ConnectionFailedError" in tags}
+        return: ${default(map.get(e, "code"), 0) in [429, 502, 503, 504] or "ConnectionError" in tags or "ConnectionFailedError" in tags}
 
-is_transient_or_missing:
+# Reads and classify have no side effects, so a timeout is safe to retry too
+is_retryable_read:
   params: [e]
   steps:
-    - missing:
+    - timeout:
         switch:
-          - condition: ${default(map.get(e, "code"), 0) == 404}
+          - condition: ${"TimeoutError" in default(map.get(e, "tags"), [])}
             return: true
     - transient:
         call: is_transient
@@ -329,6 +332,21 @@ is_transient_or_missing:
         result: transient
     - decide:
         return: ${transient}
+
+is_retryable_read_or_missing:
+  params: [e]
+  steps:
+    - missing:
+        switch:
+          - condition: ${default(map.get(e, "code"), 0) == 404}
+            return: true
+    - retryable:
+        call: is_retryable_read
+        args:
+          e: ${e}
+        result: retryable
+    - decide:
+        return: ${retryable}
 
 is_connection_failed:
   params: [e]
