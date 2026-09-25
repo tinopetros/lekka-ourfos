@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.5.0"
+  # 1.16.4 in CI and Cloud Build too. A newer one would rewrite state they cannot read
+  required_version = "~> 1.16.4"
   required_providers {
     google = {
       source  = "hashicorp/google"
