@@ -56,6 +56,8 @@ requisition
 
 - One pydantic model, `Requisition`, is the shape: the trigger builds it, `receive` validates it again, and the service and expenser read it through it. Dates are `date` and `datetime` in code, never strings
 - On the wire, the workflow's JSON, they're ISO 8601, since JSON has no date type. The model parses them back, so a string never passes for a date
+- In Firestore, `submitted_at` is a Timestamp. `disbursed_on` is `"YYYY-MM-DD"`: Firestore has no date, and midnight Harare as a Timestamp reads as the day before in UTC
+- `requisition.py` lives in `services/`. `make package` copies it into the trigger's zip, as `stage` does expenser into the image
 - Required: `response_number`, `response_id`, `submitted_by`, `payable_to`, `amount`. Anything else missing is left out, not guessed
 - A date the cleaner can't read without guessing, like `04/05/2026`, is a 400, not a guess
 - A 400 lists every problem at once: `{"errors": ["total_amount: not a number", …]}`
