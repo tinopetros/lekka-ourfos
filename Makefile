@@ -24,7 +24,7 @@ TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke check lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -33,7 +33,8 @@ help:
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
 	@echo "make smoke               happy ends done, jailbreak and 400 end handed_over (what CI runs)"
-	@echo "make check               fmt, validate, lock and lint (what a PR runs)"
+	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
+	@echo "make test                the trigger's cleaner"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
@@ -50,7 +51,8 @@ check-env:
 	cd $* && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
 
 # Fixed mtimes so the zip, and so the function, only changes when the code does
-$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/requirements.txt
+# requisition.py comes from services/, so the trigger and the service share one shape
+$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/form.py services/requisition.py functions/trigger/requirements.txt
 	rm -rf .build/trigger $@ && mkdir -p .build/trigger
 	cp $^ .build/trigger/
 	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *
@@ -117,7 +119,10 @@ agent:
 agent-web:
 	cd agents && uv run -q --project ../services adk web
 
-check: tf-fmt-check tf-validate-ci lock-check lint
+check: tf-fmt-check tf-validate-ci lock-check lint test
+
+test:
+	cd functions/trigger && uv run -q pytest -q
 
 lint:
 	$(RUFF) check .
