@@ -1,7 +1,7 @@
 line-length = 120
 target-version = "py313"
-# So common and routers count as first-party imports
-src = ["services", "functions/trigger"]
+# So common, routers and expenser count as first-party imports
+src = ["services", "agents", "functions/trigger"]
 
 [lint]
 extend-select = ["I"]

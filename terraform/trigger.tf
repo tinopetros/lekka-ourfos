@@ -31,7 +31,7 @@ resource "google_cloudfunctions2_function" "trigger" {
   }
 }
 
-# Public, for now (ADR 5)
+# Public, for now
 resource "google_cloud_run_v2_service_iam_member" "trigger_public" {
   name     = google_cloudfunctions2_function.trigger.service_config[0].service
   location = var.region

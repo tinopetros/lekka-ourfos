@@ -1,15 +1,23 @@
 from fastapi import APIRouter, Request
+from fastapi.concurrency import run_in_threadpool
 
+import expenser_runner
 from common import log, simulate
 
 router = APIRouter(prefix="/requisitions")
 
 
 @router.post("/classify")
-def classify(request: Request, body: dict):
+async def classify(request: Request, body: dict):
     code = body.get("simulate")
-    simulate(request, "classify", code)
     amount = body["requisition"]["amount"]
+    if not code:
+        classification = await expenser_runner.classify(body["requisition"])
+        log(request, "classify", amount=amount, approve=classification["approve"], by="expenser")
+        return classification
+
+    # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop
+    await run_in_threadpool(simulate, request, "classify", code)
     log(request, "classify", amount=amount)
 
     if code == "rejected":
