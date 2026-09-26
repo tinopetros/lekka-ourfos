@@ -5,7 +5,12 @@ main:
         assign:
           - requisition: ${args.requisition}
           - simulate: {}
-          - simulate: ${default(map.get(args, "simulate"), simulate)}
+    - allow_simulate:
+        switch:
+          # Dev only. In prod a fixture's simulate is ignored, so the run is a real one
+          - condition: ${sys.get_env("SIMULATE") == "on"}
+            assign:
+              - simulate: ${default(map.get(args, "simulate"), simulate)}
     - log_start:
         call: sys.log
         args:

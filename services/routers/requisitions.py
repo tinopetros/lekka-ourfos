@@ -15,11 +15,13 @@ router = APIRouter(prefix="/requisitions/{id}")
 @router.post("")
 def receive(id: str, body: dict):
     requisition = body["requisition"]
+    # Only ever set on dev: the prod workflow drops it
+    simulate = {"simulate": body["simulate"]} if body.get("simulate") else {}
     store.save(
         id,
+        **simulate,
         requisition=requisition,
         response_number=requisition["response_number"],
-        simulate=body.get("simulate") or {},
         status="received",
         execution={"id": id, "revision": body.get("revision"), "started_at": store.NOW},
     )
@@ -37,23 +39,22 @@ async def classify(id: str, body: dict):
         await run_in_threadpool(simulate, "classify", code)
         classification = stub(amount, code)
     else:
-        classification = await expenser_runner.classify(requisition) | {"by": "expenser"}
+        classification = await expenser_runner.classify(requisition)
 
     await run_in_threadpool(store.save, id, status="classified", classification=classification)
-    log("classify", amount=amount, approve=classification["approve"], by=classification["by"])
+    log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")
     return classification
 
 
 def stub(amount: float, code: str) -> dict:
     if code == "rejected":
-        return {"approve": False, "reason": "No manager signature", "debit": [], "credit": [], "by": "stub"}
+        return {"approve": False, "reason": "No manager signature", "debit": [], "credit": []}
     return {
         "approve": True,
         "reason": "Stub: approved",
         "debit": [{"glCode": "6100", "amount": amount}],
         # "unbalanced" gives check something to catch
         "credit": [{"glCode": "1100", "amount": amount - (1 if code == "unbalanced" else 0)}],
-        "by": "stub",
     }
 
 

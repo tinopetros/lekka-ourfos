@@ -50,9 +50,9 @@ workflow ─▶ ourfos-services /requisitions/{execution_id}/…
 requisitions/{execution_id}
   requisition       as received
   response_number
-  simulate          so a fixture's document says it was one
+  simulate          dev only, so a fixture's document says it was one
   status            received → classified → posted → done | rejected | handed_over | failed
-  classification    { approve, reason, debit, credit, by }
+  classification    { approve, reason, debit, credit }
   thread_id
   transaction_id
   reason            when rejected, handed over or failed
@@ -76,7 +76,11 @@ requisitions/{execution_id}
 ```bash
 # Cloud Run env, set by Terraform
 FIRESTORE_DATABASE=ourfos
+# The workflow's env: on in dev.tfvars, off everywhere else
+SIMULATE=on
 ```
+
+- With `SIMULATE=off` the workflow ignores `simulate` from the trigger, so nothing downstream sees it and prod never stores it
 
 - `google-cloud-firestore`'s sync client, one per instance. The routes are sync, so FastAPI runs them in threads
 

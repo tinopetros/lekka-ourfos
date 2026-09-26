@@ -9,5 +9,6 @@ resource "google_workflows_workflow" "requisition" {
 
   user_env_vars = {
     SERVICES_URL = google_cloud_run_v2_service.services.uri
+    SIMULATE     = var.simulate ? "on" : "off"
   }
 }

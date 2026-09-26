@@ -17,3 +17,9 @@ variable "trigger_zip" {
   type        = string
   default     = "../.build/trigger.zip"
 }
+
+variable "simulate" {
+  description = "Whether fixtures may force stubs and failures. Dev only"
+  type        = bool
+  default     = false
+}

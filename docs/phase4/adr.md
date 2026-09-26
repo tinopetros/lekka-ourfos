@@ -49,7 +49,14 @@
 
 - Phase 3 ADR 8 holds, and `log_start` stops logging the requisition. The database is IAM only; infra's rules deny every client
 
-### 9. Dev only this phase
+### 9. `simulate` is dev only
+
+- The trigger is public, so in prod anyone could force a stub or a failure (phase 3 ADR 4's revisit). Now the prod workflow ignores it
+- One gate, in the workflow: the service is only reachable through it
+- A fixture sent to prod runs for real: the model is called, and Mifos and Gmail will be real once they aren't stubs
+- Prod smoke is already gone, so nothing needs it there
+
+### 10. Dev only this phase
 
 - The first phase that keeps data. Nothing is tagged into prod until the document shape has settled
 - Dev fills with smoke documents. **Revisit** with a TTL, as infra's notes suggest
