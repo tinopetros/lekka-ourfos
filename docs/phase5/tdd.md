@@ -4,15 +4,14 @@
 
 - Take the form's webhook payload as it really arrives, clean it at the trigger, and let only the clean shape through
 - Classify with the real prompt and chart of accounts, lifted from ourfos-v2, minus everything that needs attachments
-- A token on the trigger, so only the form and Postman can start a run
 - At the end, the data flow is settled. What's left is Workspace and Mifos for real
 
 ## Shape
 
 ```
-form / Postman ─▶ trigger ─ token? ─ clean ─▶ workflow ─▶ /requisitions/{id}/… ─▶ expenser (real prompt)
-                     │                 │
-                     401               400, no execution
+form / Postman ─▶ trigger ─ clean ─▶ workflow ─▶ /requisitions/{id}/… ─▶ expenser (real prompt)
+                              │
+                              400, no execution
 ```
 
 - The trigger is the only place that knows about the form. Everything after it sees one clean requisition
@@ -47,14 +46,16 @@ requisition
   form_id           str
   form_name         str
   submitted_by      str, lowercased
-  submitted_at      timestamp, from response_date
+  submitted_at      datetime, with its zone. Africa/Harare when the form gives none
   payable_to        str, trimmed
   amount            float, > 0, currency signs and thousands commas dropped
-  disbursed_on      "YYYY-MM-DD"
+  disbursed_on      date
   comment           str, or absent when empty
   files             { signed_requisition_form: [ids], receipts: [ids], invoices: [ids] }
 ```
 
+- One pydantic model, `Requisition`, is the shape: the trigger builds it, `receive` validates it again, and the service and expenser read it through it. Dates are `date` and `datetime` in code, never strings
+- On the wire, the workflow's JSON, they're ISO 8601, since JSON has no date type. The model parses them back, so a string never passes for a date
 - Required: `response_number`, `response_id`, `submitted_by`, `payable_to`, `amount`. Anything else missing is left out, not guessed
 - A date the cleaner can't read without guessing, like `04/05/2026`, is a 400, not a guess
 - A 400 lists every problem at once: `{"errors": ["total_amount: not a number", …]}`
@@ -63,16 +64,15 @@ requisition
 ## The trigger
 
 ```
-POST /  Authorization: Bearer <token>
+POST /
   { …the form's keys…, "simulate": {…} }   simulate: dev fixtures only, the workflow drops it in prod
 ```
 
-1. No token or the wrong one: 401. Compared in constant time. No token configured: 500, fails closed
-2. Pops `simulate`, cleans the rest. Problems: 400, nothing started
-3. Starts the workflow with `{requisition, raw, simulate}`. 202 with the execution id, as now
+1. Pops `simulate`, cleans the rest. Problems: 400, nothing started
+2. Starts the workflow with `{requisition, raw, simulate}`. 202 with the execution id, as now
 
 - `raw` is the body as posted, minus `simulate`. `receive` stores it next to the clean one
-- The token comes from Secret Manager, `trigger-token`, mounted as an env var. The value is set by hand
+- Still public, as in phase 2
 - Logs the execution id and `response_number`. Never the body
 
 ## Classify
@@ -84,19 +84,9 @@ POST /  Authorization: Bearer <token>
 - **Taken out**: every bullet about the attached requisition, signatures and receipts, and "disapprove any expense without a requisition attached". In their place, one line: attachments aren't shown yet, so never reject over one; judge from the form
 - **Kept**: the salary refusal, the PAYE/ZIMDEF/NSSA rules, the NSSA split, "credit is Cash at Vault unless the form names a bank"
 - **Swapped**: the FORMAT section for our `output_schema`. The examples are rewritten into it
-- The model gets the form as ourfos-v2's email showed it, so the examples still fit:
-
-```
-Subject: Requisition Approval Request Form - City parking
-Body:
-  Email address       ltanga@lekkacredit.com
-  Payable To          City parking
-  Total Amount        1
-  Date Disbursed      2026-04-10
-  Comment             …
-  Signed Requisition Form   1 file, not shown
-  Receipts                  none
-```
+- The model gets the clean requisition as JSON, as it does today. Not ourfos-v2's email
+- So the prompt's examples are rewritten on both sides: our requisition in, our classification out. What they teach doesn't change
+- The prompt's wording about "the email" becomes "the requisition"
 
 ### The classification
 
@@ -146,9 +136,7 @@ mifos_transaction_id   was transaction_id
 
 ## Terraform
 
-- Trigger: `trigger-token` as a secret env var
-- Infra ([lekka-ourfos-infra](https://github.com/tinopetros/lekka-ourfos-infra)): the Secret Manager API, the `trigger-token` secret in both projects, and `secretAccessor` on it for `ourfos-trigger` and for the build account, which smoke runs as. Secret-level grants, not project ones
-- If that turns into IAM work on infra's deployer, dev gets a plain env var instead and Secret Manager waits for prod
+- Nothing new. Infra neither
 
 ## Fixtures and smoke
 
@@ -164,7 +152,7 @@ mifos_transaction_id   was transaction_id
 | `classify-jailbreak` | none | `handed_over` | the injection moves into `comment`, the new free text |
 
 - `salary`, `nssa` and `bank` call the model, so they're for checking by hand, not smoke
-- Smoke is unchanged: happy, jailbreak, 400. `make start` now reads the token with `gcloud secrets versions access`
+- Smoke is unchanged: happy, jailbreak, 400.
 
 ## Testing by hand
 
@@ -174,7 +162,7 @@ make run FIXTURE=happy
 make doc ID=<execution_id>
 ```
 
-- Postman against the dev trigger: with the token 202, without 401, with `total_amount: "abc"` 400
+- Postman against the dev trigger: a form payload 202, with `total_amount: "abc"` 400
 - **One real payload:** point a copy of the form's webhook at the dev trigger and submit once. That pins the date formats and the file fields, and becomes a fixture, scrubbed
 
 ## Done when
@@ -182,7 +170,7 @@ make doc ID=<execution_id>
 - The cleaner's tests pass, including every file-field shape we know of
 - Every phase 4 fixture, as a form payload, ends as before on dev, and `make doc` shows the clean requisition and `raw`
 - `happy` ends `done` with Cash at Vault credited. `salary` ends `rejected`. `nssa` and `bank` look right by eye
-- Postman gets 401 without the token and 400 on a bad amount
+- Postman gets 202 on a form payload and 400 on a bad amount
 - Smoke passes on the dev build after merge
 
 ## Not in this phase
@@ -191,5 +179,5 @@ make doc ID=<execution_id>
 - Tuning the prompt, or choosing the model. That's the evals phase
 - Real emails, real Mifos
 - Knowing the source, so our own front end skips cleaning
-- A better token for prod
+- Authenticating the trigger
 - Prod

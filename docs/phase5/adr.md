@@ -18,6 +18,8 @@
 - `amount` drops currency signs and thousands commas, and anything left that isn't a positive number is a 400
 - A date that reads two ways, like `04/05/2026`, is a 400, not a guess. Money posted on the wrong date is worse than a bounced form
 - Only what's required is required. A missing comment or file field is left out
+- Dates are `date` and `datetime` in one pydantic model, from the trigger to expenser. ISO strings only on the wire
+- **Revisit** the minimum as it grows: a requisition link is the next thing that should be required, once attachments are back
 
 ### 4. Files are Drive ids, not fetched
 
@@ -38,10 +40,11 @@
 - `output_schema` gets named lines, with `glId` for Mifos and `comments` for the email
 - The prompt's examples are rewritten into it. Their content is unchanged
 
-### 7. The form as the email it used to be
+### 7. The model reads our requisition, not the old email
 
-- ourfos-v2's model read the form's notification email. We render the clean requisition the same way
-- So the prompt's examples still fit, and lifting it stays a lift
+- ourfos-v2's model read the form's notification email. Ours gets the clean requisition as JSON, the same object everything else reads
+- So the examples are rewritten into it, and "the email" in the prompt becomes "the requisition". That's the one place the lift isn't word for word
+- Nothing downstream depends on how the form's email looked
 
 ### 8. `check` holds the model to the amount
 
@@ -49,12 +52,10 @@
 - The prompt says to trust the form's amount. This makes that a rule, not a hope
 - A cent, because the NSSA split rounds each half up
 
-### 9. A static bearer token, for now
+### 9. The trigger stays public
 
-- Better than a public trigger, and the form's webhook and Postman both send a header
-- One shared secret: anyone holding it can start a run, and it's only rotated by hand
-- Secret Manager, owned by infra with secret-level grants (phase 4 ADR 7). A plain env var on dev if that costs more than it should
-- **Revisit** before prod: a token per caller, or our front end's own identity
+- Anyone with the URL can start a run on dev. Cleaning now turns junk away with a 400 before it starts anything
+- **Revisit** before prod, or with our own front end
 
 ### 10. The submitter is stored, not logged
 
