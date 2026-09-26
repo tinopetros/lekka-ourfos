@@ -31,11 +31,11 @@ workflow ─▶ ourfos-services /requisitions/{execution_id}/…
 | receive | `POST /requisitions/{id}` | requisition, simulate | | the document, `received` |
 | classify | `POST …/classify` | simulate | requisition | classification, `classified` |
 | get_thread | `GET …/thread` | response_number, simulate | | `thread_id` |
-| notify | `POST …/notify` | simulate | classification, thread | |
+| notify | `POST …/notify` | simulate | classification, thread | `emails.classification` |
 | post | `POST …/post` | simulate | classification | transaction_id, `posted` |
 | read_back | `GET …/read-back` | simulate | transaction_id | |
-| confirm | `POST …/confirm` | simulate | thread, transaction_id | |
-| handover | `POST …/handover` | thread_id, error, simulate | | |
+| confirm | `POST …/confirm` | simulate | thread, transaction_id | `emails.confirmation` |
+| handover | `POST …/handover` | thread_id, error, simulate | | `emails.handover`, if it can |
 | complete | `POST …/complete` | status, reason, transaction_id | | final status, execution |
 
 - `{id}` is the execution id. `post` sends it to Mifos as the reference, as now
@@ -54,17 +54,19 @@ requisitions/{execution_id}
   thread_id
   transaction_id
   reason            when rejected, handed over or failed
+  emails            { classification | confirmation | handover: { message_id, at } }
   execution         { id, revision, started_at, completed_at }
   updated_at
 ```
 
 - Every write is a merge, never an append, so the workflow's retries are harmless
-- A happy run: about five writes and four reads
+- Status is the headline. `emails` says which emails went out and when, so a UI needs one read, not a trip to Gmail. The thread is still one click away through `thread_id`
+- A happy run: about seven writes and four reads
 
 ## Writes and side effects
 
 - Before anything leaves the building (receive, classify), a failed write fails the step, and the workflow retries or hands over as usual
-- After Mifos or Gmail did something (post), a failed write is logged, not raised. The entry is in the ledger either way, and `complete` writes the transaction id again
+- After Mifos or Gmail did something (post, and every email), a failed write is logged, not raised. The entry is in the ledger either way, and `complete` writes the transaction id again
 - `complete` never turns a finished run red. If it can't write, it logs and the execution still returns its result
 
 ## Config
@@ -79,7 +81,7 @@ FIRESTORE_DATABASE=ourfos
 ## Terraform
 
 - Just the env above. Infra owns the database, its rules, and now every project role our accounts hold, `datastore.user` included ([infra#12](https://github.com/tinopetros/lekka-ourfos-infra/pull/12))
-- Our three project grants become `removed` blocks, so our state forgets them without revoking them. They go once dev and prod have both applied
+- Our three project grants leave our state without being revoked: `removed` blocks while the PR is open, `terraform state rm` at merge
 - What stays here is who may call our own resources: `run.invoker` on `ourfos-services` and the trigger
 - No indexes: every read is by id
 
@@ -119,16 +121,13 @@ for P in ourfos-dev ourfos-prod; do
 done
 ```
 
-**2. Ours loses project IAM**, once dev and prod have both applied `removed.tf`. Until then a prod plan still reads those grants:
+**2. At merge**, once infra owns the grants in both projects, in order:
 
-```bash
-SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
+- `terraform state rm` the three grants, in dev and prod
+- Drop `removed.tf`, merge
+- Our deployer loses `projectIamAdmin`, in both projects
 
-for P in ourfos-dev ourfos-prod; do
-  gcloud projects remove-iam-policy-binding "$P" \
-    --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin --all
-done
-```
+Nothing else merges to main in between: its dev apply would put the grants back in our state, and this merge would then revoke them.
 
 ## Done when
 

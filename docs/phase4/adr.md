@@ -15,12 +15,13 @@
 
 ### 3. The document id is the execution id
 
-- Fixtures reuse response numbers, so keying on `response_number` would have concurrent runs overwriting each other
+- One document per run. Real requisitions will bring ids of their own; those become fields
 - **Revisit** with phase 1 ADR 6: when a re-run should skip `post`, key on `response_number` and hang its executions under it
 
 ### 4. A status only where it changes what we'd tell someone
 
 - `received`, `classified`, `posted`, then how it ended. `get_thread`, `notify` and `confirm` don't move it
+- Emails are facts, not statuses: `emails.<kind>` gets the message id and when. Enough for a UI without asking Gmail
 
 ### 5. A write never undoes a side effect
 
@@ -32,8 +33,10 @@
 ### 6. Saved by the workflow's first step, not the trigger
 
 - One writer, the requisition service
-- But a requisition that never starts an execution, or fails at `receive`, isn't saved anywhere and nobody is told
-- **Revisit** with real intake: save in the trigger first, and tell the sender when it can't start
+- Not much is lost meanwhile. If the execution can't start, the trigger already answers 500. If `receive` fails, the run hands over, which needs no database, and the requisition sits in the execution's arguments for 90 days
+- What is lost: a durable record in those two cases. And a 500 only tells a person if whatever calls the trigger passes it on
+- Saving in the trigger costs a second writer, `datastore.user` for `ourfos-trigger`, and a key that exists before the execution does
+- **Revisit** with real intake, once we know the caller and the requisition's own id: save in the trigger, and make sure the sender hears when it fails
 
 ### 7. Infra grants our project roles, and our deployer none
 
