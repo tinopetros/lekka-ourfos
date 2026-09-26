@@ -89,7 +89,7 @@ SIMULATE=on
 ## Terraform
 
 - Just the env above. Infra owns the database (Firestore API and realtime updates on), its rules, and now every project role our accounts hold, `datastore.user` included ([infra#12](https://github.com/tinopetros/lekka-ourfos-infra/pull/12))
-- Our three project grants leave our state without being revoked: `removed` blocks while the PR is open, `terraform state rm` at merge
+- Our three project grants left our state without being revoked: `removed` blocks while the PR was open (dev), `terraform state rm` at merge (prod)
 - What stays here is who may call our own resources: `run.invoker` on `ourfos-services` and the trigger
 - No indexes: every read is by id
 
