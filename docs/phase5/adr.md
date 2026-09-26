@@ -65,3 +65,11 @@
 ### 11. Dev only, still
 
 - Phase 4 ADR 10 holds. The shape settles here, but attachments, Workspace and Mifos still aren't real
+
+### 12. Free text is screened on its own too
+
+- Found on dev: inside a whole requisition's JSON, Model Armor never matched the jailbreak in `comment`. The same text alone matched every time. One run approved 50,000 of stationery
+- So `payable_to` and `comment` are each screened alone first, then the whole prompt as before. Still in the agent, so `adk web` screens what prod does
+- Two more Model Armor calls per classify, one at a time: run together on a cold client, they failed, and failing closed blocked a clean requisition
+- It leans on the plugin's private helpers, which is safe while ADK is pinned
+- **Revisit** as free text grows, and with phase 3 ADR 6's revisit

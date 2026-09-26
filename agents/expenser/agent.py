@@ -4,10 +4,11 @@ import os
 
 from google.adk.agents import Agent
 from google.adk.apps import App
-from google.adk.integrations.model_armor import ModelArmorConfig, ModelArmorPlugin
+from google.adk.integrations.model_armor import ModelArmorConfig
 from pydantic import BaseModel
 
 from .prompt import PROMPT
+from .screen import FieldsModelArmorPlugin
 
 
 class Line(BaseModel):
@@ -37,9 +38,9 @@ root_agent = Agent(
     output_schema=Classification,
 )
 
-# Screens every prompt before the model sees it. Fails closed on a match and on an error
+# Screens every prompt before the model sees it, its free text alone too. Fails closed on a match and on an error
 app = App(
     name="expenser",
     root_agent=root_agent,
-    plugins=[ModelArmorPlugin(config=ModelArmorConfig(prompt_template_name=os.environ["MODEL_ARMOR_TEMPLATE"]))],
+    plugins=[FieldsModelArmorPlugin(config=ModelArmorConfig(prompt_template_name=os.environ["MODEL_ARMOR_TEMPLATE"]))],
 )

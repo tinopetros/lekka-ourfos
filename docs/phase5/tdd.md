@@ -86,6 +86,7 @@ POST /
 - **Taken out**: every bullet about the attached requisition, signatures and receipts, and "disapprove any expense without a requisition attached". In their place, one line: attachments aren't shown yet, so never reject over one; judge from the form
 - **Kept**: the salary refusal, the PAYE/ZIMDEF/NSSA rules, the NSSA split, "credit is Cash at Vault unless the form names a bank"
 - **Swapped**: the FORMAT section for our `output_schema`. The examples are rewritten into it
+- **Screened**: Model Armor sees `payable_to` and `comment` alone, then the whole prompt (ADR 12)
 - The model gets the clean requisition as JSON, as it does today. Not ourfos-v2's email
 - So the prompt's examples are rewritten on both sides: our requisition in, our classification out. What they teach doesn't change
 - The prompt's wording about "the email" becomes "the requisition"
