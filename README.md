@@ -51,7 +51,9 @@ workflows/         the definitions, plus fixtures for running them
 
 The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
 
-Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
+Fixtures are what the form's webhook posts: every value a string, files as Drive links. The trigger cleans them into one `Requisition` (`services/requisition.py`) and answers 400 with every problem when it can't; `make test` covers the cleaner. See [phase 5](docs/phase5/tdd.md).
+
+Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment
 

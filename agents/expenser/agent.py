@@ -1,4 +1,4 @@
-"""Expenser: a requisition in, a classification out. The prompt is a dummy for now."""
+"""Expenser: a requisition in, a classification out, with ourfos-v2's prompt."""
 
 import os
 
@@ -7,29 +7,33 @@ from google.adk.apps import App
 from google.adk.integrations.model_armor import ModelArmorConfig, ModelArmorPlugin
 from pydantic import BaseModel
 
+from .prompt import PROMPT
+
 
 class Line(BaseModel):
+    name: str
     glCode: str
+    # What Mifos posts to. glCode is what a person reads
+    glId: int
+    accountType: str
     amount: float
 
 
-# The stub's shape, so the workflow can't tell a model answered
+# The stub answers in this shape too, so the workflow can't tell a model answered
 class Classification(BaseModel):
     approve: bool
     reason: str
     debit: list[Line]
     credit: list[Line]
+    comments: list[str]
 
 
 root_agent = Agent(
     name="expenser",
     model=os.environ.get("EXPENSER_MODEL", "gemini-3.5-flash-lite"),
     description="Classifies a requisition into an approval and journal lines.",
-    instruction=(
-        "You get a requisition as JSON. Reject it if its amount is over 10000, with reason 'Too large'. "
-        "Otherwise approve it, with a one-line reason. "
-        "Either way, debit glCode 6100 and credit glCode 1100, each for exactly the amount."
-    ),
+    # A function, so ADK doesn't read the examples' braces as session state
+    instruction=lambda _: PROMPT,
     output_schema=Classification,
 )
 

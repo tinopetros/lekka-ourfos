@@ -1,0 +1,53 @@
+Account,GL Code,GL ID,Account Type,Disabled?,Are Manual Entries Allowed?,Used as,Comment
+Cash at Vault,10000000,109,ASSET,FALSE,TRUE,DETAIL,Usually the asset account used to debit for most expenses
+Cash at Tellers,10000001,110,ASSET,FALSE,TRUE,DETAIL,This may never be used
+Ecocash wallet,10000002,130,ASSET,FALSE,TRUE,DETAIL,
+Ecocash trust Account-Ecopay,10000003,153,ASSET,FALSE,TRUE,DETAIL,
+ZB Bank USD,10100002,123,ASSET,FALSE,TRUE,DETAIL,Usually used to debit when expensess are paid from the bank
+ZB Bank ZWL,10100003,133,ASSET,FALSE,TRUE,DETAIL,Only used to debit when expenses are paid from the bank in ZWL or ZIG currency
+NSSA Employee,2040,39,LIABILITY,FALSE,TRUE,DETAIL,Used to debit the employee half of NSSA payments
+NSSA,2087,81,LIABILITY,FALSE,TRUE,DETAIL,Used to debit the employer half of NSSA payments
+ZIMDEF levy,2084,158,LIABILITY,FALSE,TRUE,DETAIL,Used to debit when ZIMDEF is paid out
+Taxation - PAYE,2030,38,LIABILITY,FALSE,TRUE,DETAIL, Taxation and used to debit when PAYE or ZIMRA is paid out
+Interest Expense,5005,64,EXPENSE,FALSE,TRUE,DETAIL,
+Debtor's Commission Payable,5006,134,EXPENSE,FALSE,TRUE,DETAIL,
+Accounting and Audit Fees,5010,65,EXPENSE,FALSE,TRUE,DETAIL,
+Aids Levy - Corporate Tax,5015,147,EXPENSE,FALSE,TRUE,DETAIL,
+Advertising and Promotions,5020,66,EXPENSE,FALSE,TRUE,DETAIL,"Used for city parking, field work, client visits, site visits"
+Corporate Income Tax,5026,146,EXPENSE,FALSE,TRUE,DETAIL,
+Bank Charges,5030,68,EXPENSE,FALSE,TRUE,DETAIL,
+Consumables,5035,69,EXPENSE,FALSE,TRUE,DETAIL,
+Depreciation - Office Furniture and Equipment,5040,70,EXPENSE,FALSE,TRUE,DETAIL,
+Depreciation expense- motor vehicles,5041,164,EXPENSE,FALSE,TRUE,DETAIL,
+Depreciation - computer equipment,5045,71,EXPENSE,FALSE,TRUE,DETAIL,
+Depreciation - Other Assets,5050,72,EXPENSE,FALSE,TRUE,DETAIL,
+Directors Fees,5055,73,EXPENSE,FALSE,TRUE,DETAIL,
+Ecocash Charges,5060,74,EXPENSE,FALSE,TRUE,DETAIL,
+Fuel and Lubricants,5065,75,EXPENSE,FALSE,TRUE,DETAIL,Transportation fees falls here too
+Electricity,5066,129,EXPENSE,FALSE,TRUE,DETAIL,
+IMMT,5070,76,EXPENSE,FALSE,TRUE,DETAIL,
+Audit Fees,5072,135,EXPENSE,FALSE,TRUE,DETAIL,
+Cash Shortages,5073,131,EXPENSE,FALSE,TRUE,DETAIL,
+Frauds & Forgeries,5074,126,EXPENSE,FALSE,TRUE,DETAIL,
+Legal Fees,5075,77,EXPENSE,FALSE,TRUE,DETAIL,"ZRP, Lawyers, Makururu"
+Security Charges,5076,124,EXPENSE,FALSE,TRUE,DETAIL,"Safeguard, Rapid Response, Panic Button, Safeden, security installations"
+Debtors collection commission - Lawyers,5077,138,EXPENSE,FALSE,TRUE,DETAIL,Commission to debt collectors e.g. Wellcash
+Licenses,5080,78,EXPENSE,FALSE,TRUE,DETAIL,
+Maintenance Furniture and Fittings,5085,79,EXPENSE,FALSE,TRUE,DETAIL,
+Maintenance Equipment,5090,80,EXPENSE,FALSE,TRUE,DETAIL,Repairs and installations - bias towards this expense even for what you assume should be capitalized - approve AND raise the concern
+Office Cleaning,5100,82,EXPENSE,FALSE,TRUE,DETAIL,Used for office cleaning usually done by Mr or Mrs Jongwe
+Printing and Stationery,5105,83,EXPENSE,FALSE,TRUE,DETAIL,"Fusertech, printing toner or catridge"
+Bad Debts Written Off - Personal Loans,51100001,105,EXPENSE,FALSE,TRUE,DETAIL,
+Loan Loss Provision,51100002,118,EXPENSE,FALSE,TRUE,DETAIL,
+Rent Rates and Operating Costs,5115,85,EXPENSE,FALSE,TRUE,DETAIL,
+Staff Salaries,5120,86,EXPENSE,FALSE,TRUE,DETAIL,
+Staff Bonus,5125,87,EXPENSE,FALSE,TRUE,DETAIL,
+Staff Allowances,5130,88,EXPENSE,FALSE,TRUE,DETAIL,"Staff lunch, team dinners, employee meals"
+Student Allowances,5131,128,EXPENSE,FALSE,TRUE,DETAIL,
+Staff training and development,5132,154,EXPENSE,FALSE,TRUE,DETAIL,"Certificates, diplomas, staff workshop"
+System Support Expense,5135,89,EXPENSE,FALSE,TRUE,DETAIL,Used for Mr Muchenje or System or Mifos or LMS Support
+Subscriptions,5140,90,EXPENSE,FALSE,TRUE,DETAIL,FCB and other subs
+Office Provisions,5145,91,EXPENSE,FALSE,TRUE,DETAIL,"Bread, tea and other items bought for perishable use in the office"
+Telecommunication,5150,92,EXPENSE,FALSE,TRUE,DETAIL,"MD Data, ZOL, Liquid, Wifi, Bundle, Telephone or landline or receiver"
+Consultancy Fees,5151,139,EXPENSE,FALSE,TRUE,DETAIL,Usually used for Zivai Saruchera's consultancy fee
+Insurance Expense,5155,93,EXPENSE,FALSE,TRUE,DETAIL,
