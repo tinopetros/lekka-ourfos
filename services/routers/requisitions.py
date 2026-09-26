@@ -11,13 +11,12 @@ router = APIRouter(prefix="/requisitions")
 async def classify(request: Request, body: dict):
     code = body.get("simulate")
     amount = body["requisition"]["amount"]
-    # The only path that spends tokens (ADR 4)
-    if code == "llm":
+    if not code:
         classification = await expenser_runner.classify(body["requisition"])
         log(request, "classify", amount=amount, approve=classification["approve"], by="expenser")
         return classification
 
-    # Async now, so a simulated hang must not block the event loop
+    # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop
     await run_in_threadpool(simulate, request, "classify", code)
     log(request, "classify", amount=amount)
 

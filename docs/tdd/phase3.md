@@ -5,16 +5,15 @@
 - `classify` can call a real model, to prove the whole chain fires: workflow → Cloud Run → Model Armor → Vertex → back
 - The agent is `expenser`. Classify will do more before calling it; for now it only calls it
 - Its prompt is a dummy on purpose. The real use case comes later
-- `simulate` stays in charge: without it, classify still answers with the stub, for free
+- Classify calls the model by default, as prod will. `simulate` opts out: `stub` for the canned answer, or a forced failure
 
 ## Shape
 
 ```
 workflow ─▶ ourfos-services POST /requisitions/classify
               │
-              ├─ simulate.classify = 400 | rejected | …   stub, as in phase 1
-              ├─ no simulate                              stub approval, as in phase 1
-              └─ simulate.classify = "llm"                agents/expenser, in process
+              ├─ simulate.classify = stub | 400 | rejected | …   stub, as in phase 1
+              └─ no simulate                                     agents/expenser, in process
                                                             │
                                                             ├─ ModelArmorPlugin: jailbreak? ─▶ 422
                                                             └─ gemini-3.5-flash-lite on global ─▶ classification
@@ -71,13 +70,14 @@ MODEL_ARMOR_TEMPLATE=projects/ourfos-dev/locations/eu/templates/expenser
 
 ## Fixtures and smoke
 
-| Fixture | simulate | Ends | Smoke |
+| Fixture | simulate.classify | Ends | Smoke |
 | --- | --- | --- | --- |
-| `happy` | none (stub) | `done` | yes |
-| `happy-llm` | `llm`, 250 | `done` | yes |
-| `classify-jailbreak` | `llm`, injection in `payable_to` | `handed_over` | yes |
+| `happy` | none, 250 | `done` | yes |
+| `classify-jailbreak` | none, injection in `payable_to` | `handed_over` | yes |
 | `classify-400` | 400 | `handed_over` | yes |
-| `classify-too-large` | `llm`, 50,000 | `rejected` | no |
+| `classify-too-large` | none, 50,000 | `rejected` | no |
+
+- Fixtures aimed at later steps (`post-*`, `read-back-mismatch`, `thread-missing`) say `stub`, so they stay free and don't depend on the model
 
 ## Testing by hand
 
@@ -93,7 +93,7 @@ On dev, end to end:
 
 ```bash
 make deploy
-make run FIXTURE=happy-llm
+make run FIXTURE=happy
 make run FIXTURE=classify-too-large
 make run FIXTURE=classify-jailbreak
 ```
@@ -123,9 +123,9 @@ done
 ## Done when
 
 - `make agent` answers locally, and a jailbreak there is refused
-- On dev, `happy-llm` ends `done`, `classify-too-large` ends `rejected` and `classify-jailbreak` ends `handed_over`
+- On dev, `happy` ends `done`, `classify-too-large` ends `rejected` and `classify-jailbreak` ends `handed_over`
 - Every phase 1 fixture ends exactly as before
-- Smoke passes through the real dev trigger with the four cases
+- Smoke passes through the real dev trigger with the three cases
 
 ## Not in this phase
 

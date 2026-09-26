@@ -17,11 +17,13 @@
 - `InMemorySessionService` is a dict that only grows. One service shared across a warm instance would leak a session per request
 - So each request gets its own, and nothing outlives it
 
-### 4. `simulate` decides, and the model is opt-in
+### 4. The model by default, `simulate` opts out
 
-- No `simulate` still means the stub, so fixtures and `make run` stay deterministic and free
-- `simulate.classify = "llm"` is the only way to spend tokens, and smoke does it on every deploy
-- That is the point: the grant, the region and the model id are what a deploy breaks, and only a real call catches them
+- A real requisition never sends `simulate`, so the default has to be what prod does. Nothing to switch as we get closer to prod
+- `stub` gives the canned answer, and the phase 1 codes still force failures. Fixtures that aren't about classify say `stub`
+- Smoke calls the model on every deploy. That is the point: the grant, the region and the model id are what a deploy breaks
+- `simulate` comes from the request body, and the trigger is public, so anyone can force a stub or a failure, in prod too
+- **Revisit** with the public trigger (phase 2 ADR 5): ignore `simulate` in prod
 
 ### 5. The deployer can grant four project roles now
 

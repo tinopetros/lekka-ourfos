@@ -31,7 +31,7 @@ help:
 	@echo "make deploy              build the services image, then terraform apply"
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
-	@echo "make smoke               four fixtures end as they should, two through expenser (what CI runs)"
+	@echo "make smoke               happy ends done, jailbreak and 400 end handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock and lint (what a PR runs)"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
@@ -93,7 +93,7 @@ logs:
 
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up
 smoke: check-env
-	@for case in happy:done happy-llm:done classify-jailbreak:handed_over classify-400:handed_over; do \
+	@for case in happy:done classify-jailbreak:handed_over classify-400:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
@@ -103,7 +103,7 @@ smoke: check-env
 		done; \
 	done
 
-# Reads agents/expenser/.env, which make agent can't do without (TDD, Testing by hand)
+# Reads agents/expenser/.env
 agent:
 	cd agents && uv run -q --project ../services adk run expenser
 

@@ -51,7 +51,7 @@ workflows/         the definitions, plus fixtures for running them
 
 The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
 
-Classify answers with a stub unless a fixture says `"simulate": {"classify": "llm"}`, the only runs that spend tokens. `make agent` runs expenser on its own, locally. See [phase 3](docs/tdd/phase3.md).
+Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` for the free, canned answer. `make agent` runs expenser on its own, locally. See [phase 3](docs/tdd/phase3.md).
 
 ## Deployment
 

@@ -3,8 +3,5 @@
         "response_number": 482,
         "amount": 50000,
         "payable_to": "City parking"
-    },
-    "simulate": {
-        "classify": "llm"
     }
 }

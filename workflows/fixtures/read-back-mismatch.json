@@ -5,6 +5,7 @@
         "payable_to": "City parking"
     },
     "simulate": {
+        "classify": "stub",
         "mifos_read": "mismatch"
     }
 }
