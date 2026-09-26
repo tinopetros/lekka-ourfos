@@ -132,7 +132,10 @@ Phase 4's, with:
 requisition     clean, as above
 raw             the form's payload as posted. This phase only
 classification  approve, reason, debit, credit, comments
+mifos_transaction_id   was transaction_id
 ```
+
+- `transaction_id` becomes `mifos_transaction_id` everywhere: the document, the workflow's variables, step bodies and `/read-back/{mifos_transaction_id}`. Mifos's journal entry API calls it `transactionId`; the name is revisited when Mifos is real
 
 - `submitted_by` is kept: it's who the emails go to later. Stored, never logged
 
