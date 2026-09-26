@@ -5,6 +5,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import errors, types
 
+from common import RETRIED
 from expenser.agent import Classification, app
 
 
@@ -19,8 +20,8 @@ async def classify(requisition: dict) -> dict:
             if event.is_final_response():
                 final = event
     except errors.APIError as e:
-        # 429 and 503 are retried by the workflow, anything else hands over
-        raise HTTPException(e.code if e.code in (429, 503) else 500, f"expenser: {e.code}") from e
+        # What the workflow retries passes through (is_transient), anything else hands over
+        raise HTTPException(e.code if e.code in RETRIED else 500, f"expenser: {e.code}") from e
 
     if final and (final.custom_metadata or {}).get("model_armor_blocked"):
         raise HTTPException(422, "expenser: blocked by Model Armor")

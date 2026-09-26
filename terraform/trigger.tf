@@ -38,9 +38,3 @@ resource "google_cloud_run_v2_service_iam_member" "trigger_public" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
-
-resource "google_project_iam_member" "trigger_starts_workflows" {
-  project = var.project_id
-  role    = "roles/workflows.invoker"
-  member  = "serviceAccount:${local.sa.trigger}"
-}

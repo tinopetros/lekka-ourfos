@@ -15,6 +15,7 @@ resource "google_cloud_run_v2_service" "services" {
           GOOGLE_CLOUD_LOCATION     = "global"
           EXPENSER_MODEL            = "gemini-3.5-flash-lite"
           MODEL_ARMOR_TEMPLATE      = google_model_armor_template.expenser.id
+          FIRESTORE_DATABASE        = "ourfos"
         }
         content {
           name  = env.key

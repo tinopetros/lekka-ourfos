@@ -24,13 +24,14 @@ TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs smoke check lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke check lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
+	@echo "make doc ID=<execution>  its requisition document, from Firestore"
 	@echo "make smoke               happy ends done, jailbreak and 400 end handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock and lint (what a PR runs)"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
@@ -90,6 +91,12 @@ run:
 logs:
 	gcloud logging read 'jsonPayload.execution_id="$(ID)"' --project $(PROJECT) --freshness 1d --order asc \
 		--format 'table(timestamp, severity, resource.type, jsonPayload.message)'
+
+# With your application default credentials
+doc:
+	@cd services && GOOGLE_CLOUD_PROJECT=$(PROJECT) uv run -q python -c 'import json, sys; from google.cloud import firestore; \
+		doc = firestore.Client(database="ourfos").collection("requisitions").document(sys.argv[1]).get(); \
+		print(json.dumps(doc.to_dict(), indent=2, default=str))' $(ID)
 
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up
 smoke: check-env

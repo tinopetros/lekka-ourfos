@@ -9,10 +9,3 @@ resource "google_model_armor_template" "expenser" {
     }
   }
 }
-
-resource "google_project_iam_member" "services" {
-  for_each = toset(["roles/aiplatform.user", "roles/modelarmor.user"])
-  project  = var.project_id
-  role     = each.value
-  member   = "serviceAccount:${local.sa.services}"
-}

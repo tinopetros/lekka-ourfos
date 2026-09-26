@@ -3,27 +3,74 @@ main:
   steps:
     - init:
         assign:
-          - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
           - requisition: ${args.requisition}
           - simulate: {}
-          - simulate: ${default(map.get(args, "simulate"), simulate)}
-          - thread_id: null
+    - allow_simulate:
+        switch:
+          # Dev only. In prod a fixture's simulate is ignored, so the run is a real one
+          - condition: ${sys.get_env("SIMULATE") == "on"}
+            assign:
+              - simulate: ${default(map.get(args, "simulate"), simulate)}
     - log_start:
         call: sys.log
         args:
           severity: INFO
-          json: { message: "requisition started", execution_id: "${execution_id}", requisition: "${requisition}" }
+          json: { message: "requisition started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', response_number: "${requisition.response_number}" }
+    - run:
+        try:
+          call: process
+          args:
+            requisition: ${requisition}
+            simulate: ${simulate}
+          result: result
+        except:
+          as: e
+          steps:
+            - failed:
+                call: complete
+                args:
+                  result: { status: "failed", reason: '${default(map.get(e, "message"), json.encode_to_string(e))}' }
+            - fail:
+                raise: ${e}
+    - complete:
+        call: complete
+        args:
+          result: ${result}
+    - done:
+        return: ${result}
+
+# Every step, and how it ends: done, rejected or handed over. Only a missing thread or a failed handover raise
+process:
+  params: [requisition, simulate]
+  steps:
+    - init:
+        assign:
+          - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+          - thread_id: null
     - run:
         try:
           steps:
+            - receive:
+                try:
+                  call: call_service
+                  args:
+                    method: POST
+                    path: ""
+                    body:
+                      requisition: ${requisition}
+                      simulate: ${simulate}
+                      revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
+                retry:
+                  predicate: ${is_retryable_read}
+                  max_retries: 3
+                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
             - classify:
                 try:
                   call: call_service
                   args:
                     method: POST
-                    path: /requisitions/classify
+                    path: /classify
                     body:
-                      requisition: ${requisition}
                       simulate: ${map.get(simulate, "classify")}
                     # A real model call can take 40s. Fewer, longer attempts: each one costs
                     timeout: 60
@@ -47,9 +94,9 @@ main:
                   call: call_service
                   args:
                     method: POST
-                    path: ${"/workspace/gmail/notify/thread/" + thread_id}
+                    path: /notify
                     body:
-                      classification: ${classification}
+                      thread_id: ${thread_id}
                       simulate: ${map.get(simulate, "notify")}
                 retry:
                   predicate: ${is_transient}
@@ -62,7 +109,6 @@ main:
             - post:
                 call: post
                 args:
-                  classification: ${classification}
                   reference: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
                 result: transaction_id
@@ -71,7 +117,7 @@ main:
                   call: call_service
                   args:
                     method: GET
-                    path: ${"/mifos/journal-entries/" + transaction_id}
+                    path: ${"/read-back/" + transaction_id}
                     query:
                       simulate: ${default(map.get(simulate, "mifos_read"), "")}
                   result: entry
@@ -90,9 +136,10 @@ main:
                   call: call_service
                   args:
                     method: POST
-                    path: ${"/workspace/gmail/notify/thread/" + thread_id}
+                    path: /confirm
                     body:
-                      confirmation: { transaction_id: "${transaction_id}" }
+                      thread_id: ${thread_id}
+                      transaction_id: ${transaction_id}
                       simulate: ${map.get(simulate, "confirm")}
                 retry:
                   predicate: ${is_transient}
@@ -126,7 +173,8 @@ main:
             - handed_over:
                 return: { status: "handed_over", reason: "${reason}" }
 
-# Every HTTP call: OIDC, a timeout, the execution id, and where it failed. Retries are the caller's call
+# Every HTTP call, all to this workflow's service: OIDC, a timeout, the execution id, and where it failed.
+# Retries are the caller's call
 call_service:
   params: [method, path, body: null, query: null, timeout: 20]
   steps:
@@ -135,7 +183,7 @@ call_service:
           call: http.request
           args:
             method: ${method}
-            url: ${sys.get_env("SERVICES_URL") + path}
+            url: ${sys.get_env("SERVICES_URL") + "/requisitions/" + sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID") + path}
             auth:
               type: OIDC
               audience: ${sys.get_env("SERVICES_URL")}
@@ -207,7 +255,7 @@ get_thread:
             call: call_service
             args:
               method: GET
-              path: /workspace/gmail/thread
+              path: /thread
               query:
                 response_number: ${response_number}
                 simulate: ${default(code, "")}
@@ -228,7 +276,7 @@ get_thread:
 
 # Only a connection that never got there is retried. A timeout may have landed, so never retry it blind
 post:
-  params: [classification, reference, code: null]
+  params: [reference, code: null]
   steps:
     - send:
         try:
@@ -236,11 +284,8 @@ post:
             call: call_service
             args:
               method: POST
-              path: /mifos/journal-entries
+              path: /post
               body:
-                reference: ${reference}
-                debit: ${classification.debit}
-                credit: ${classification.credit}
                 simulate: ${code}
             result: posted
           retry:
@@ -293,8 +338,9 @@ handover:
             call: call_service
             args:
               method: POST
-              path: ${"/workspace/gmail/notify/thread/" + thread_id}
+              path: /handover
               body:
+                thread_id: ${thread_id}
                 error: ${reason}
                 simulate: ${code}
           retry:
@@ -313,6 +359,31 @@ handover:
                 raise: ${notify_error}
     - done:
         return: ${reason}
+
+# Best effort: a run that ended stays ended, even if we can't write it down
+complete:
+  params: [result]
+  steps:
+    - write:
+        try:
+          try:
+            call: call_service
+            args:
+              method: POST
+              path: /complete
+              body: ${result}
+          retry:
+            predicate: ${is_transient}
+            max_retries: 2
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: e
+          steps:
+            - log:
+                call: sys.log
+                args:
+                  severity: ERROR
+                  json: { message: "not completed", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', error: "${e}" }
 
 is_transient:
   params: [e]

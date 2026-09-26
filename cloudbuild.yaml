@@ -1,4 +1,4 @@
-# Run by both triggers in ourfos-prod (docs/tdd/phase2.md, "Bootstrapped, once"):
+# Run by both triggers in ourfos-prod (docs/phase2/tdd.md, "Bootstrapped, once"):
 #
 #   lekka-ourfos-dev   push to main  _ENV=dev   package, build, apply dev, smoke, plan prod
 #   lekka-ourfos-prod  tag 0.1.0     _ENV=prod  dev passed? package, build, apply prod

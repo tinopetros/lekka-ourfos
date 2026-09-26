@@ -9,11 +9,6 @@ resource "google_workflows_workflow" "requisition" {
 
   user_env_vars = {
     SERVICES_URL = google_cloud_run_v2_service.services.uri
+    SIMULATE     = var.simulate ? "on" : "off"
   }
-}
-
-resource "google_project_iam_member" "workflow_logs" {
-  project = var.project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${local.sa.workflow}"
 }
