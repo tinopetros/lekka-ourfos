@@ -4,7 +4,7 @@
 
 - One workflow, one service: `requisition` only calls `/requisitions/*`, and that service calls Mifos, Gmail and expenser for it
 - The requisition service owns the requisition's state in Firestore: saved on arrival, a status as it moves, how the execution ended
-- The workflow carries ids and what it branches on. The document carries the data
+- The workflow carries ids (execution, thread, transaction) and what it branches on. The document carries the data
 - Dev only. Nothing gets tagged into prod this phase
 
 ## Shape
@@ -31,16 +31,18 @@ workflow ─▶ ourfos-services /requisitions/{execution_id}/…
 | receive | `POST /requisitions/{id}` | requisition, simulate | | the document, `received` |
 | classify | `POST …/classify` | simulate | requisition | classification, `classified` |
 | get_thread | `GET …/thread` | response_number, simulate | | `thread_id` |
-| notify | `POST …/notify` | simulate | classification, thread | `emails.classification` |
+| notify | `POST …/notify` | thread_id, simulate | classification | `emails.classification` |
 | post | `POST …/post` | simulate | classification | transaction_id, `posted` |
-| read_back | `GET …/read-back` | simulate | transaction_id | |
-| confirm | `POST …/confirm` | simulate | thread, transaction_id | `emails.confirmation` |
+| read_back | `GET …/read-back/{transaction_id}` | simulate | | |
+| confirm | `POST …/confirm` | thread_id, transaction_id, simulate | | `emails.confirmation` |
 | handover | `POST …/handover` | thread_id, error, simulate | | `emails.handover`, if it can |
 | complete | `POST …/complete` | status, reason, transaction_id | | final status, execution |
 
 - `{id}` is the execution id. `post` sends it to Mifos as the reference, as now
 - `classify` still returns the classification, since `check`, `rejected` and `verify` branch on it
-- `thread` takes `response_number` and `handover` takes `thread_id` in the call, so the handover path works even when the database doesn't
+- Ids come from the workflow, never the document: a write after a side effect may not have landed (see below)
+- `thread` and `handover` need nothing from the database, so the handover path works even when the database doesn't
+- `complete` runs however the run ends, `failed` included, and never fails it
 
 ## The document
 
@@ -65,8 +67,8 @@ requisitions/{execution_id}
 
 ## Writes and side effects
 
-- Before anything leaves the building (receive, classify), a failed write fails the step, and the workflow retries or hands over as usual
-- After Mifos or Gmail did something (post, and every email), a failed write is logged, not raised. The entry is in the ledger either way, and `complete` writes the transaction id again
+- Before anything leaves the building (receive, classify), a failed write fails the step: 429 and 503 are retried, anything else hands over
+- After Mifos or Gmail did something (post, and every email), a failed write is logged, not raised. So is `thread_id`, which handover needs without the database. The entry is in the ledger either way, and `complete` writes the transaction id again
 - `complete` never turns a finished run red. If it can't write, it logs and the execution still returns its result
 
 ## Config
@@ -76,11 +78,11 @@ requisitions/{execution_id}
 FIRESTORE_DATABASE=ourfos
 ```
 
-- `google-cloud-firestore`'s async client, one per instance
+- `google-cloud-firestore`'s sync client, one per instance. The routes are sync, so FastAPI runs them in threads
 
 ## Terraform
 
-- Just the env above. Infra owns the database, its rules, and now every project role our accounts hold, `datastore.user` included ([infra#12](https://github.com/tinopetros/lekka-ourfos-infra/pull/12))
+- Just the env above. Infra owns the database (Firestore API and realtime updates on), its rules, and now every project role our accounts hold, `datastore.user` included ([infra#12](https://github.com/tinopetros/lekka-ourfos-infra/pull/12))
 - Our three project grants leave our state without being revoked: `removed` blocks while the PR is open, `terraform state rm` at merge
 - What stays here is who may call our own resources: `run.invoker` on `ourfos-services` and the trigger
 - No indexes: every read is by id
