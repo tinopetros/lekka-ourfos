@@ -21,6 +21,7 @@
 ### 4. A status only where it changes what we'd tell someone
 
 - `received`, `classified`, `posted`, then how it ended. `get_thread`, `notify` and `confirm` don't move it
+- How it ended is final. A step that answers after the workflow gave up on it (a slow post, a slow model) still records what it did, but can't move the status back. Found on dev: `post-timeout` ended `handed_over` and then read `posted`
 - Emails are facts, not statuses: `emails.<kind>` gets the message id and when. Enough for a UI without asking Gmail
 
 ### 5. A write never undoes a side effect

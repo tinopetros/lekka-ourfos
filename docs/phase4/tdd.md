@@ -62,6 +62,7 @@ requisitions/{execution_id}
 ```
 
 - Every write is a merge, never an append, so the workflow's retries are harmless
+- Status writes go through a transaction: once it says `done`, `rejected`, `handed_over` or `failed`, a late step's fields still land but its status doesn't
 - Status is the headline. `emails` says which emails went out and when, so a UI needs one read, not a trip to Gmail. The thread is still one click away through `thread_id`
 - A happy run: about seven writes and four reads
 

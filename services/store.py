@@ -11,8 +11,12 @@ NOW = firestore.SERVER_TIMESTAMP
 
 
 @cache
+def client():
+    return firestore.Client(database=os.environ.get("FIRESTORE_DATABASE", "ourfos"))
+
+
 def requisitions():
-    return firestore.Client(database=os.environ.get("FIRESTORE_DATABASE", "ourfos")).collection("requisitions")
+    return client().collection("requisitions")
 
 
 def get(id: str) -> dict:
@@ -27,10 +31,26 @@ def get(id: str) -> dict:
 
 def save(id: str, **fields):
     """A merge, so a retried step writes the same thing twice and nothing more."""
+    ref = requisitions().document(id)
     try:
-        requisitions().document(id).set(fields | {"updated_at": NOW}, merge=True)
+        if "status" in fields:
+            _save_status(client().transaction(), ref, fields | {"updated_at": NOW})
+        else:
+            ref.set(fields | {"updated_at": NOW}, merge=True)
     except exceptions.GoogleAPICallError as e:
         raise _status(e) from e
+
+
+# How a run ended is final. A step that answers after the workflow gave up on it,
+# like a slow post, still records what it did but can't move the status back
+@firestore.transactional
+def _save_status(transaction, ref, fields):
+    if (ref.get(transaction=transaction).to_dict() or {}).get("status") in ENDED:
+        fields = {k: v for k, v in fields.items() if k != "status"}
+    transaction.set(ref, fields, merge=True)
+
+
+ENDED = {"done", "rejected", "handed_over", "failed"}
 
 
 def record(id: str, fail: bool = False, **fields):
