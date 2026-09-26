@@ -24,8 +24,9 @@
 
 ### 5. A write never undoes a side effect
 
+- Mifos takes the post, then writing `posted` fails. Raising would hand over with "post failed" while the money is in the ledger, and a re-run might post it twice
+- So after a post, a failed write is logged, not raised
 - A failed write before anything leaves the building fails the step, which is safe to retry
-- After a post, a failed write is logged, not raised. Failing would hand over an entry that is already in the ledger, and a re-run might post it twice
 - `complete` is best effort and never turns a finished run red. A red execution may miss its final status; its history has it
 
 ### 6. Saved by the workflow's first step, not the trigger
