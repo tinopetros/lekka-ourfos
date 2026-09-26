@@ -78,8 +78,10 @@ FIRESTORE_DATABASE=ourfos
 
 ## Terraform
 
-- `roles/datastore.user` for `ourfos-services`, and the env above
-- Infra owns the database and its rules. No indexes: every read is by id
+- Just the env above. Infra owns the database, its rules, and now every project role our accounts hold, `datastore.user` included ([infra#12](https://github.com/tinopetros/lekka-ourfos-infra/pull/12))
+- Our three project grants become `removed` blocks, so our state forgets them without revoking them. They go once dev and prod have both applied
+- What stays here is who may call our own resources: `run.invoker` on `ourfos-services` and the trigger
+- No indexes: every read is by id
 
 ## Fixtures and smoke
 
@@ -101,7 +103,23 @@ make doc ID=<execution_id>    # the document, straight from the Firestore REST A
 
 ## Bootstrapped, once
 
-The deployer grants a fifth project role. From a shell logged in as a project owner:
+The deployer stops granting project roles. In order, from a shell logged in as a project owner:
+
+**1. Infra's deployer may grant our roles**, before infra#12 merges:
+
+```bash
+SA=deployer@ourfos-prod.iam.gserviceaccount.com
+
+for P in ourfos-dev ourfos-prod; do
+  gcloud projects remove-iam-policy-binding "$P" \
+    --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin --all
+  gcloud projects add-iam-policy-binding "$P" \
+    --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin \
+    --condition='^;^expression=api.getAttribute("iam.googleapis.com/modifiedGrantsByRole", []).hasOnly(["roles/cloudbuild.builds.builder", "roles/datastore.user", "roles/datastore.viewer", "roles/logging.logWriter", "roles/workflows.invoker", "roles/aiplatform.user", "roles/modelarmor.user"]);title=deployer-grantable-roles'
+done
+```
+
+**2. Ours loses project IAM**, once dev and prod have both applied `removed.tf`. Until then a prod plan still reads those grants:
 
 ```bash
 SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
@@ -109,9 +127,6 @@ SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
 for P in ourfos-dev ourfos-prod; do
   gcloud projects remove-iam-policy-binding "$P" \
     --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin --all
-  gcloud projects add-iam-policy-binding "$P" \
-    --member="serviceAccount:$SA" --role=roles/resourcemanager.projectIamAdmin \
-    --condition='^;^expression=api.getAttribute("iam.googleapis.com/modifiedGrantsByRole", []).hasOnly(["roles/logging.logWriter", "roles/workflows.invoker", "roles/aiplatform.user", "roles/modelarmor.user", "roles/datastore.user"]);title=only-five-roles'
 done
 ```
 
@@ -120,6 +135,7 @@ done
 - Every fixture ends exactly as before on dev, and `make doc` shows the matching final status
 - `post-unrecorded` ends `done`, and its document has the transaction id
 - Smoke passes on the dev build after merge
+- Infra grants our project roles, and our plan shows the three grants forgotten, not destroyed
 
 ## Not in this phase
 

@@ -35,9 +35,12 @@
 - But a requisition that never starts an execution, or fails at `receive`, isn't saved anywhere and nobody is told
 - **Revisit** with real intake: save in the trigger first, and tell the sender when it can't start
 
-### 7. The deployer can grant five project roles now
+### 7. Infra grants our project roles, and our deployer none
 
-- `datastore.user` for `ourfos-services`, same as phase 3 ADR 5. Infra's own deployer could grant it too, but what our accounts may do stays ours
+- Infra makes our accounts, so it now also decides what they may do project-wide. Every project grant is reviewed in one place
+- Our deployer loses `projectIamAdmin`, the most powerful thing it held, even conditioned. It keeps who may call our own resources, which `run.admin` covers
+- Replaces phase 2 ADR 2 and phase 3 ADR 5
+- The cost: a new role for one of our accounts is an infra PR first, and why `ourfos-services` needs it lives in the other repo, as a comment on the grant
 
 ### 8. Requisitions are stored, not logged
 
