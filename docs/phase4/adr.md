@@ -36,7 +36,7 @@
 - Not much is lost meanwhile. If the execution can't start, the trigger already answers 500. If `receive` fails, the run hands over, which needs no database, and the requisition sits in the execution's arguments for 90 days
 - What is lost: a durable record in those two cases. And a 500 only tells a person if whatever calls the trigger passes it on
 - Saving in the trigger costs a second writer, `datastore.user` for `ourfos-trigger`, and a key that exists before the execution does
-- **Revisit** with real intake, once we know the caller and the requisition's own id: save in the trigger, and make sure the sender hears when it fails
+- **Revisit** with our own front end, which will be the caller: save in the trigger, and show the sender when it fails
 
 ### 7. Infra grants our project roles, and our deployer none
 
