@@ -102,7 +102,7 @@ comments   [str], why
 
 - `glId` is what Mifos posts to. `glCode` is what a person reads
 - `stub` answers in the same shape, with real accounts: an expense line against Cash at Vault
-- The Mifos stub's read-back echoes the posted lines, so `verify` compares like with like
+- The Mifos stub's read-back echoes the posted lines, so `verify` compares like with like. So `read-back` reads the classification, until Mifos answers from the ledger
 
 ### What `check` adds
 
@@ -152,6 +152,9 @@ mifos_transaction_id   was transaction_id
 | `nssa` | none | `done` | two debits, halves rounded up, still within a cent |
 | `bank` | none | `done` | a comment naming ZB Bank moves the credit |
 | `classify-jailbreak` | none | `handed_over` | the injection moves into `comment`, the new free text |
+
+- `classify-too-large` goes: its rule was the dummy prompt's. `salary` is the real prompt's refusal
+- `make test` also cleans every fixture, so none can drift from the form's shape
 
 - `salary`, `nssa` and `bank` call the model, so they're for checking by hand, not smoke
 - Smoke is unchanged: happy, jailbreak, 400.
