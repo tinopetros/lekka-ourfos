@@ -83,6 +83,7 @@ process:
                 call: check
                 args:
                   c: ${classification}
+                  amount: ${requisition.amount}
             - get_thread:
                 call: get_thread
                 args:
@@ -111,13 +112,13 @@ process:
                 args:
                   reference: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
-                result: transaction_id
+                result: mifos_transaction_id
             - read_back:
                 try:
                   call: call_service
                   args:
                     method: GET
-                    path: ${"/read-back/" + transaction_id}
+                    path: ${"/read-back/" + mifos_transaction_id}
                     query:
                       simulate: ${default(map.get(simulate, "mifos_read"), "")}
                   result: entry
@@ -130,7 +131,7 @@ process:
                   - condition: ${len(entry.lines) != len(classification.debit) + len(classification.credit)}
                     raise:
                       tags: [Unconfirmed]
-                      message: ${"Posted as " + transaction_id + " but the read-back has " + string(len(entry.lines)) + " lines. Please check it by hand"}
+                      message: ${"Posted as " + mifos_transaction_id + " but the read-back has " + string(len(entry.lines)) + " lines. Please check it by hand"}
             - confirm:
                 try:
                   call: call_service
@@ -139,14 +140,14 @@ process:
                     path: /confirm
                     body:
                       thread_id: ${thread_id}
-                      transaction_id: ${transaction_id}
+                      mifos_transaction_id: ${mifos_transaction_id}
                       simulate: ${map.get(simulate, "confirm")}
                 retry:
                   predicate: ${is_transient}
                   max_retries: 3
                   backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
             - done:
-                return: { status: "done", transaction_id: "${transaction_id}" }
+                return: { status: "done", mifos_transaction_id: "${mifos_transaction_id}" }
         except:
           as: e
           steps:
@@ -204,9 +205,9 @@ call_service:
     - ok:
         return: ${response.body}
 
-# Approved and balanced, or rejected with a reason. Anything else is ours to hand over
+# Approved, balanced and adding up to the amount, or rejected with a reason. Anything else is ours to hand over
 check:
-  params: [c]
+  params: [c, amount]
   steps:
     - rejected:
         switch:
@@ -242,6 +243,11 @@ check:
             raise:
               tags: [CheckFailed]
               message: ${"Debits (" + string(debits) + ") and credits (" + string(credits) + ") do not balance"}
+          # A cent either way, since the NSSA split rounds each half up. The rest is float noise
+          - condition: ${math.abs(debits - amount) > 0.011}
+            raise:
+              tags: [CheckFailed]
+              message: ${"Debits (" + string(debits) + ") do not add up to the requisition's " + string(amount)}
     - ok:
         return: ok
 
@@ -304,7 +310,7 @@ post:
             - rethrow:
                 raise: ${e}
     - posted:
-        return: ${posted.transaction_id}
+        return: ${posted.mifos_transaction_id}
 
 # The one place every failure ends up. If this fails too, the execution goes red
 handover:
