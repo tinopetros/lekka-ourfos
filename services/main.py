@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
-from routers import mifos, requisitions, workspace
+from common import execution_id
+from routers import requisitions
 
 app = FastAPI(title="ourfos-services")
 app.include_router(requisitions.router)
-app.include_router(workspace.router)
-app.include_router(mifos.router)
+
+
+@app.middleware("http")
+async def tag_logs(request: Request, call_next):
+    execution_id.set(request.headers.get("x-execution-id"))
+    return await call_next(request)

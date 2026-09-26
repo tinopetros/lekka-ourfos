@@ -1,20 +1,24 @@
 import json
 import time
+from contextvars import ContextVar
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
+
+# Set per request from X-Execution-Id, so modules log without being handed the request
+execution_id: ContextVar[str | None] = ContextVar("execution_id", default=None)
 
 
-def log(request: Request, message: str, severity: str = "INFO", **fields):
+def log(message: str, severity: str = "INFO", **fields):
     # One JSON line per event, so Cloud Logging can filter on jsonPayload.execution_id
-    entry = {"severity": severity, "message": message, "execution_id": request.headers.get("x-execution-id")}
-    print(json.dumps(entry | fields), flush=True)
+    entry = {"severity": severity, "message": message, "execution_id": execution_id.get()}
+    print(json.dumps(entry | fields, default=str), flush=True)
 
 
-def simulate(request: Request, step: str, code):
+def simulate(step: str, code):
     """Force a failure from the fixture: an HTTP status, or "timeout" to hang past the workflow's timeout."""
     if not code:
         return
-    log(request, f"simulating {code}", "WARNING", step=step)
+    log(f"simulating {code}", "WARNING", step=step)
     if code == "timeout":
         time.sleep(70)  # past every step timeout, including classify's 60s
     elif isinstance(code, int) or str(code).isdigit():
