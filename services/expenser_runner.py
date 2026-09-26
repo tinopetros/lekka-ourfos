@@ -9,8 +9,8 @@ from expenser.agent import Classification, app
 
 
 async def classify(requisition: dict) -> dict:
-    """One requisition in, the stub's shape out. Maps what goes wrong to what the workflow retries (TDD, Errors)."""
-    # A session service per request, so sessions never pile up on a warm instance (ADR 3)
+    """One requisition in, the stub's shape out, with failures as statuses the workflow retries or hands over."""
+    # Its own session service, so sessions never pile up on a warm instance
     runner = Runner(app=app, session_service=InMemorySessionService(), auto_create_session=True)
     message = types.Content(role="user", parts=[types.Part(text=json.dumps(requisition))])
     final = None

@@ -1,4 +1,4 @@
-"""Expenser: a requisition in, a classification out. The prompt is a dummy for now (phase 3)."""
+"""Expenser: a requisition in, a classification out. The prompt is a dummy for now."""
 
 import os
 

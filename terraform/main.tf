@@ -19,7 +19,7 @@ provider "google" {
   region  = var.region
 }
 
-# Infra owns registries (ADR 7). Fails here until it exists
+# Infra owns registries. Fails here until it exists
 data "google_artifact_registry_repository" "ourfos" {
   location      = var.region
   repository_id = "ourfos"

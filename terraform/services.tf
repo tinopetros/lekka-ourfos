@@ -8,7 +8,6 @@ resource "google_cloud_run_v2_service" "services" {
     containers {
       image = var.services_image
 
-      # Expenser's model is served from global, not where this runs (ADR 7)
       dynamic "env" {
         for_each = {
           GOOGLE_GENAI_USE_VERTEXAI = "true"
