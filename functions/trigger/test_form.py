@@ -1,4 +1,6 @@
+import json
 from datetime import date, datetime
+from pathlib import Path
 
 import pytest
 
@@ -142,3 +144,10 @@ def test_not_text():
 )
 def test_drive_ids(raw, want):
     assert drive_ids(raw) == want
+
+
+@pytest.mark.parametrize("fixture", sorted(Path("../../workflows/fixtures").glob("*.json")), ids=lambda p: p.stem)
+def test_every_fixture_cleans(fixture):
+    raw = json.loads(fixture.read_text())
+    raw.pop("simulate", None)
+    assert clean(raw).response_number == 482
