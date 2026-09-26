@@ -4,6 +4,9 @@ from contextvars import ContextVar
 
 from fastapi import HTTPException
 
+# The workflow's is_transient: these pass through so it retries them
+RETRIED = (429, 502, 503, 504)
+
 # Set per request from X-Execution-Id, so modules log without being handed the request
 execution_id: ContextVar[str | None] = ContextVar("execution_id", default=None)
 

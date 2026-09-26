@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from google.api_core import exceptions
 from google.cloud import firestore
 
-from common import log
+from common import RETRIED, log
 
 NOW = firestore.SERVER_TIMESTAMP
 
@@ -64,5 +64,5 @@ def record(id: str, fail: bool = False, **fields):
 
 
 def _status(e: exceptions.GoogleAPICallError) -> HTTPException:
-    # 429 and 503 are retried by the workflow, anything else hands over
-    return HTTPException(e.code if e.code in (429, 503) else 500, f"firestore: {e.code}")
+    # What the workflow retries passes through (is_transient), anything else hands over
+    return HTTPException(e.code if e.code in RETRIED else 500, f"firestore: {e.code}")

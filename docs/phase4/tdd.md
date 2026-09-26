@@ -62,13 +62,14 @@ requisitions/{execution_id}
 ```
 
 - Every write is a merge, never an append, so the workflow's retries are harmless
+- Firestore and Vertex 429, 502, 503 and 504 pass through to the workflow, which retries them. Phase 3 passed only 429 and 503, so a Vertex 502 handed a smoke run over
 - Status writes go through a transaction: once it says `done`, `rejected`, `handed_over` or `failed`, a late step's fields still land but its status doesn't
 - Status is the headline. `emails` says which emails went out and when, so a UI needs one read, not a trip to Gmail. The thread is still one click away through `thread_id`
 - A happy run: about seven writes and four reads
 
 ## Writes and side effects
 
-- Before anything leaves the building (receive, classify), a failed write fails the step: 429 and 503 are retried, anything else hands over
+- Before anything leaves the building (receive, classify), a failed write fails the step: 429 and 5xx gateway errors are retried, anything else hands over
 - After Mifos or Gmail did something (post, and every email), a failed write is logged, not raised. So is `thread_id`, which handover needs without the database. The entry is in the ledger either way, and `complete` writes the transaction id again
 - `complete` never turns a finished run red. If it can't write, it logs and the execution still returns its result
 
