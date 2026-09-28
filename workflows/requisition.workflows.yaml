@@ -201,6 +201,16 @@ call_service:
             - add_where:
                 assign:
                   - e.at: ${method + " " + path}
+            # The service's own reason, e.g. which file couldn't be fetched, so the handover says it
+            - add_detail:
+                switch:
+                  - condition: ${get_type(map.get(e, "body")) == "map"}
+                    steps:
+                      - detail:
+                          switch:
+                            - condition: ${get_type(map.get(e.body, "detail")) == "string"}
+                              assign:
+                                - e.message: '${e.message + ": " + e.body.detail}'
             - rethrow:
                 raise: ${e}
     - ok:
