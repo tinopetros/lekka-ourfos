@@ -22,6 +22,8 @@ FORM = {
     "response_id": "2_ABaOnud-response",
 }
 
+FIXTURES = Path(__file__).parents[3] / "workflows/fixtures"
+
 
 def invalid(**changes) -> list[str]:
     with pytest.raises(Invalid) as e:
@@ -146,7 +148,7 @@ def test_drive_ids(raw, want):
     assert drive_ids(raw) == want
 
 
-@pytest.mark.parametrize("fixture", sorted(Path("../../workflows/fixtures").glob("*.json")), ids=lambda p: p.stem)
+@pytest.mark.parametrize("fixture", sorted(FIXTURES.glob("*.json")), ids=lambda p: p.stem)
 def test_every_fixture_cleans(fixture):
     raw = json.loads(fixture.read_text())
     raw.pop("simulate", None)

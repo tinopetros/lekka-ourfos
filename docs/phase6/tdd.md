@@ -90,7 +90,7 @@ POST /workspace/send {subject, body}    to lekkai@ itself, and nobody else
 - Real files, shared with `lekkai@`: a signed requisition and a receipt, for LMS support, 60, to Mr Muchenje on 18 September 2026. Both are phone photos
 - `happy` becomes that requisition: its payload, its two files. The model approves it
 - `classify-jailbreak` loses its files, so it's Model Armor that stops it, not a missing file
-- `nssa`, `bank` and `salary` lose their made-up files, so with the rules back they end `rejected`: no requisition attached. They get files when we have some to give them
+- `nssa`, `bank` and `salary` lose their made-up files, so with the rules back they end `rejected`: no requisition attached. Left so: the evals phase brings real cases, which double as fixtures
 - Simulated fixtures keep their made-up ids: a stubbed classify fetches nothing
 - New:
 
@@ -125,7 +125,7 @@ By hand, in consoles:
 
 - **Admin console** → Security → Access and data control → API controls → Manage Domain Wide Delegation → Add new, with `ourfos-services@`'s client ID and exactly `https://www.googleapis.com/auth/drive.readonly,https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.send`
   - `ourfos-dev`: `107247035916374382942`
-  - `ourfos-prod`: `110821488460640547261`, when prod is due
+  - `ourfos-prod`: `110821488460640547261`
 - **Drive**: the form's upload folder and the test files' folder, shared with `lekkai@` as Viewer
 - **The form's webhook**: `Authorization: Bearer <token>`, from `gcloud secrets versions access latest --secret=trigger-token --project=<project> | pbcopy`. Later: the trigger checks the token as soon as this phase deploys
 

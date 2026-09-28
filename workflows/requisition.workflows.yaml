@@ -4,6 +4,8 @@ main:
     - init:
         assign:
           - requisition: ${args.requisition}
+          # The form's payload as posted, beside the clean one while the cleaner is new (phase 5 ADR 2)
+          - raw: ${default(map.get(args, "raw"), null)}
           - simulate: {}
     - allow_simulate:
         switch:
@@ -21,6 +23,7 @@ main:
           call: process
           args:
             requisition: ${requisition}
+            raw: ${raw}
             simulate: ${simulate}
           result: result
         except:
@@ -41,7 +44,7 @@ main:
 
 # Every step, and how it ends: done, rejected or handed over. Only a missing thread or a failed handover raise
 process:
-  params: [requisition, simulate]
+  params: [requisition, raw, simulate]
   steps:
     - init:
         assign:
@@ -58,6 +61,7 @@ process:
                     path: ""
                     body:
                       requisition: ${requisition}
+                      raw: ${raw}
                       simulate: ${simulate}
                       revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
                 retry:

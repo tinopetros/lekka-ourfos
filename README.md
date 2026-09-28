@@ -63,6 +63,7 @@ A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans 
 
 ## TODO
 
+- [ ] **Organize `services/`.** A pure move, its own small PR: third parties into `integrations/` (`mifos.py`, and `workspace/` split into `delegation.py`, `drive.py`, `gmail.py`, and `stub.py` for today's `workspace.py`), and `attachments.py` and `expenser_runner.py` into `classify/`. `requisition.py` stays top level, since the trigger's zip copies it
 - [ ] **Catch a reused requisition.** Flag a Drive file, or a hash of its contents, already attached to an earlier requisition, before the model sees it. The model doesn't catch an old signed requisition on a new claim ([phase 6 ADR 4](docs/phase6/adr.md))
 - [ ] **Alert when nobody was told.** Any failed execution (thread missing, or the handover email failing) and any trigger 5xx should email someone right away. Every one counts, not a rate. Handovers aren't alerts: they already emailed someone
 - [ ] **One bootstrap for a fresh project.** Each phase adds its own "Bootstrapped, once" steps on top of the last. At the end, fold them into one set of instructions that takes a fresh project, after infra has run, to deployable, and test it on one

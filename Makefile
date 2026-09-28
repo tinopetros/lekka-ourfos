@@ -13,7 +13,7 @@ export TF_DATA_DIR := .terraform-$(ENV)
 # The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
 SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
-	! -path '*/.pytest_cache/*' ! -name 'test_*.py' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
+	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
@@ -66,7 +66,7 @@ package: $(REQUIREMENTS) $(TRIGGER_ZIP)
 # services/ with expenser beside it, as the image sees them. Never a local .env or venv
 stage: services/requirements.txt
 	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
-	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude 'test_*.py' \
+	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
 		-C services . | tar -xf - -C $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
 
