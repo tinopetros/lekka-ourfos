@@ -7,13 +7,14 @@ from google.genai import errors, types
 
 from common import RETRIED
 from expenser.agent import Classification, app
+from requisition import Requisition
 
 
-async def classify(requisition: dict) -> dict:
+async def classify(requisition: Requisition) -> dict:
     """One requisition in, the stub's shape out, with failures as statuses the workflow retries or hands over."""
     # Its own session service, so sessions never pile up on a warm instance
     runner = Runner(app=app, session_service=InMemorySessionService(), auto_create_session=True)
-    message = types.Content(role="user", parts=[types.Part(text=json.dumps(requisition))])
+    message = types.Content(role="user", parts=[types.Part(text=json.dumps(requisition.to_json()))])
     final = None
     try:
         async for event in runner.run_async(user_id="classify", session_id="classify", new_message=message):

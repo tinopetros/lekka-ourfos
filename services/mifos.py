@@ -8,13 +8,16 @@ def post(reference: str, debit: list, credit: list, code=None) -> dict:
     # Counting these lines per execution is how we prove a timeout never posts twice
     log("mifos post", reference=reference, debit=debit, credit=credit)
     simulate("mifos_post", code)
-    return {"transaction_id": f"stub-txn-{reference}"}
+    return {"mifos_transaction_id": f"stub-txn-{reference}"}
 
 
-def read_back(transaction_id: str, code=None) -> dict:
+def read_back(mifos_transaction_id: str, debit: list, credit: list, code=None) -> dict:
+    """The posted lines, as if Mifos had them. "mismatch" drops one"""
     simulate("mifos_read", code)
-    log("mifos read back", transaction_id=transaction_id)
-    lines = [{"glCode": "6100", "type": "DEBIT"}, {"glCode": "1100", "type": "CREDIT"}]
+    log("mifos read back", mifos_transaction_id=mifos_transaction_id)
+    lines = [{"glId": d["glId"], "type": "DEBIT"} for d in debit] + [
+        {"glId": c["glId"], "type": "CREDIT"} for c in credit
+    ]
     if code == "mismatch":
-        lines = lines[:1]
-    return {"transaction_id": transaction_id, "lines": lines}
+        lines = lines[:-1]
+    return {"mifos_transaction_id": mifos_transaction_id, "lines": lines}

@@ -51,7 +51,9 @@ workflows/         the definitions, plus fixtures for running them
 
 The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
 
-Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
+Fixtures are what the form's webhook posts: every value a string, files as Drive links. The trigger cleans them into one `Requisition` (`services/requisition.py`) and answers 400 with every problem when it can't; `make test` covers the cleaner. See [phase 5](docs/phase5/tdd.md).
+
+Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment
 
@@ -61,3 +63,4 @@ A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans 
 
 - [ ] **Alert when nobody was told.** Any failed execution (thread missing, or the handover email failing) and any trigger 5xx should email someone right away. Every one counts, not a rate. Handovers aren't alerts: they already emailed someone
 - [ ] **One bootstrap for a fresh project.** Each phase adds its own "Bootstrapped, once" steps on top of the last. At the end, fold them into one set of instructions that takes a fresh project, after infra has run, to deployable, and test it on one
+- [ ] **A post that timed out but landed.** The handover says to check the reference before booking it again, but a person may skip that and book it twice. With the real Mifos, look the reference up before handing over (phase 4's `post-timeout`). And when a post lands after the run ended, email the thread that it landed, with its transaction id
