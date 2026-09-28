@@ -151,6 +151,14 @@ make workspace ROUTE=send BODY='{"subject": "ourfos setup check", "body": "hello
 - The trigger answers 401 without the token, and smoke passes with it
 - `make check` passes
 
+## What execution changed
+
+- **Images**: any image Pillow reads is shown, as PNG if Gemini doesn't take its type, and photos over 4 MB shrink. Only Word, Excel and the like hand over
+- **Model Armor's limits**: PDFs over 4 MB, or under 69 bytes, pass unscreened rather than failing closed. And its `IMAGE` type fails, so images aren't screened (ADR 5)
+- **The real test files are photos**: both of `happy`'s are JPEGs, so on a typical requisition nothing is screened but its text fields
+- **Handovers say why**: `call_service` appends the service's `detail` to the error, so a handover names the file it couldn't fetch, with Google's own message
+- **Gmail**: `lekkai@` sees the form's notifications, so email processing has what it needs
+
 ## Not in this phase
 
 - Processing email: finding the form's thread, replies, who they go to
