@@ -6,8 +6,9 @@ from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, UnidentifiedImageError
 
-import google_workspace
 from common import RETRIED, log
+from integrations.workspace import drive
+from integrations.workspace.delegation import WorkspaceError
 from requisition import Requisition
 
 
@@ -17,8 +18,8 @@ async def load(requisition: Requisition) -> list[dict]:
     for field, ids in requisition.files.model_dump().items():
         for file_id in ids:
             try:
-                got = await run_in_threadpool(google_workspace.fetch, file_id)
-            except google_workspace.WorkspaceError as e:
+                got = await run_in_threadpool(drive.fetch, file_id)
+            except WorkspaceError as e:
                 # Drive's retryable statuses pass through. Anything else is this file's problem, so a handover
                 status = e.status if e.status in RETRIED else 422
                 raise HTTPException(status, f"{field} {file_id}: cannot fetch, {e}") from e
@@ -39,7 +40,7 @@ def normalize(f: dict) -> dict:
     """
     was = f["mimeType"]
     f = f | {"mimeType": ALIASES.get(was, was)}
-    if f["mimeType"] in google_workspace.SHOWN:
+    if f["mimeType"] in drive.SHOWN:
         return f
     try:
         image = Image.open(io.BytesIO(f["data"]))
@@ -57,8 +58,8 @@ def normalize(f: dict) -> dict:
 def check(files: list[dict]):
     """Only what the model can be shown, and not too much of it."""
     for f in files:
-        if f["mimeType"] not in google_workspace.SHOWN:
+        if f["mimeType"] not in drive.SHOWN:
             raise HTTPException(422, f"{f['field']} {f['id']}: {f['mimeType']} can't be shown to the model")
     total = sum(f["size"] for f in files)
-    if total > google_workspace.MAX_BYTES:
-        raise HTTPException(422, f"attachments are {total} bytes, over {google_workspace.MAX_BYTES}")
+    if total > drive.MAX_BYTES:
+        raise HTTPException(422, f"attachments are {total} bytes, over {drive.MAX_BYTES}")

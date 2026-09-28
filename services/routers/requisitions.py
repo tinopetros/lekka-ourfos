@@ -3,12 +3,11 @@
 from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
 
-import attachments
-import expenser_runner
-import mifos
 import store
-import workspace
+from classify import attachments, expenser
 from common import log, simulate
+from integrations import mifos
+from integrations.workspace import stub as workspace  # not as stub: a route below is named that
 from requisition import Requisition
 
 router = APIRouter(prefix="/requisitions/{id}")
@@ -45,7 +44,7 @@ async def classify(id: str, body: dict):
     else:
         # In memory for this request only. The document keeps the Drive ids it already had
         files = await attachments.load(requisition)
-        classification = await expenser_runner.classify(requisition, files)
+        classification = await expenser.classify(requisition, files)
 
     await run_in_threadpool(store.save, id, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")

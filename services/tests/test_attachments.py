@@ -10,10 +10,10 @@ from PIL import Image
 # The agent reads its template at import. Nothing here calls Model Armor
 os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates/t")
 
-import attachments
-import google_workspace
+from classify import attachments
+from classify.expenser import turn
 from expenser.screen import free_text
-from expenser_runner import turn
+from integrations.workspace import delegation, drive, gmail
 from requisition import Requisition
 
 REQUISITION = Requisition(
@@ -31,7 +31,7 @@ def file(field="receipts", mime_type="application/pdf", size=10, id="B2"):
     return {"field": field, "id": id, "mimeType": mime_type, "size": size, "data": b"x" * size}
 
 
-@pytest.mark.parametrize("mime_type", sorted(google_workspace.SHOWN))
+@pytest.mark.parametrize("mime_type", sorted(drive.SHOWN))
 def test_shown(mime_type):
     attachments.check([file(mime_type=mime_type)])
 
@@ -48,7 +48,7 @@ def test_not_shown(mime_type):
 
 
 def test_too_large():
-    half = google_workspace.MAX_BYTES // 2 + 1
+    half = drive.MAX_BYTES // 2 + 1
     with pytest.raises(HTTPException) as e:
         attachments.check([file(size=half), file(size=half)])
     assert e.value.status_code == 422
@@ -76,10 +76,10 @@ def test_send_is_only_ever_to_the_subject(monkeypatch):
         sent.update(scope=scope, raw=json["raw"])
         return type("R", (), {"json": lambda self: {"id": "m", "threadId": "t"}})()
 
-    monkeypatch.setattr(google_workspace, "call", call)
-    google_workspace.send_to_self("check", "hello")
-    raw = google_workspace.base64.urlsafe_b64decode(sent["raw"]).decode()
-    assert sent["scope"] == google_workspace.GMAIL_SEND
+    monkeypatch.setattr(gmail, "call", call)
+    gmail.send_to_self("check", "hello")
+    raw = gmail.base64.urlsafe_b64decode(sent["raw"]).decode()
+    assert sent["scope"] == gmail.GMAIL_SEND
     assert "To: lekkai@lekkacredit.com" in raw
 
 
@@ -130,4 +130,4 @@ def test_not_an_image_is_left_for_check():
 )
 def test_reason(body, want):
     response = type("R", (), {"text": body, "json": lambda self: json.loads(body)})()
-    assert google_workspace.reason(response) == want
+    assert delegation.reason(response) == want
