@@ -1,4 +1,5 @@
 import io
+import json
 import os
 
 import pytest
@@ -137,3 +138,16 @@ def test_pdfs_outside_model_armors_limits_pass_unscreened(monkeypatch):
     monkeypatch.setattr(screen, "SCREENABLE_BYTES", range(69, 100))
     request = LlmRequest(contents=[turn(REQUISITION, [file(size=50), file(size=80), file(size=200)])])
     assert len(documents(request)) == 1
+
+
+@pytest.mark.parametrize(
+    "body, want",
+    [
+        ('{"error": {"code": 404, "message": "File not found: X."}}', "File not found: X."),
+        ("<html>Bad gateway</html>", "<html>Bad gateway</html>"),
+        ('{"error": "invalid_grant"}', '{"error": "invalid_grant"}'),
+    ],
+)
+def test_reason(body, want):
+    response = type("R", (), {"text": body, "json": lambda self: json.loads(body)})()
+    assert google_workspace.reason(response) == want

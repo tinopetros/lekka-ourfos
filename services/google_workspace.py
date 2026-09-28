@@ -70,8 +70,16 @@ def call(scope: str, method: str, url: str, **kwargs):
         # Usually the Admin console: the client id isn't granted this scope yet
         raise WorkspaceError(401, f"cannot act as {subject()}: {e}") from e
     if not response.ok:
-        raise WorkspaceError(response.status_code, f"{response.status_code} {response.text[:200]}")
+        raise WorkspaceError(response.status_code, f"{response.status_code} {reason(response)}")
     return response
+
+
+def reason(response) -> str:
+    """Google's own message, e.g. "File not found: <id>.", rather than its whole error document."""
+    try:
+        return str(response.json()["error"]["message"])[:200]
+    except (ValueError, KeyError, TypeError):
+        return response.text[:200]
 
 
 # Drive
