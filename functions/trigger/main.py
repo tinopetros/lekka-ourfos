@@ -4,6 +4,7 @@ import os
 import functions_framework
 from google.cloud.workflows import executions_v1
 
+from auth import authorized
 from form import Invalid, clean
 
 client = executions_v1.ExecutionsClient()
@@ -16,6 +17,15 @@ def log(message: str, severity: str = "INFO", **fields):
 
 @functions_framework.http
 def trigger(request):
+    token = os.environ.get("TRIGGER_TOKEN")
+    if not token:
+        # Never fails open
+        log("no token configured", "ERROR")
+        return {"error": "not configured"}, 500
+    if not authorized(request.headers.get("Authorization"), token):
+        # Before the body is read, so nothing of it is logged or cleaned
+        log("unauthorized", "WARNING")
+        return {"error": "unauthorized"}, 401, {"WWW-Authenticate": "Bearer"}
     if request.method != "POST":
         return {"error": "POST a requisition"}, 405
     raw = request.get_json(silent=True)

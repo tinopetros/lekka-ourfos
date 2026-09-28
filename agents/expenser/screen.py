@@ -37,7 +37,8 @@ def free_text(llm_request) -> list[str]:
     """The latest user turn's free-text fields, when it's a requisition. Anything else is screened whole only."""
     for content in reversed(llm_request.contents or []):
         if content.role == "user":
-            text = "".join(part.text or "" for part in content.parts or [])
+            # The requisition is the turn's first part. Files and their labels follow it
+            text = next((part.text for part in content.parts or [] if part.text), "")
             try:
                 requisition = json.loads(text)
             except ValueError:

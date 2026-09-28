@@ -53,6 +53,8 @@ The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Eac
 
 Fixtures are what the form's webhook posts: every value a string, files as Drive links. The trigger cleans them into one `Requisition` (`services/requisition.py`) and answers 400 with every problem when it can't; `make test` covers the cleaner. See [phase 5](docs/phase5/tdd.md).
 
+The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`; `make start` and `make smoke` read it for you. Classify fetches a requisition's files from Drive as `lekkai@`, and `make workspace` checks Gmail as it. See [phase 6](docs/phase6/tdd.md).
+
 Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment
@@ -61,6 +63,8 @@ A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans 
 
 ## TODO
 
+- [ ] **Organize `services/`.** A pure move, its own small PR: third parties into `integrations/` (`mifos.py`, and `workspace/` split into `delegation.py`, `drive.py`, `gmail.py`, and `stub.py` for today's `workspace.py`), and `attachments.py` and `expenser_runner.py` into `classify/`. `requisition.py` stays top level, since the trigger's zip copies it
+- [ ] **Catch a reused requisition.** Flag a Drive file, or a hash of its contents, already attached to an earlier requisition, before the model sees it. The model doesn't catch an old signed requisition on a new claim ([phase 6 ADR 4](docs/phase6/adr.md))
 - [ ] **Alert when nobody was told.** Any failed execution (thread missing, or the handover email failing) and any trigger 5xx should email someone right away. Every one counts, not a rate. Handovers aren't alerts: they already emailed someone
 - [ ] **One bootstrap for a fresh project.** Each phase adds its own "Bootstrapped, once" steps on top of the last. At the end, fold them into one set of instructions that takes a fresh project, after infra has run, to deployable, and test it on one
 - [ ] **A post that timed out but landed.** The handover says to check the reference before booking it again, but a person may skip that and book it twice. With the real Mifos, look the reference up before handing over (phase 4's `post-timeout`). And when a post lands after the run ended, email the thread that it landed, with its transaction id

@@ -1,5 +1,8 @@
 .venv/
 __pycache__/
+# Tool caches. Each also ignores itself, but this says so
+.pytest_cache/
+.ruff_cache/
 # Generated from uv.lock at package time
 requirements.txt
 .terraform/

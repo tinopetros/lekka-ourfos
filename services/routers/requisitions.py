@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
 
+import attachments
 import expenser_runner
 import mifos
 import store
@@ -38,11 +39,13 @@ async def classify(id: str, body: dict):
     requisition = Requisition.model_validate((await run_in_threadpool(store.get, id))["requisition"])
     amount = requisition.amount
     if code:
-        # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop
+        # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched
         await run_in_threadpool(simulate, "classify", code)
         classification = stub(amount, code)
     else:
-        classification = await expenser_runner.classify(requisition)
+        # In memory for this request only. The document keeps the Drive ids it already had
+        files = await attachments.load(requisition)
+        classification = await expenser_runner.classify(requisition, files)
 
     await run_in_threadpool(store.save, id, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")

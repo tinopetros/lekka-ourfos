@@ -4,6 +4,8 @@ main:
     - init:
         assign:
           - requisition: ${args.requisition}
+          # The form's payload as posted, beside the clean one while the cleaner is new (phase 5 ADR 2)
+          - raw: ${default(map.get(args, "raw"), null)}
           - simulate: {}
     - allow_simulate:
         switch:
@@ -21,6 +23,7 @@ main:
           call: process
           args:
             requisition: ${requisition}
+            raw: ${raw}
             simulate: ${simulate}
           result: result
         except:
@@ -41,7 +44,7 @@ main:
 
 # Every step, and how it ends: done, rejected or handed over. Only a missing thread or a failed handover raise
 process:
-  params: [requisition, simulate]
+  params: [requisition, raw, simulate]
   steps:
     - init:
         assign:
@@ -58,6 +61,7 @@ process:
                     path: ""
                     body:
                       requisition: ${requisition}
+                      raw: ${raw}
                       simulate: ${simulate}
                       revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
                 retry:
@@ -72,8 +76,9 @@ process:
                     path: /classify
                     body:
                       simulate: ${map.get(simulate, "classify")}
-                    # A real model call can take 40s. Fewer, longer attempts: each one costs
-                    timeout: 60
+                    # A real model call can take 40s, and fetching and screening the files adds to it.
+                    # Fewer, longer attempts: each one costs
+                    timeout: 120
                   result: classification
                 retry:
                   predicate: ${is_retryable_read}
@@ -200,6 +205,16 @@ call_service:
             - add_where:
                 assign:
                   - e.at: ${method + " " + path}
+            # The service's own reason, e.g. which file couldn't be fetched, so the handover says it
+            - add_detail:
+                switch:
+                  - condition: ${get_type(map.get(e, "body")) == "map"}
+                    steps:
+                      - detail:
+                          switch:
+                            - condition: ${get_type(map.get(e.body, "detail")) == "string"}
+                              assign:
+                                - e.message: '${e.message + ": " + e.body.detail}'
             - rethrow:
                 raise: ${e}
     - ok:
