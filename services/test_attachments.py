@@ -1,9 +1,11 @@
+import io
 import os
 
 import pytest
 from fastapi import HTTPException
 from google.adk.models import LlmRequest
 from google.cloud import modelarmor_v1
+from PIL import Image
 
 # The agent reads its template at import. Nothing here calls Model Armor
 os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates/t")
@@ -68,7 +70,7 @@ def test_turn():
 
 
 def test_screening_reads_the_first_part_and_pdfs_only():
-    request = LlmRequest(contents=[turn(REQUISITION, [file(), file(mime_type="image/jpeg")])])
+    request = LlmRequest(contents=[turn(REQUISITION, [file(size=100), file(mime_type="image/jpeg")])])
     assert free_text(request) == ["LMS support", "for September"]
     screened = documents(request)
     assert len(screened) == 1
@@ -88,3 +90,50 @@ def test_send_is_only_ever_to_the_subject(monkeypatch):
     raw = google_workspace.base64.urlsafe_b64decode(sent["raw"]).decode()
     assert sent["scope"] == google_workspace.GMAIL_SEND
     assert "To: lekkai@lekkacredit.com" in raw
+
+
+def image(fmt: str, size=(40, 30), mode="RGB") -> bytes:
+    out = io.BytesIO()
+    Image.new(mode, size, "white").save(out, fmt)
+    return out.getvalue()
+
+
+@pytest.mark.parametrize(
+    "fmt, mime_type", [("GIF", "image/gif"), ("BMP", "image/bmp"), ("TIFF", "image/tiff"), ("PNG", "image/x-png")]
+)
+def test_other_images_become_png(fmt, mime_type):
+    data = image(fmt, mode="P" if fmt == "GIF" else "RGB")
+    f = attachments.normalize(file(mime_type=mime_type, size=len(data)) | {"data": data})
+    assert f["mimeType"] == "image/png"
+    assert Image.open(io.BytesIO(f["data"])).format == "PNG"
+    attachments.check([f])
+
+
+def test_jpg_is_jpeg_untouched():
+    data = image("JPEG")
+    f = attachments.normalize(file(mime_type="image/jpg", size=len(data)) | {"data": data})
+    assert f["mimeType"] == "image/jpeg"
+    assert f["data"] == data
+
+
+def test_a_large_photo_shrinks(monkeypatch):
+    monkeypatch.setattr(attachments, "LARGE_IMAGE", 1000)
+    data = image("PNG", size=(4000, 3000))
+    f = attachments.normalize(file(mime_type="image/png", size=attachments.LARGE_IMAGE + 1) | {"data": data})
+    assert f["mimeType"] == "image/jpeg"
+    assert max(Image.open(io.BytesIO(f["data"])).size) == attachments.MAX_SIDE
+
+
+def test_not_an_image_is_left_for_check():
+    f = attachments.normalize(file(mime_type="application/msword"))
+    assert f["mimeType"] == "application/msword"
+    with pytest.raises(HTTPException):
+        attachments.check([f])
+
+
+def test_pdfs_outside_model_armors_limits_pass_unscreened(monkeypatch):
+    from expenser import screen
+
+    monkeypatch.setattr(screen, "SCREENABLE_BYTES", range(69, 100))
+    request = LlmRequest(contents=[turn(REQUISITION, [file(size=50), file(size=80), file(size=200)])])
+    assert len(documents(request)) == 1

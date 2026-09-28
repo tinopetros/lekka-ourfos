@@ -33,11 +33,13 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 
 1. Read the requisition's file ids, per field
 2. For each: `files.get` for `name`, `mimeType`, `size`, then the bytes (`alt=media`). Google Docs, Sheets and Slides are exported as PDF
-3. Screen each PDF with Model Armor, one at a time. Images pass unscreened: Model Armor fails on them (tried 2026-09-28)
+3. Screen each PDF with Model Armor, one at a time. Images pass unscreened: Model Armor fails on them (tried 2026-09-28). So do PDFs over Model Armor's 4 MB
 4. Give the model one turn: the requisition as JSON, then for each file a label (`signed_requisition_form: <name>`) and the file as `Part.from_bytes(data, mime_type)`
 5. Store what was seen, never the bytes: `attachments: [{field, id, name, mimeType, size}]`
 
 - Shown: PDF, PNG, JPEG, WEBP, HEIC, and Google-native files as PDF. At most 15 MB across a requisition, so the request stays under Gemini's inline limit once base64'd
+- Any other image Pillow reads (GIF, BMP, TIFF, …) becomes PNG. `image/jpg` and friends are read as what they are. A photo over 4 MB is shrunk to 3072px and re-encoded as JPEG, so a few phone pictures fit
+- Word, Excel and the like still hand over: the model can't take them, and Drive can't export a file it didn't make
 - The SDK base64s the bytes on the wire. `to_base64` exists only for looking at a part by hand
 - **Can't fetch or can't show:** classify answers 422 with which file and why, and the run hands over. Not a silent drop, as ourfos-v2 did: with the rules back, the model would reject for a "missing" requisition that's really a permissions problem
 - Drive's 429 and 5xx pass through as themselves, so the workflow retries them. Anything else from Drive is a 422

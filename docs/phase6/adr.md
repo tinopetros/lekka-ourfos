@@ -32,7 +32,8 @@
 - The plugin's whole-prompt screen reads only text, so files would reach the model unscreened
 - Each PDF is screened on its own as a document, one at a time, as phase 5 ADR 12 does the fields. A made-up PDF with an injection matched; a clean one didn't
 - Images aren't screened: Model Armor's `IMAGE` type fails on our template. A photo of a receipt reaches the model as is, accepted
-- One more Model Armor call per PDF
+- Nor are PDFs over 4 MB, Model Armor's limit: failing closed on them would hand over clean requisitions. And a scanned PDF has no text layer, so screening one checks nothing
+- One more Model Armor call per PDF. Cost: 2M tokens a month free per project, then $0.10 per million, about 4 characters a token. A requisition's fields, JSON and a page or two of PDF is a few thousand tokens, so hundreds of requisitions a month stay free, and a thousand more would cost cents
 
 ### 6. Gmail is a setup check
 

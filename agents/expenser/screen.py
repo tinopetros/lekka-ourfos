@@ -2,8 +2,9 @@
 
 Inside a whole requisition's JSON, Model Armor misses an injection it catches in the free-text field on its own
 (phase 5 ADR 12). So payable_to and comment are screened alone first. The plugin's whole-prompt screen reads only
-text, so PDFs are screened alone too (phase 6 ADR 5). Images aren't: Model Armor fails on them. Then the whole
-prompt, as before. Leans on the plugin's private helpers, so it moves with the pinned ADK version.
+text, so PDFs are screened alone too (phase 6 ADR 5). Images aren't: Model Armor fails on them. Nor are PDFs over
+Model Armor's 4 MB. Then the whole prompt, as before. Leans on the plugin's private helpers, so it moves with the
+pinned ADK version.
 """
 
 import json
@@ -14,6 +15,8 @@ from google.cloud import modelarmor_v1
 
 FREE_TEXT = ("payable_to", "comment")
 DOCUMENTS = {"application/pdf": modelarmor_v1.ByteDataItem.ByteItemType.PDF}
+# Model Armor refuses files outside these, and failing closed would hand over a clean requisition
+SCREENABLE_BYTES = range(69, 4 * 1024 * 1024 + 1)
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +64,20 @@ def free_text(llm_request) -> list[str]:
 
 
 def documents(llm_request) -> list[modelarmor_v1.DataItem]:
-    """The latest user turn's files Model Armor can read. Images pass unscreened."""
+    """The latest user turn's files Model Armor can read. Images, and PDFs over 4 MB, pass unscreened."""
     turn = latest_user_turn(llm_request)
-    return [
-        modelarmor_v1.DataItem(
-            byte_item=modelarmor_v1.ByteDataItem(
-                byte_data_type=DOCUMENTS[part.inline_data.mime_type], byte_data=part.inline_data.data
+    items = []
+    for part in (turn.parts or []) if turn else []:
+        if not (part.inline_data and part.inline_data.mime_type in DOCUMENTS):
+            continue
+        if len(part.inline_data.data) not in SCREENABLE_BYTES:
+            logger.warning("PDF not screened: %d bytes, outside Model Armor's limits", len(part.inline_data.data))
+            continue
+        items.append(
+            modelarmor_v1.DataItem(
+                byte_item=modelarmor_v1.ByteDataItem(
+                    byte_data_type=DOCUMENTS[part.inline_data.mime_type], byte_data=part.inline_data.data
+                )
             )
         )
-        for part in ((turn.parts or []) if turn else [])
-        if part.inline_data and part.inline_data.mime_type in DOCUMENTS
-    ]
+    return items
