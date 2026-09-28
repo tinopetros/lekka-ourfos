@@ -72,8 +72,9 @@ process:
                     path: /classify
                     body:
                       simulate: ${map.get(simulate, "classify")}
-                    # A real model call can take 40s. Fewer, longer attempts: each one costs
-                    timeout: 60
+                    # A real model call can take 40s, and fetching and screening the files adds to it.
+                    # Fewer, longer attempts: each one costs
+                    timeout: 120
                   result: classification
                 retry:
                   predicate: ${is_retryable_read}

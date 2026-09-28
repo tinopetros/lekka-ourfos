@@ -53,6 +53,8 @@ The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Eac
 
 Fixtures are what the form's webhook posts: every value a string, files as Drive links. The trigger cleans them into one `Requisition` (`services/requisition.py`) and answers 400 with every problem when it can't; `make test` covers the cleaner. See [phase 5](docs/phase5/tdd.md).
 
+The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`; `make start` and `make smoke` read it for you. Classify fetches a requisition's files from Drive as `lekkai@`, and `make workspace` checks Gmail as it. See [phase 6](docs/phase6/tdd.md).
+
 Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment

@@ -22,9 +22,12 @@ REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
+# The trigger's bearer token, read when used and never echoed
+TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --project $(PROJECT))
+SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -32,9 +35,10 @@ help:
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
-	@echo "make smoke               happy ends done, jailbreak and 400 end handed_over (what CI runs)"
+	@echo "make smoke               no token 401, happy ends done, jailbreak and 400 end handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
-	@echo "make test                the trigger's cleaner"
+	@echo "make test                the trigger's cleaner and token, the services' attachments"
+	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
@@ -52,7 +56,7 @@ check-env:
 
 # Fixed mtimes so the zip, and so the function, only changes when the code does
 # requisition.py comes from services/, so the trigger and the service share one shape
-$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/form.py services/requisition.py functions/trigger/requirements.txt
+$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/trigger/form.py services/requisition.py functions/trigger/requirements.txt
 	rm -rf .build/trigger $@ && mkdir -p .build/trigger
 	cp $^ .build/trigger/
 	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *
@@ -80,7 +84,8 @@ deploy: build tf-apply
 destroy: tf-destroy
 
 start:
-	@curl -sf -X POST -H 'content-type: application/json' --data @workflows/fixtures/$(FIXTURE).json $(TRIGGER_URL) \
+	@curl -sf -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
+		--data @workflows/fixtures/$(FIXTURE).json $(TRIGGER_URL) \
 		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])'
 
 wait:
@@ -103,6 +108,8 @@ doc:
 
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up
 smoke: check-env
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
+		--data @workflows/fixtures/happy.json $(TRIGGER_URL)); echo "no token: $$code"; [ "$$code" = 401 ]
 	@for case in happy:done classify-jailbreak:handed_over classify-400:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
@@ -112,6 +119,11 @@ smoke: check-env
 			[ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
+
+# Gmail as lekkai@, by hand: ROUTE='messages?subject=…', ROUTE=threads/<id>, or ROUTE=send BODY='{…}'
+workspace: check-env
+	@curl -sf -H "Authorization: Bearer $$(gcloud auth print-identity-token)" -H 'content-type: application/json' \
+		$(if $(BODY),-X POST --data '$(BODY)') "$(SERVICES_URL)/workspace/$(ROUTE)" | python3 -m json.tool
 
 # Reads agents/expenser/.env
 agent:
@@ -124,6 +136,7 @@ check: tf-fmt-check tf-validate-ci lock-check lint test
 
 test:
 	cd functions/trigger && uv run -q pytest -q
+	cd services && uv run -q pytest -q -p no:warnings
 
 lint:
 	$(RUFF) check .

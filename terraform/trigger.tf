@@ -28,10 +28,17 @@ resource "google_cloudfunctions2_function" "trigger" {
       REGION     = var.region
       WORKFLOW   = google_workflows_workflow.requisition.name
     }
+    # Made by hand, value and all (docs/phase6/tdd.md, Bootstrapped, once). Read when an instance starts
+    secret_environment_variables {
+      key        = "TRIGGER_TOKEN"
+      project_id = var.project_id
+      secret     = "trigger-token"
+      version    = "latest"
+    }
   }
 }
 
-# Public, for now
+# Anyone can reach it, since the form can't mint ID tokens. The function wants a bearer token
 resource "google_cloud_run_v2_service_iam_member" "trigger_public" {
   name     = google_cloudfunctions2_function.trigger.service_config[0].service
   location = var.region

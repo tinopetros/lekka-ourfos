@@ -33,7 +33,7 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 
 1. Read the requisition's file ids, per field
 2. For each: `files.get` for `name`, `mimeType`, `size`, then the bytes (`alt=media`). Google Docs, Sheets and Slides are exported as PDF
-3. Screen each file with Model Armor, one at a time: PDFs as documents, images if the template takes them
+3. Screen each PDF with Model Armor, one at a time. Images pass unscreened: Model Armor fails on them (tried 2026-09-28)
 4. Give the model one turn: the requisition as JSON, then for each file a label (`signed_requisition_form: <name>`) and the file as `Part.from_bytes(data, mime_type)`
 5. Store what was seen, never the bytes: `attachments: [{field, id, name, mimeType, size}]`
 
@@ -52,7 +52,7 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 
 ### Screening
 
-- Free text alone, then files, then the whole prompt. Phase 5 ADR 12's fields, plus the files
+- Free text alone, then PDFs, then the whole prompt. Phase 5 ADR 12's fields, plus the files
 - The plugin reads the requisition from the turn's first text part, now that the turn has several
 - The whole-prompt screen only sees text: the plugin skips non-text parts. So files are screened on their own or not at all
 
@@ -89,7 +89,7 @@ POST /workspace/send {subject, body}    to lekkai@ itself, and nobody else
 - Test files, in a folder shared with `lekkai@`: a signed requisition and a receipt, for LMS support, 60
 - `happy` becomes that requisition: its payload, its two files. The model approves it
 - `classify-jailbreak` loses its files, so it's Model Armor that stops it, not a missing file
-- `nssa`, `bank` and `salary` have no signed forms, so with the rules back they end `rejected`. They get files when we have some to give them
+- `nssa`, `bank` and `salary` lose their made-up files, so with the rules back they end `rejected`: no requisition attached. They get files when we have some to give them
 - Simulated fixtures keep their made-up ids: a stubbed classify fetches nothing
 - New:
 

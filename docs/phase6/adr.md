@@ -30,8 +30,9 @@
 ### 5. Files are screened alone
 
 - The plugin's whole-prompt screen reads only text, so files would reach the model unscreened
-- Each file is screened on its own as a document, one at a time, as phase 5 ADR 12 does the fields
-- One more Model Armor call per file
+- Each PDF is screened on its own as a document, one at a time, as phase 5 ADR 12 does the fields. A made-up PDF with an injection matched; a clean one didn't
+- Images aren't screened: Model Armor's `IMAGE` type fails on our template. A photo of a receipt reaches the model as is, accepted
+- One more Model Armor call per PDF
 
 ### 6. Gmail is a setup check
 

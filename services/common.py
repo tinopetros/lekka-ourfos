@@ -23,6 +23,6 @@ def simulate(step: str, code):
         return
     log(f"simulating {code}", "WARNING", step=step)
     if code == "timeout":
-        time.sleep(70)  # past every step timeout, including classify's 60s
+        time.sleep(70)  # past post's timeout, the one fixture that uses it
     elif isinstance(code, int) or str(code).isdigit():
         raise HTTPException(int(code), f"simulated {code} at {step}")
