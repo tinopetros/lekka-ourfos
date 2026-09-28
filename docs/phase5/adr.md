@@ -31,6 +31,7 @@
 - ourfos-v2's prompt and chart of accounts, as they were, except the rules that need a file to judge
 - Those rules are swapped for one line: attachments aren't shown, so never reject over one. Otherwise the prompt rejects everything
 - So a requisition without a signed form is approved on the form alone. That's the known gap until attachments are back
+- **Closed** in phase 6: the model sees the files, and the rules are back (phase 6 ADR 4)
 - Not tuned. The evals phase does that, with this as the baseline
 - ourfos-v2 ran it on Claude, and we run Flash-Lite. The same words on another model is an unmeasured change, left for evals too
 
@@ -56,6 +57,7 @@
 
 - Anyone with the URL can start a run on dev. Cleaning now turns junk away with a 400 before it starts anything
 - **Revisit** before prod, or with our own front end
+- **Closed** in phase 6: the trigger wants a bearer token (phase 6 ADR 7)
 
 ### 10. The submitter is stored, not logged
 
