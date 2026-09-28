@@ -26,7 +26,7 @@ class Requisition(BaseModel):
     form_id: str | None = None
     form_name: str | None = None
     submitted_by: str
-    submitted_at: AwareDatetime | None = None
+    submitted_at: AwareDatetime
     payable_to: str = Field(min_length=1)
     amount: float = Field(gt=0)
     disbursed_on: date | None = None

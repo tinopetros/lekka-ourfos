@@ -1,19 +1,16 @@
 """The form's webhook payload, every value a string, into a clean Requisition. Nothing is guessed."""
 
 import re
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
+from datetime import UTC, date, datetime
 
 from pydantic import ValidationError
 
 from requisition import Files, Requisition
 
-HARARE = ZoneInfo("Africa/Harare")
 FILE_FIELDS = tuple(Files.model_fields)
 
 # Month names only: 04/05/2026 reads two ways, so slashes aren't accepted until a real payload pins them
 DATE_FORMATS = ("%b %d, %Y", "%B %d, %Y", "%d %b %Y", "%d %B %Y")
-TIME_FORMATS = ("", ", %I:%M:%S %p", ", %I:%M %p", " %I:%M:%S %p", " %I:%M %p", " %H:%M:%S", " %H:%M")
 
 # open?id=, file/d/ and uc?id= links, inside anchors or not, whatever separates them
 DRIVE_ID = re.compile(r"drive\.google\.com/(?:open\?id=|file/d/|uc\?(?:export=\w+&)?id=)([A-Za-z0-9_-]+)")
@@ -98,26 +95,11 @@ def day(value: str) -> date:
     raise ValueError(f"not a date we can read without guessing: {value!r}")
 
 
-def timestamp(value: str) -> datetime:
-    """ISO 8601, epoch milliseconds, or a month-name date with an optional time. Harare when no zone is given."""
-    if value.isdigit() and len(value) == 13:
-        return datetime.fromtimestamp(int(value) / 1000, HARARE)
-    parsed = None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        for d in DATE_FORMATS:
-            for t in TIME_FORMATS:
-                try:
-                    parsed = datetime.strptime(value, d + t)  # noqa: DTZ007  Harare, below
-                    break
-                except ValueError:
-                    pass
-            if parsed:
-                break
-    if parsed is None:
-        raise ValueError(f"not a time we can read without guessing: {value!r}")
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=HARARE)
+def epoch_ms(value: str) -> datetime:
+    """Milliseconds since 1970, in UTC. The form's response_date has no zone, so its time depends on the form's settings"""
+    if not (value.isdigit() and len(value) == 13):
+        raise ValueError(f"not epoch milliseconds: {value!r}")
+    return datetime.fromtimestamp(int(value) / 1000, UTC)
 
 
 def drive_ids(value: str) -> list[str]:
@@ -131,7 +113,7 @@ FIELDS = {
     "form_id": ("form_id", str),
     "form_name": ("form_name", str),
     "submitter_email_address": ("submitted_by", email),
-    "response_date": ("submitted_at", timestamp),
+    "created_at": ("submitted_at", epoch_ms),
     "payable_to": ("payable_to", str),
     "total_amount": ("amount", amount),
     "date_disbursed": ("disbursed_on", day),
