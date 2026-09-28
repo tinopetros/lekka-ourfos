@@ -5,7 +5,6 @@ import os
 import pytest
 from fastapi import HTTPException
 from google.adk.models import LlmRequest
-from google.cloud import modelarmor_v1
 from PIL import Image
 
 # The agent reads its template at import. Nothing here calls Model Armor
@@ -13,7 +12,7 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 
 import attachments
 import google_workspace
-from expenser.screen import documents, free_text
+from expenser.screen import free_text
 from expenser_runner import turn
 from requisition import Requisition
 
@@ -28,8 +27,8 @@ REQUISITION = Requisition(
 )
 
 
-def file(field="receipts", mime_type="application/pdf", size=10, name="receipt.pdf", id="B2"):
-    return {"field": field, "id": id, "name": name, "mimeType": mime_type, "size": size, "data": b"x" * size}
+def file(field="receipts", mime_type="application/pdf", size=10, id="B2"):
+    return {"field": field, "id": id, "mimeType": mime_type, "size": size, "data": b"x" * size}
 
 
 @pytest.mark.parametrize("mime_type", sorted(google_workspace.SHOWN))
@@ -55,27 +54,18 @@ def test_too_large():
     assert e.value.status_code == 422
 
 
-def test_seen_keeps_no_bytes():
-    assert attachments.seen([file()]) == [
-        {"field": "receipts", "id": "B2", "name": "receipt.pdf", "mimeType": "application/pdf", "size": 10}
-    ]
-
-
 def test_turn():
-    content = turn(REQUISITION, [file("signed_requisition_form", name="req.pdf"), file(mime_type="image/png")])
+    content = turn(REQUISITION, [file("signed_requisition_form"), file(mime_type="image/png")])
     assert content.parts[0].text.startswith('{"response_number": 482')
-    assert content.parts[1].text == "signed_requisition_form: req.pdf"
+    assert content.parts[1].text == "signed_requisition_form"
     assert content.parts[2].inline_data.mime_type == "application/pdf"
-    assert content.parts[3].text == "receipts: receipt.pdf"
+    assert content.parts[3].text == "receipts"
     assert content.parts[4].inline_data.mime_type == "image/png"
 
 
-def test_screening_reads_the_first_part_and_pdfs_only():
-    request = LlmRequest(contents=[turn(REQUISITION, [file(size=100), file(mime_type="image/jpeg")])])
+def test_screening_reads_the_requisition_from_the_first_part():
+    request = LlmRequest(contents=[turn(REQUISITION, [file(), file(mime_type="image/jpeg")])])
     assert free_text(request) == ["LMS support", "for September"]
-    screened = documents(request)
-    assert len(screened) == 1
-    assert screened[0].byte_item.byte_data_type == modelarmor_v1.ByteDataItem.ByteItemType.PDF
 
 
 def test_send_is_only_ever_to_the_subject(monkeypatch):
@@ -128,14 +118,6 @@ def test_not_an_image_is_left_for_check():
     assert f["mimeType"] == "application/msword"
     with pytest.raises(HTTPException):
         attachments.check([f])
-
-
-def test_pdfs_outside_model_armors_limits_pass_unscreened(monkeypatch):
-    from expenser import screen
-
-    monkeypatch.setattr(screen, "SCREENABLE_BYTES", range(69, 100))
-    request = LlmRequest(contents=[turn(REQUISITION, [file(size=50), file(size=80), file(size=200)])])
-    assert len(documents(request)) == 1
 
 
 @pytest.mark.parametrize(

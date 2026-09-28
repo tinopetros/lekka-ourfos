@@ -62,8 +62,3 @@ def check(files: list[dict]):
     total = sum(f["size"] for f in files)
     if total > google_workspace.MAX_BYTES:
         raise HTTPException(422, f"attachments are {total} bytes, over {google_workspace.MAX_BYTES}")
-
-
-def seen(files: list[dict]) -> list[dict]:
-    """What the document keeps: never the bytes."""
-    return [{k: f[k] for k in ("field", "id", "name", "mimeType", "size")} for f in files]

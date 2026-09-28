@@ -11,10 +11,10 @@ from requisition import Requisition
 
 
 def turn(requisition: Requisition, files: list[dict]) -> types.Content:
-    """The requisition as JSON first, then each file after a label naming its field and name."""
+    """The requisition as JSON first, then each file after a label naming its form field."""
     parts = [types.Part(text=json.dumps(requisition.to_json()))]
     for f in files:
-        parts.append(types.Part(text=f"{f['field']}: {f['name']}"))
+        parts.append(types.Part(text=f["field"]))
         parts.append(types.Part.from_bytes(data=f["data"], mime_type=f["mimeType"]))
     return types.Content(role="user", parts=parts)
 

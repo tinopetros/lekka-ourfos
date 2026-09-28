@@ -20,9 +20,7 @@ resource "google_cloud_run_v2_service" "services" {
           EXPENSER_MODEL            = "gemini-3.5-flash-lite"
           MODEL_ARMOR_TEMPLATE      = google_model_armor_template.expenser.id
           FIRESTORE_DATABASE        = "ourfos"
-          # Drive and Gmail as lekkai@, signing as itself (docs/phase6/adr.md 1 and 3)
-          WORKSPACE_SUBJECT = "lekkai@lekkacredit.com"
-          WORKSPACE_SA      = local.sa.services
+          WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
         }
         content {
           name  = env.key
@@ -33,7 +31,7 @@ resource "google_cloud_run_v2_service" "services" {
   }
 }
 
-# Private: only the workflow can call it, and people with invoker, for /workspace
+# Private: only the workflow can call it
 resource "google_cloud_run_v2_service_iam_member" "workflow_invokes_services" {
   name     = google_cloud_run_v2_service.services.name
   location = var.region

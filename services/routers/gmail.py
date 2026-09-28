@@ -1,4 +1,4 @@
-"""Gmail as lekkai@, a setup check (docs/phase6/adr.md 6). Called by hand with an ID token, never by the workflow."""
+"""Gmail as lekkai@, a setup check (docs/phase6/adr.md 5). Called by hand with an ID token, never by the workflow."""
 
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool

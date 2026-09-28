@@ -57,7 +57,7 @@
 
 - Anyone with the URL can start a run on dev. Cleaning now turns junk away with a 400 before it starts anything
 - **Revisit** before prod, or with our own front end
-- **Closed** in phase 6: the trigger wants a bearer token (phase 6 ADR 7)
+- **Closed** in phase 6: the trigger wants a bearer token (phase 6 ADR 6)
 
 ### 10. The submitter is stored, not logged
 

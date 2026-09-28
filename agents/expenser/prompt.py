@@ -1,7 +1,7 @@
 """ourfos-v2's expenser prompt, lifted. Changes, and only these (docs/phase5/adr.md 6 and 7):
 
 - It reads our requisition as JSON, not the form's email, so "email" is "requisition" and the examples are ours
-- The files follow the requisition, each labelled with its field and name
+- The files follow the requisition, each labelled with its form field
 - The format section only names the fields: output_schema holds the shape, so no single-line JSON or tuples
 
 The attachment rules are back as they were (docs/phase6/adr.md 4).
@@ -25,7 +25,7 @@ PROMPT = f"""
     - Professional and succinct
 
     __TASK__
-    - Receive a requisition summarizing the expense, as JSON, as well attached files: i.e. requisitions and receipts. Each file follows a label naming its field and file name
+    - Receive a requisition summarizing the expense, as JSON, as well attached files: i.e. requisitions and receipts. Each file follows a label naming its form field
     - Requisitions:
         - Disapprove any expense without a requisition attached
         - If two requisitions are attached, insist that only one be provided

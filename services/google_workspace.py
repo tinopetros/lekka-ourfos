@@ -45,7 +45,9 @@ def subject() -> str:
 def session(scope: str) -> AuthorizedSession:
     """One per scope, cached. google-auth refreshes the token, signing a fresh JWT each time."""
     source, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-    signer_email = os.environ["WORKSPACE_SA"]
+    # Cloud Run's credentials only know their email once refreshed. It's the runtime account: it signs as itself
+    source.refresh(Request())
+    signer_email = source.service_account_email
     credentials = service_account.Credentials(
         iam.Signer(Request(), source, signer_email),
         signer_email,
@@ -87,15 +89,15 @@ def reason(response) -> str:
 
 
 def fetch(file_id: str) -> dict:
-    """A file's name, type and bytes, as the subject sees it. Google-native files come back as PDF."""
-    meta = call(DRIVE, "GET", f"{DRIVE_FILES}/{file_id}", params={"fields": "name,mimeType,size"}).json()
+    """A file's type and bytes, as the subject sees it. Google-native files come back as PDF."""
+    meta = call(DRIVE, "GET", f"{DRIVE_FILES}/{file_id}", params={"fields": "mimeType"}).json()
     if meta["mimeType"] in EXPORTED:
         data = call(DRIVE, "GET", f"{DRIVE_FILES}/{file_id}/export", params={"mimeType": "application/pdf"}).content
         mime_type = "application/pdf"
     else:
         data = call(DRIVE, "GET", f"{DRIVE_FILES}/{file_id}", params={"alt": "media"}).content
         mime_type = meta["mimeType"]
-    return {"id": file_id, "name": meta["name"], "mimeType": mime_type, "size": len(data), "data": data}
+    return {"id": file_id, "mimeType": mime_type, "size": len(data), "data": data}
 
 
 def to_base64(data: bytes) -> str:
@@ -143,7 +145,7 @@ def thread(thread_id: str) -> list[dict]:
 
 
 def send_to_self(subject_line: str, body: str) -> dict:
-    """Only ever to the subject itself: proves gmail.send without mailing anyone (docs/phase6/adr.md 6)."""
+    """Only ever to the subject itself: proves gmail.send without mailing anyone (docs/phase6/adr.md 5)."""
     message = EmailMessage()
     message["To"] = message["From"] = subject()
     message["Subject"] = subject_line

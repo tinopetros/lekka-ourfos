@@ -38,17 +38,16 @@ async def classify(id: str, body: dict):
     code = body.get("simulate")
     requisition = Requisition.model_validate((await run_in_threadpool(store.get, id))["requisition"])
     amount = requisition.amount
-    seen = {}
     if code:
         # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched
         await run_in_threadpool(simulate, "classify", code)
         classification = stub(amount, code)
     else:
+        # In memory for this request only. The document keeps the Drive ids it already had
         files = await attachments.load(requisition)
-        seen = {"attachments": attachments.seen(files)}
         classification = await expenser_runner.classify(requisition, files)
 
-    await run_in_threadpool(store.save, id, status="classified", classification=classification, **seen)
+    await run_in_threadpool(store.save, id, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")
     return classification
 

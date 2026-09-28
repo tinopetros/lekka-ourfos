@@ -2,7 +2,7 @@
 
 ## Goal
 
-- Classify sees the actual attachments: fetched from Drive, screened, and given to the model as bytes, with ourfos-v2's attachment rules back in the prompt
+- Classify sees the actual attachments: fetched from Drive and given to the model as bytes, with ourfos-v2's attachment rules back in the prompt
 - Show that Gmail works as `lekkai@`: find an email by subject, read a thread, send one to itself. No email processing yet
 - The trigger stops being public: it wants a bearer token
 
@@ -12,7 +12,7 @@
 form / Postman ─ Bearer ─▶ trigger ─▶ workflow ─▶ /requisitions/{id}/classify
                    │                                   │
                    401                                 ├─ Drive, as lekkai@ ─▶ file bytes
-                                                       ├─ Model Armor: fields, files, whole prompt
+                                                       ├─ Model Armor: fields, whole prompt
                                                        └─ expenser: JSON + one part per file
 
 curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/send   (Gmail, as lekkai@)
@@ -31,11 +31,11 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 
 ## Attachments into classify
 
-1. Read the requisition's file ids, per field
-2. For each: `files.get` for `name`, `mimeType`, `size`, then the bytes (`alt=media`). Google Docs, Sheets and Slides are exported as PDF
-3. Screen each PDF with Model Armor, one at a time. Images pass unscreened: Model Armor fails on them (tried 2026-09-28). So do PDFs over Model Armor's 4 MB
-4. Give the model one turn: the requisition as JSON, then for each file a label (`signed_requisition_form: <name>`) and the file as `Part.from_bytes(data, mime_type)`
-5. Store what was seen, never the bytes: `attachments: [{field, id, name, mimeType, size}]`
+1. Read the requisition's file ids, per form field
+2. For each: `files.get` for its `mimeType`, then the bytes (`alt=media`). Google Docs, Sheets and Slides are exported as PDF
+3. Give the model one turn: the requisition as JSON, then for each file its form field as a label (`signed_requisition_form`) and the file as `Part.from_bytes(data, mime_type)`
+
+- **Nothing about the files is stored.** The bytes live in memory for one classify request. The document keeps the Drive ids `requisition.files` already had, and `raw`. File names are never read: they're random, and often carry a person's name
 
 - Shown: PDF, PNG, JPEG, WEBP, HEIC, and Google-native files as PDF. At most 40 MB across a requisition. Vertex took 105 MB inline on dev; the cap is about our own memory, now 1 Gi
 - Any other image Pillow reads (GIF, BMP, TIFF, …) becomes PNG. `image/jpg` and friends are read as what they are. Nothing is resized: Gemini scales to 3072px itself and bills after, so shrinking first would only lose detail
@@ -54,9 +54,8 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 
 ### Screening
 
-- Free text alone, then PDFs, then the whole prompt. Phase 5 ADR 12's fields, plus the files
+- Phase 5's: free text alone, then the whole prompt. Files aren't screened (ADR 4)
 - The plugin reads the requisition from the turn's first text part, now that the turn has several
-- The whole-prompt screen only sees text: the plugin skips non-text parts. So files are screened on their own or not at all
 
 ## Gmail, a setup check
 
@@ -82,13 +81,13 @@ POST /workspace/send {subject, body}    to lekkai@ itself, and nobody else
 
 ## Terraform
 
-- Services: `WORKSPACE_SUBJECT`, `WORKSPACE_SA`
+- Services: `WORKSPACE_SUBJECT`, and 1 Gi of memory for the files. It signs as its own runtime account, read from its credentials
 - Trigger: `TRIGGER_TOKEN` from `trigger-token:latest`
 - Infra (tinopetros/lekka-ourfos-infra#14): the Drive, Gmail and IAM Credentials APIs, Token Creator for `ourfos-services@` on itself
 
 ## Fixtures and smoke
 
-- Test files, in a folder shared with `lekkai@`: a signed requisition and a receipt, for LMS support, 60
+- Real files, shared with `lekkai@`: a signed requisition and a receipt, for LMS support, 60, to Mr Muchenje on 18 September 2026. Both are phone photos
 - `happy` becomes that requisition: its payload, its two files. The model approves it
 - `classify-jailbreak` loses its files, so it's Model Armor that stops it, not a missing file
 - `nssa`, `bank` and `salary` lose their made-up files, so with the rules back they end `rejected`: no requisition attached. They get files when we have some to give them
@@ -101,7 +100,7 @@ POST /workspace/send {subject, body}    to lekkai@ itself, and nobody else
 
 - A file of a type we don't show is unit tested, not a fixture, until we have one in Drive
 - Smoke: `happy` done, `classify-jailbreak` and `classify-400` handed over, as before. Plus a run without the token gets 401
-- `make test` also runs the new unit tests: which types are shown, the size cap, labels, the token check
+- `make test` also runs the new unit tests: which types are shown and converted, the size cap, labels, the token check
 
 ## Bootstrapped, once
 
@@ -135,7 +134,7 @@ By hand, in consoles:
 ```bash
 make test
 make run FIXTURE=happy
-make doc ID=<execution_id>                       # attachments: names and types, no bytes
+make doc ID=<execution_id>
 make workspace ROUTE='messages?subject=Requisition'
 make workspace ROUTE=threads/<thread_id>
 make workspace ROUTE=send BODY='{"subject": "ourfos setup check", "body": "hello"}'
@@ -145,7 +144,7 @@ make workspace ROUTE=send BODY='{"subject": "ourfos setup check", "body": "hello
 
 ## Done when
 
-- `happy` ends `done`, with both files in `attachments`, on dev
+- `happy` ends `done` on dev, the model having seen both its files
 - `file-missing` hands over, naming the file
 - The three Gmail routes work, and the email arrives in `lekkai@`'s inbox
 - The trigger answers 401 without the token, and smoke passes with it
@@ -155,15 +154,16 @@ make workspace ROUTE=send BODY='{"subject": "ourfos setup check", "body": "hello
 
 - **Images**: any image Pillow reads is shown, as PNG if Gemini doesn't take its type, never resized. Only Word, Excel and the like hand over
 - **The cap**: 15 MB was Gemini's old 20 MB inline limit. Vertex took 105 MB on dev, so it's 40 MB, bounded by our memory, which goes to 1 Gi
-- **Model Armor's limits**: PDFs over 4 MB, or under 69 bytes, pass unscreened rather than failing closed. And its `IMAGE` type fails, so images aren't screened (ADR 5)
-- **The real test files are photos**: both of `happy`'s are JPEGs, so on a typical requisition nothing is screened but its text fields
+- **No file screening**: Model Armor can't read images (its `IMAGE` type fails on our template), and uploads are almost always photos. Screening only the rare PDF wasn't worth it (ADR 4)
+- **Nothing about files stored**: an `attachments` list was tried and dropped. The Drive ids were already there, and names are noise
+- **`happy` is real**: its files are the ones on the actual requisition, both phone photos, and its payee and date match them
 - **Handovers say why**: `call_service` appends the service's `detail` to the error, so a handover names the file it couldn't fetch, with Google's own message
 - **Gmail**: `lekkai@` sees the form's notifications, so email processing has what it needs
 
 ## Not in this phase
 
 - Processing email: finding the form's thread, replies, who they go to
-- Checking a file came from the form's upload folder
+- Catching a reused requisition: a file, or its hash, already on an earlier requisition, or a date far from `disbursed_on` (ADR 4)
 - Real Mifos
 - Prod
 - Uploads to GCS from our own front end, which is what replaces delegation

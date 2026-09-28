@@ -24,23 +24,15 @@
 - Bytes go in as inline parts, labelled by field. The prompt's attachment rules come back word for word, which closes phase 5 ADR 5's gap
 - A file we can't fetch or show hands over. With the rules back, dropping it would turn a sharing problem into a rejected requisition
 - 40 MB per requisition, inline, with `ourfos-services` at 1 Gi. Vertex took 105 MB inline on dev, so the cap is our memory, not Gemini. Over it hands over, naming the size. Larger needs GCS, which comes with our own front end
-- The files themselves aren't checked to come from the form's upload folder. The trigger's token is what stands in the way of someone naming any file `lekkai@` can see
-- **Revisit** the folder check with email processing, or if the token leaks
+- Files reach the model unscreened: Model Armor can't read images, and uploads are nearly always photos
+- **Watch:** a reused requisition. The model doesn't compare the requisition's date with `disbursed_on`: `happy` passed with its form dated months from its photos. Someone could attach an old signed requisition, or someone else's, to a new claim. Deterministic first: flag a file, or its hash, already on an earlier requisition. Then a date rule in the evals phase, measured, since it changes the lifted prompt
 
-### 5. Files are screened alone
-
-- The plugin's whole-prompt screen reads only text, so files would reach the model unscreened
-- Each PDF is screened on its own as a document, one at a time, as phase 5 ADR 12 does the fields. A made-up PDF with an injection matched; a clean one didn't
-- Images aren't screened: Model Armor's `IMAGE` type fails on our template. A photo of a receipt reaches the model as is, accepted
-- Nor are PDFs over 4 MB, Model Armor's limit: failing closed on them would hand over clean requisitions. And a scanned PDF has no text layer, so screening one checks nothing
-- One more Model Armor call per PDF. Cost: 2M tokens a month free per project, then $0.10 per million, about 4 characters a token. A requisition's fields, JSON and a page or two of PDF is a few thousand tokens, so hundreds of requisitions a month stay free, and a thousand more would cost cents
-
-### 6. Gmail is a setup check
+### 5. Gmail is a setup check
 
 - Three routes, reachable only with invoker IAM, never called by the workflow. `send` only mails `lekkai@` itself
 - They prove the grant and the scopes. Email processing is its own phase, with its own decisions about threads and recipients
 
-### 7. The trigger takes a bearer token
+### 6. The trigger takes a bearer token
 
 - A shared secret, since the form's webhook can't mint Google ID tokens. Cloud Run still lets anyone reach the function, and the function turns them away
 - Weaker than IAM: whoever has the token can start runs. It's in Secret Manager and the form's webhook settings, and nowhere else
