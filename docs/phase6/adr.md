@@ -23,7 +23,7 @@
 
 - Bytes go in as inline parts, labelled by field. The prompt's attachment rules come back word for word, which closes phase 5 ADR 5's gap
 - A file we can't fetch or show hands over. With the rules back, dropping it would turn a sharing problem into a rejected requisition
-- 15 MB per requisition, inline. Larger needs GCS or the Files API, which comes with GCS
+- 40 MB per requisition, inline, with `ourfos-services` at 1 Gi. Vertex took 105 MB inline on dev, so the cap is our memory, not Gemini. Over it hands over, naming the size. Larger needs GCS, which comes with our own front end
 - The files themselves aren't checked to come from the form's upload folder. The trigger's token is what stands in the way of someone naming any file `lekkai@` can see
 - **Revisit** the folder check with email processing, or if the token leaks
 

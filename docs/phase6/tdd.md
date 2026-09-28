@@ -37,8 +37,8 @@ curl + ID token ─▶ /workspace/messages, /workspace/threads/{id}, /workspace/
 4. Give the model one turn: the requisition as JSON, then for each file a label (`signed_requisition_form: <name>`) and the file as `Part.from_bytes(data, mime_type)`
 5. Store what was seen, never the bytes: `attachments: [{field, id, name, mimeType, size}]`
 
-- Shown: PDF, PNG, JPEG, WEBP, HEIC, and Google-native files as PDF. At most 15 MB across a requisition, so the request stays under Gemini's inline limit once base64'd
-- Any other image Pillow reads (GIF, BMP, TIFF, …) becomes PNG. `image/jpg` and friends are read as what they are. A photo over 4 MB is shrunk to 3072px and re-encoded as JPEG, so a few phone pictures fit
+- Shown: PDF, PNG, JPEG, WEBP, HEIC, and Google-native files as PDF. At most 40 MB across a requisition. Vertex took 105 MB inline on dev; the cap is about our own memory, now 1 Gi
+- Any other image Pillow reads (GIF, BMP, TIFF, …) becomes PNG. `image/jpg` and friends are read as what they are. Nothing is resized: Gemini scales to 3072px itself and bills after, so shrinking first would only lose detail
 - Word, Excel and the like still hand over: the model can't take them, and Drive can't export a file it didn't make
 - The SDK base64s the bytes on the wire. `to_base64` exists only for looking at a part by hand
 - **Can't fetch or can't show:** classify answers 422 with which file and why, and the run hands over. Not a silent drop, as ourfos-v2 did: with the rules back, the model would reject for a "missing" requisition that's really a permissions problem
@@ -153,7 +153,8 @@ make workspace ROUTE=send BODY='{"subject": "ourfos setup check", "body": "hello
 
 ## What execution changed
 
-- **Images**: any image Pillow reads is shown, as PNG if Gemini doesn't take its type, and photos over 4 MB shrink. Only Word, Excel and the like hand over
+- **Images**: any image Pillow reads is shown, as PNG if Gemini doesn't take its type, never resized. Only Word, Excel and the like hand over
+- **The cap**: 15 MB was Gemini's old 20 MB inline limit. Vertex took 105 MB on dev, so it's 40 MB, bounded by our memory, which goes to 1 Gi
 - **Model Armor's limits**: PDFs over 4 MB, or under 69 bytes, pass unscreened rather than failing closed. And its `IMAGE` type fails, so images aren't screened (ADR 5)
 - **The real test files are photos**: both of `happy`'s are JPEGs, so on a typical requisition nothing is screened but its text fields
 - **Handovers say why**: `call_service` appends the service's `detail` to the error, so a handover names the file it couldn't fetch, with Google's own message

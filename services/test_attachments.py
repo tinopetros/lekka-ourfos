@@ -117,12 +117,10 @@ def test_jpg_is_jpeg_untouched():
     assert f["data"] == data
 
 
-def test_a_large_photo_shrinks(monkeypatch):
-    monkeypatch.setattr(attachments, "LARGE_IMAGE", 1000)
-    data = image("PNG", size=(4000, 3000))
-    f = attachments.normalize(file(mime_type="image/png", size=attachments.LARGE_IMAGE + 1) | {"data": data})
-    assert f["mimeType"] == "image/jpeg"
-    assert max(Image.open(io.BytesIO(f["data"])).size) == attachments.MAX_SIDE
+def test_a_large_photo_is_left_as_it_is():
+    data = image("JPEG", size=(4000, 3000))
+    f = attachments.normalize(file(mime_type="image/jpeg", size=len(data)) | {"data": data})
+    assert f["data"] == data
 
 
 def test_not_an_image_is_left_for_check():

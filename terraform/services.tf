@@ -7,6 +7,10 @@ resource "google_cloud_run_v2_service" "services" {
     service_account = local.sa.services
     containers {
       image = var.services_image
+      # Up to 40 MB of attachments, and a base64 copy of them, beside ADK and the SDKs
+      resources {
+        limits = { cpu = "1", memory = "1Gi" }
+      }
 
       dynamic "env" {
         for_each = {

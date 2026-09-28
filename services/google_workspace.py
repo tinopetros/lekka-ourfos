@@ -31,8 +31,9 @@ EXPORTED = {
     "application/vnd.google-apps.spreadsheet",
     "application/vnd.google-apps.presentation",
 }
-# Across a requisition, so the request stays under Gemini's inline limit once base64'd
-MAX_BYTES = 15 * 1024 * 1024
+# Across a requisition. Vertex took 105 MB inline on dev (2026-09-28): this is about our own memory, which holds
+# every file and a base64 copy of it on the way to the model
+MAX_BYTES = 40 * 1024 * 1024
 
 
 def subject() -> str:
