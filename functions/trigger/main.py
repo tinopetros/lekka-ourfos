@@ -8,7 +8,14 @@ from auth import authorized
 from form import Invalid, clean
 
 client = executions_v1.ExecutionsClient()
-workflow = client.workflow_path(os.environ["PROJECT_ID"], os.environ["REGION"], os.environ["WORKFLOW"])
+
+# ?workflow= picks one: its cleaner, and the workflow Terraform named. One webhook URL per form
+WORKFLOWS = {
+    "requisition": (
+        clean,
+        client.workflow_path(os.environ["PROJECT_ID"], os.environ["REGION"], os.environ["WORKFLOW"]),
+    ),
+}
 
 
 def log(message: str, severity: str = "INFO", **fields):
@@ -28,6 +35,10 @@ def trigger(request):
         return {"error": "unauthorized"}, 401, {"WWW-Authenticate": "Bearer"}
     if request.method != "POST":
         return {"error": "POST a requisition"}, 405
+    name = request.args.get("workflow")
+    if name not in WORKFLOWS:
+        return {"error": f"?workflow= must be one of: {', '.join(WORKFLOWS)}"}, 400
+    cleaner, workflow = WORKFLOWS[name]
     raw = request.get_json(silent=True)
     if not isinstance(raw, dict):
         return {"error": "body must be a JSON object"}, 400
@@ -35,7 +46,7 @@ def trigger(request):
     # Beside the form's keys, from dev fixtures only. The prod workflow drops it
     simulate = raw.pop("simulate", None)
     try:
-        requisition = clean(raw)
+        requisition = cleaner(raw)
     except Invalid as e:
         # The problems, never the values
         log("rejected by cleaning", "WARNING", errors=[error.split(":")[0] for error in e.errors])
@@ -44,5 +55,5 @@ def trigger(request):
     argument = {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate}
     execution = client.create_execution(parent=workflow, execution={"argument": json.dumps(argument)})
     execution_id = execution.name.rsplit("/", 1)[-1]
-    log("started", execution_id=execution_id, response_number=requisition.response_number)
+    log("started", workflow=name, execution_id=execution_id, response_number=requisition.response_number)
     return {"execution_id": execution_id}, 202

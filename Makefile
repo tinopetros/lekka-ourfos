@@ -22,6 +22,8 @@ REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
+# Which workflow the trigger starts. The form's webhook sends the same
+WORKFLOW ?= requisition
 # The trigger's bearer token, read when used and never echoed
 TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --project $(PROJECT))
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
@@ -35,7 +37,7 @@ help:
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
-	@echo "make smoke               no token 401, happy ends done, jailbreak and 400 end handed_over (what CI runs)"
+	@echo "make smoke               no token 401, no ?workflow= 400, happy done, jailbreak and 400 handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
 	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
@@ -85,7 +87,7 @@ destroy: tf-destroy
 
 start:
 	@curl -sf -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @workflows/fixtures/$(FIXTURE).json $(TRIGGER_URL) \
+		--data @workflows/fixtures/$(FIXTURE).json "$(TRIGGER_URL)?workflow=$(WORKFLOW)" \
 		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])'
 
 wait:
@@ -109,7 +111,9 @@ doc:
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up
 smoke: check-env
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
-		--data @workflows/fixtures/happy.json $(TRIGGER_URL)); echo "no token: $$code"; [ "$$code" = 401 ]
+		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)?workflow=$(WORKFLOW)"); echo "no token: $$code"; [ "$$code" = 401 ]
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
+		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
 	@for case in happy:done classify-jailbreak:handed_over classify-400:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
