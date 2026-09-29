@@ -33,7 +33,7 @@ TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --projec
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals eval-cases eval-failures check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals eval-cases eval-report check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -45,7 +45,7 @@ help:
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
-	@echo "make eval-failures       which cases failed which metric, in the last RUNS runs"
+	@echo "make eval-report         which cases failed which metric, and what they cost, in the last RUNS runs"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
 	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
@@ -154,11 +154,11 @@ evals:
 	@status=0; for run in $$(seq $(RUNS)); do \
 		( $(ADK) eval expenser $(EVALS)/requisitions.evalset.json$(if $(CASE),:$(CASE)) \
 			--config_file_path $(EVALS)/test_config.json --log_level warning $(if $(DETAIL),--print_detailed_results) ) || status=1; \
-	done; python3 agents/expenser/evals/failures.py $(RUNS); exit $$status
+	done; python3 agents/expenser/evals/report.py $(RUNS); exit $$status
 
 # Which cases failed which metric, from the results ADK itself keeps: its last RUNS runs
-eval-failures:
-	@python3 agents/expenser/evals/failures.py $(RUNS)
+eval-report:
+	@python3 agents/expenser/evals/report.py $(RUNS)
 
 eval-cases:
 	@python3 -c 'import json; [print(c["eval_id"]) for c in json.load(open("agents/expenser/evals/requisitions.evalset.json"))["eval_cases"]]'

@@ -5,30 +5,12 @@ import os
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.integrations.model_armor import ModelArmorConfig
-from pydantic import BaseModel
 
 from .files import Attachments
+from .fill import fill
 from .prompt import PROMPT
+from .schema import Answer, Classification  # noqa: F401  classify reads the whole Classification from here
 from .screen import FieldsModelArmorPlugin
-
-
-class Line(BaseModel):
-    name: str
-    glCode: str
-    # What Mifos posts to. glCode is what a person reads
-    glId: int
-    accountType: str
-    amount: float
-
-
-# The stub answers in this shape too, so the workflow can't tell a model answered
-class Classification(BaseModel):
-    approve: bool
-    reason: str
-    debit: list[Line]
-    credit: list[Line]
-    comments: list[str]
-
 
 root_agent = Agent(
     name="expenser",
@@ -36,7 +18,9 @@ root_agent = Agent(
     description="Classifies a requisition into an approval and journal lines.",
     # A function, so ADK doesn't read the examples' braces as session state
     instruction=lambda _: PROMPT,
-    output_schema=Classification,
+    # The model names each line's account; fill looks up the rest, so what comes out is a whole Classification
+    output_schema=Answer,
+    after_model_callback=fill,
 )
 
 # Fetches the requisition's files, then screens every prompt before the model sees it, its free text alone too.
