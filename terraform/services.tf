@@ -21,6 +21,7 @@ resource "google_cloud_run_v2_service" "services" {
           MODEL_ARMOR_TEMPLATE      = google_model_armor_template.expenser.id
           FIRESTORE_DATABASE        = "ourfos"
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
+          ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
         }
         content {
           name  = env.key

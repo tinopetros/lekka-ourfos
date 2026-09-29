@@ -1,4 +1,4 @@
-"""A requisition's files, fetched from Drive for the model (docs/phase6/tdd.md, Attachments into classify)."""
+"""A requisition's files, fetched from Drive or our bucket for the model (docs/phase6/tdd.md, docs/phase7/tdd.md)."""
 
 import io
 
@@ -7,6 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from PIL import Image, UnidentifiedImageError
 
 from common import RETRIED, log
+from integrations import gcs
 from integrations.workspace import drive
 from integrations.workspace.delegation import WorkspaceError
 from requisition import Requisition
@@ -15,18 +16,23 @@ from requisition import Requisition
 async def load(requisition: Requisition) -> list[dict]:
     """Every file, in field order, or an HTTPException the workflow retries or hands over. Never a silent drop."""
     files = []
-    for field, ids in requisition.files.model_dump().items():
-        for file_id in ids:
+    for field, refs in requisition.files.model_dump().items():
+        for ref in refs:
             try:
-                got = await run_in_threadpool(drive.fetch, file_id)
-            except WorkspaceError as e:
-                # Drive's retryable statuses pass through. Anything else is this file's problem, so a handover
+                got = await run_in_threadpool(fetch, ref)
+            except (WorkspaceError, gcs.GcsError) as e:
+                # Retryable statuses pass through. Anything else is this file's problem, so a handover
                 status = e.status if e.status in RETRIED else 422
-                raise HTTPException(status, f"{field} {file_id}: cannot fetch, {e}") from e
+                raise HTTPException(status, f"{field} {ref}: cannot fetch, {e}") from e
             files.append(normalize({"field": field} | got))
     check(files)
     log("attachments", count=len(files), bytes=sum(f["size"] for f in files))
     return files
+
+
+def fetch(ref: str) -> dict:
+    """A gs:// ref is our bucket. Anything else is a Drive id, as every requisition before phase 7 has."""
+    return gcs.fetch(ref) if ref.startswith("gs://") else drive.fetch(ref)
 
 
 # What Drive or a browser sometimes calls a type Gemini knows by another name

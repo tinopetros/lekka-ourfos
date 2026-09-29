@@ -32,6 +32,14 @@ class FieldsModelArmorPlugin(ModelArmorPlugin):
                 return blocked
         return await super().before_model_callback(callback_context=callback_context, llm_request=llm_request)
 
+    async def close(self):
+        """Never: one app, and so one client, serves every runner, and a runner closes its plugins as it ends.
+
+        ADK's evals run cases side by side, each in its own runner: closing the client as one ended cancelled the
+        others' calls mid-flight, and a closed client failed every later one closed. The client lives as long as the
+        process, as it always has in classify.
+        """
+
 
 def free_text(llm_request) -> list[str]:
     """The latest user turn's free-text fields, when it's a requisition. Anything else is screened whole only."""

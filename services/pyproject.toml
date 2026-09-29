@@ -12,7 +12,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "google-adk[eval]==2.10.0",
+    "pytest",
+]
 
 [tool.pytest.ini_options]
 pythonpath = [".", "../agents"]

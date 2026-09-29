@@ -1,10 +1,10 @@
 import json
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
 
-from form import HARARE, Invalid, clean, drive_ids
+from form import Invalid, clean, file_refs
 
 FORM = {
     "submitter_email_address": " LTanga@lekkacredit.com ",
@@ -18,7 +18,8 @@ FORM = {
     "form_id": "1FAIpQLSf-form",
     "form_name": "Requisition Approval Request Form",
     "response_number": "482",
-    "response_date": "Apr 10, 2026, 3:45:12 PM",
+    "response_date": "Apr 10, 2026 3:45 PM",
+    "created_at": "1775828712000",
     "response_id": "2_ABaOnud-response",
 }
 
@@ -38,7 +39,7 @@ def test_clean():
     assert r.payable_to == "City parking"
     assert r.amount == 1.0
     assert r.disbursed_on == date(2026, 4, 10)
-    assert r.submitted_at == datetime(2026, 4, 10, 15, 45, 12, tzinfo=HARARE)
+    assert r.submitted_at == datetime(2026, 4, 10, 13, 45, 12, tzinfo=UTC)
     assert r.comment is None
     assert r.files.signed_requisition_form == ["1SadMsMDjnTLSW-9JsqkQIKc4WYndlqwz"]
     assert r.files.receipts == []
@@ -51,7 +52,7 @@ def test_extra_keys_are_ignored():
 def test_json_and_firestore():
     r = clean(FORM)
     assert r.to_json()["disbursed_on"] == "2026-04-10"
-    assert r.to_json()["submitted_at"] == "2026-04-10T15:45:12+02:00"
+    assert r.to_json()["submitted_at"] == "2026-04-10T13:45:12Z"
     assert "comment" not in r.to_json()
     assert r.to_firestore()["disbursed_on"] == "2026-04-10"
     assert isinstance(r.to_firestore()["submitted_at"], datetime)
@@ -91,17 +92,23 @@ def test_date_is_never_guessed(raw):
     assert invalid(date_disbursed=raw)[0].startswith("date_disbursed: not a date we can read without guessing")
 
 
-@pytest.mark.parametrize(
-    "raw, want",
-    [
-        ("2026-04-10T13:45:12Z", datetime(2026, 4, 10, 15, 45, 12, tzinfo=HARARE)),
-        ("2026-04-10T15:45:12", datetime(2026, 4, 10, 15, 45, 12, tzinfo=HARARE)),
-        ("1775828712000", datetime(2026, 4, 10, 15, 45, 12, tzinfo=HARARE)),
-        ("Apr 10, 2026 15:45", datetime(2026, 4, 10, 15, 45, tzinfo=HARARE)),
-    ],
-)
-def test_submitted_at(raw, want):
-    assert clean(FORM | {"response_date": raw}).submitted_at == want
+def test_submitted_at_is_created_at_not_response_date():
+    # The real payload: created_at is 5:34 PM in New York, and response_date is in whatever zone the form is set to
+    r = clean(FORM | {"created_at": "1790631273038", "response_date": "Sep 28, 2026 5:34 PM"})
+    assert r.submitted_at == datetime(2026, 9, 28, 21, 34, 33, 38000, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("raw", ["2026-04-10T13:45:12Z", "Sep 28, 2026 5:34 PM", "179063127303", "17906312730380"])
+def test_created_at_is_epoch_milliseconds_only(raw):
+    assert invalid(created_at=raw)[0].startswith("created_at: not epoch milliseconds")
+
+
+def test_created_at_is_required():
+    raw = dict(FORM)
+    del raw["created_at"]
+    with pytest.raises(Invalid) as e:
+        clean(raw)
+    assert e.value.errors == ["created_at: field required"]
 
 
 def test_required():
@@ -142,10 +149,18 @@ def test_not_text():
         ("https://drive.google.com/uc?export=download&id=A1", ["A1"]),
         ("https://drive.google.com/open?id=A1 https://drive.google.com/open?id=A1", ["A1"]),
         ("File 1", []),
+        (
+            "gs://ourfos-dev-attachments/evals/requisitions/a/receipts/0f1e",
+            ["gs://ourfos-dev-attachments/evals/requisitions/a/receipts/0f1e"],
+        ),
+        (
+            "https://drive.google.com/open?id=A1, gs://b/o/1 gs://b/o/2, gs://b/o/1",
+            ["A1", "gs://b/o/1", "gs://b/o/2"],
+        ),
     ],
 )
-def test_drive_ids(raw, want):
-    assert drive_ids(raw) == want
+def test_file_refs(raw, want):
+    assert file_refs(raw) == want
 
 
 @pytest.mark.parametrize("fixture", sorted(FIXTURES.glob("*.json")), ids=lambda p: p.stem)

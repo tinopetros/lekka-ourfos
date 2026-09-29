@@ -1,0 +1,870 @@
+{
+  "eval_set_id": "requisitions",
+  "name": "requisitions",
+  "eval_cases": [
+    {
+      "eval_id": "city-parking",
+      "conversation": [
+        {
+          "invocation_id": "city-parking",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 1, \"response_id\": \"eval-city-parking\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-27T14:18:09Z\", \"payable_to\": \"City parking\", \"amount\": 1.0, \"disbursed_on\": \"2026-03-24\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking/signed_requisition_form/8b60a47bedaa155edbf1c6abf4a11e148533875743bd7954cfdcaad0d3ec9bc6\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 1.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 1.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "me-makora-and-angeline-jpeg",
+      "conversation": [
+        {
+          "invocation_id": "me-makora-and-angeline-jpeg",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 2, \"response_id\": \"eval-me-makora-and-angeline-jpeg\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:11:03Z\", \"payable_to\": \"Me Makora and Angeline\", \"amount\": 24.0, \"disbursed_on\": \"2026-03-13\", \"comment\": \"Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/me-makora-and-angeline-jpeg/signed_requisition_form/46042b472f52b2de454027bdba21ef0f7570887983b8d3dacbf5593709b1d42c\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Fuel and Lubricants: Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"debit\": [{\"glCode\": \"5065\", \"amount\": 24.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 24.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "me-makora-and-angeline-png",
+      "conversation": [
+        {
+          "invocation_id": "me-makora-and-angeline-png",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 3, \"response_id\": \"eval-me-makora-and-angeline-png\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:11:03Z\", \"payable_to\": \"Me Makora and Angeline\", \"amount\": 24.0, \"disbursed_on\": \"2026-03-13\", \"comment\": \"Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/me-makora-and-angeline-png/signed_requisition_form/fefc8fa63cf821b6ebb7a879277a7286dd6d5d515c1338b5c44bb7c169517803\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Fuel and Lubricants: Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"debit\": [{\"glCode\": \"5065\", \"amount\": 24.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 24.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "me-makora-and-angeline-pdf",
+      "conversation": [
+        {
+          "invocation_id": "me-makora-and-angeline-pdf",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 4, \"response_id\": \"eval-me-makora-and-angeline-pdf\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:11:03Z\", \"payable_to\": \"Me Makora and Angeline\", \"amount\": 24.0, \"disbursed_on\": \"2026-03-13\", \"comment\": \"Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/me-makora-and-angeline-pdf/signed_requisition_form/afc4b50b80f939c8449d73fdee04d21edc3bb92fb41c041e8715fa7526b6a376\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Fuel and Lubricants: Mr Makora fuel $20 and Angeline transport fee $4 for coming to work on Saturday\", \"debit\": [{\"glCode\": \"5065\", \"amount\": 24.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 24.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "miss-jongwe-cleaning-fee-for-march-2026-pdf",
+      "conversation": [
+        {
+          "invocation_id": "miss-jongwe-cleaning-fee-for-march-2026-pdf",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 5, \"response_id\": \"eval-miss-jongwe-cleaning-fee-for-march-2026-pdf\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"ltanga@lekkacredit.com\", \"submitted_at\": \"2026-03-30T09:43:15Z\", \"payable_to\": \"Miss Jongwe- Cleaning fee For March 2026\", \"amount\": 52.0, \"disbursed_on\": \"2026-03-30\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/miss-jongwe-cleaning-fee-for-march-2026-pdf/signed_requisition_form/b3ffc430de64f341c520a41680da8067faec47218517da5c4b65577ea07aeac7\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Office Cleaning: Miss Jongwe- Cleaning fee For March 2026\", \"debit\": [{\"glCode\": \"5100\", \"amount\": 52.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 52.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "mr-saruchera",
+      "conversation": [
+        {
+          "invocation_id": "mr-saruchera",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 6, \"response_id\": \"eval-mr-saruchera\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:56:32Z\", \"payable_to\": \"Mr saruchera\", \"amount\": 800.0, \"disbursed_on\": \"2026-03-14\", \"comment\": \"Mr saruchera consultancy fee for January to February 2026\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/mr-saruchera/signed_requisition_form/23d335750402bb16d423f2d1f996c316056148ab87c8596b156d1421185fc289\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Consultancy Fees: Mr saruchera consultancy fee for January to February 2026\", \"debit\": [{\"glCode\": \"5151\", \"amount\": 800.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 800.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "salaries-fake",
+      "conversation": [
+        {
+          "invocation_id": "salaries-fake",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 7, \"response_id\": \"eval-salaries-fake\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-27T14:16:56Z\", \"payable_to\": \"Salaries\", \"amount\": 986.0, \"disbursed_on\": \"2026-03-25\", \"comment\": \"March 2026 salaries\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/salaries-fake/signed_requisition_form/23d335750402bb16d423f2d1f996c316056148ab87c8596b156d1421185fc289\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": false, \"reason\": \"why: claims March salaries, but the attached requisition is Mr saruchera's consultancy fee, 800\", \"debit\": [], \"credit\": []}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "salaries",
+      "conversation": [
+        {
+          "invocation_id": "salaries",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 8, \"response_id\": \"eval-salaries\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-27T14:16:56Z\", \"payable_to\": \"Salaries\", \"amount\": 986.0, \"disbursed_on\": \"2026-03-25\", \"comment\": \"March 2026 salaries\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/salaries/signed_requisition_form/295116a87f3a126a6594761e2c275bac5ef60f1e8e100c4f164271d61b7ce673\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": false, \"reason\": \"why: a salary: never filed, the prompt says so\", \"debit\": [], \"credit\": []}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "bhola-and-spar-greenfields",
+      "conversation": [
+        {
+          "invocation_id": "bhola-and-spar-greenfields",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 9, \"response_id\": \"eval-bhola-and-spar-greenfields\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:40:10Z\", \"payable_to\": \"Bhola and spar greenfields\", \"amount\": 97.0, \"disbursed_on\": \"2026-03-04\", \"comment\": \"Office provisions\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/bhola-and-spar-greenfields/signed_requisition_form/73f8745f028d75f8f06f46f6343691c4dd40b459f3a599f0237e2dc65ff4e754\"], \"receipts\": [\"gs://ourfos-dev-attachments/evals/requisitions/bhola-and-spar-greenfields/receipts/dc020f1df5a8c17e14715b44bf6b59a31dda1e271741bdbeff7efc830bbde2da\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/bhola-and-spar-greenfields/invoices/2b25508d0d5063b26c536807bf52257c745af04a46ce0d0e800be0271ad3f602\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: two signed forms, stationery 20.01 and provisions 76.96, receipts 82.97 and 14.00. The form rounds to 97\", \"debit\": [{\"glCode\": \"5105\", \"amount\": 20.01}, {\"glCode\": \"5145\", \"amount\": 76.96}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 20.01}, {\"glCode\": \"10000000\", \"amount\": 76.96}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cell-insurance",
+      "conversation": [
+        {
+          "invocation_id": "cell-insurance",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 10, \"response_id\": \"eval-cell-insurance\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:42:01Z\", \"payable_to\": \"Cell insurance\", \"amount\": 119.0, \"disbursed_on\": \"2026-03-03\", \"comment\": \"Vehicle insurance fee\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/cell-insurance/signed_requisition_form/ba7385292ae409af17ae2c38fe290c675bc97e7890c28ffc56efcb586237ad7f\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/cell-insurance/invoices/f1e1133027b6244d38928a46139937e422a2472525501a3fd8833002317a01e7\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Insurance Expense: Vehicle insurance fee\", \"debit\": [{\"glCode\": \"5155\", \"amount\": 119.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 119.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-1",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 11, \"response_id\": \"eval-city-parking-1\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:44:59Z\", \"payable_to\": \"City parking\", \"amount\": 1.0, \"disbursed_on\": \"2026-03-03\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-1/signed_requisition_form/68814953277a3f4a8c4488afb041e4feecfb31a265d1660fed9d7ebc2f3d4aa4\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 1.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 1.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-2",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-2",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 12, \"response_id\": \"eval-city-parking-2\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:33:21Z\", \"payable_to\": \"City parking\", \"amount\": 2.0, \"disbursed_on\": \"2026-03-09\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-2/signed_requisition_form/48383c623d1cf5d304b24d8328acf25e63607372c0b93cd30b069ed4786380b7\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 2.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 2.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-3",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-3",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 13, \"response_id\": \"eval-city-parking-3\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:15:54Z\", \"payable_to\": \"City parking\", \"amount\": 1.0, \"disbursed_on\": \"2026-03-12\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-3/signed_requisition_form/993842d25e518155ef01b5ee68a316377040134d7d75c3ae04b6abd2c15b1af1\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 1.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 1.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-4",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-4",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 14, \"response_id\": \"eval-city-parking-4\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:37:10Z\", \"payable_to\": \"City parking\", \"amount\": 4.0, \"disbursed_on\": \"2026-03-11\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-4/signed_requisition_form/3f2fe58748e85c79c9399bd1523d141035b7853fa479a869f65b817e80eaa4d6\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 4.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 4.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-5",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-5",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 15, \"response_id\": \"eval-city-parking-5\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:49:13Z\", \"payable_to\": \"City parking\", \"amount\": 1.0, \"disbursed_on\": \"2026-03-13\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-5/signed_requisition_form/e821b5246dd5b49c3e03a535ab50bba914259be135075e7a61d468d41aa95c07\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 1.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 1.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "city-parking-6",
+      "conversation": [
+        {
+          "invocation_id": "city-parking-6",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 16, \"response_id\": \"eval-city-parking-6\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-27T14:14:51Z\", \"payable_to\": \"City parking\", \"amount\": 1.0, \"disbursed_on\": \"2026-03-27\", \"comment\": \"City parking\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/city-parking-6/signed_requisition_form/ba816eeeb20217df849e01cbac1d3aa2e557f68256dd6fd2970219ad4c34b4c7\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Advertising and Promotions: City parking\", \"debit\": [{\"glCode\": \"5020\", \"amount\": 1.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 1.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "fcb",
+      "conversation": [
+        {
+          "invocation_id": "fcb",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 17, \"response_id\": \"eval-fcb\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:44:02Z\", \"payable_to\": \"FCB\", \"amount\": 30.0, \"disbursed_on\": \"2026-03-03\", \"comment\": \"Fcb fee for February 2026\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/fcb/signed_requisition_form/0fe636655e21156e6bc989dcbf7ba418a282cb656f2b0427ab3365b5de3e1c60\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/fcb/invoices/d5b7b45f23590476f4d6056d301ffa094093ddd7b8a120ce22b1616a274e6f13\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Subscriptions: Fcb fee for February 2026\", \"debit\": [{\"glCode\": \"5140\", \"amount\": 30.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 30.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "fuel",
+      "conversation": [
+        {
+          "invocation_id": "fuel",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 18, \"response_id\": \"eval-fuel\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:36:39Z\", \"payable_to\": \"Fuel\", \"amount\": 30.0, \"disbursed_on\": \"2026-03-04\", \"comment\": \"Fuel\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/fuel/signed_requisition_form/5bb2eafd749ce63decfddcc2471705135f91cc0315ff7001843f0f67070ce413\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/fuel/invoices/e52bd1c83761483dd757b6f5fa93859579064c2c60c9a555af6e398f8da3d1bb\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Fuel and Lubricants: Fuel\", \"debit\": [{\"glCode\": \"5065\", \"amount\": 30.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 30.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "fusertech",
+      "conversation": [
+        {
+          "invocation_id": "fusertech",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 19, \"response_id\": \"eval-fusertech\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:35:05Z\", \"payable_to\": \"Fusertech\", \"amount\": 63.0, \"disbursed_on\": \"2026-03-03\", \"comment\": \"Purchase of tonner cartridge from fusertech\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/fusertech/signed_requisition_form/e6e2f3acc1822cf503617d2d9eec3f97c907202c1e1510740ffb6f0ee69faa8c\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/fusertech/invoices/9e471d3c9c8a9373a54a558837dd8fa28bf8cb45e85a8f9186a724e6cee26a2e\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Printing and Stationery: Purchase of tonner cartridge from fusertech\", \"debit\": [{\"glCode\": \"5105\", \"amount\": 63.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 63.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "insurance-institute-of-zimbabwe",
+      "conversation": [
+        {
+          "invocation_id": "insurance-institute-of-zimbabwe",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 20, \"response_id\": \"eval-insurance-institute-of-zimbabwe\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:14:39Z\", \"payable_to\": \"Insurance Institute of Zimbabwe\", \"amount\": 80.0, \"disbursed_on\": \"2026-03-13\", \"comment\": \"COP Certificate and diploma fee\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/insurance-institute-of-zimbabwe/signed_requisition_form/829347d6f312dc9967b4d2b8bd27b75abb58b8d410cf3ff81173b1a7949a7942\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/insurance-institute-of-zimbabwe/invoices/328afca751fc0823a685d8f2c637a52c049887b7b7fe7de168c51441df601346\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Staff training and development: COP Certificate and diploma fee\", \"debit\": [{\"glCode\": \"5132\", \"amount\": 80.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 80.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "laptop-repairing-fee",
+      "conversation": [
+        {
+          "invocation_id": "laptop-repairing-fee",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 21, \"response_id\": \"eval-laptop-repairing-fee\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:32:24Z\", \"payable_to\": \"Laptop repairing fee\", \"amount\": 20.0, \"disbursed_on\": \"2026-03-10\", \"comment\": \"Laptop repairing fee\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/laptop-repairing-fee/signed_requisition_form/a64dbf98253f1a5247e1776c59c2aa1bd10ad0e7793d9c07da5a930d8f43ef91\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Maintenance Equipment: Laptop repairing fee\", \"debit\": [{\"glCode\": \"5090\", \"amount\": 20.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 20.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "lunch",
+      "conversation": [
+        {
+          "invocation_id": "lunch",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 22, \"response_id\": \"eval-lunch\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:59:38Z\", \"payable_to\": \"Lunch\", \"amount\": 12.0, \"disbursed_on\": \"2026-03-14\", \"comment\": \"Lunch fir saturday workshop\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/lunch/signed_requisition_form/9eb1f4331cf404e398888d0cd51f4d5eab193b43534d82773ec2212bb2ca2e38\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/lunch/invoices/229fc99c7741ea437925dc524b34470d2e0bb1de21bb3897166169d4a3060df6\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Staff Allowances: Lunch fir saturday workshop\", \"debit\": [{\"glCode\": \"5130\", \"amount\": 12.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 12.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "md-data-for-the-month-of-april",
+      "conversation": [
+        {
+          "invocation_id": "md-data-for-the-month-of-april",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 23, \"response_id\": \"eval-md-data-for-the-month-of-april\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"ltanga@lekkacredit.com\", \"submitted_at\": \"2026-03-31T12:33:43Z\", \"payable_to\": \"MD DATA FOR THE MONTH OF APRIL\", \"amount\": 15.0, \"disbursed_on\": \"2026-03-31\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/md-data-for-the-month-of-april/signed_requisition_form/d1709cf47a11b33026872a32717316e95737c0e7d17a432ad477730393f4ee75\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Telecommunication: MD DATA FOR THE MONTH OF APRIL\", \"debit\": [{\"glCode\": \"5150\", \"amount\": 15.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 15.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "makururu-and-partners",
+      "conversation": [
+        {
+          "invocation_id": "makururu-and-partners",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 24, \"response_id\": \"eval-makururu-and-partners\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:39:49Z\", \"payable_to\": \"Makururu and partners\", \"amount\": 900.0, \"disbursed_on\": \"2026-03-11\", \"comment\": \"Agreement of sale review\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/makururu-and-partners/signed_requisition_form/48d44d70826900d6465cbb1efe13363fbaf066c60e8615bd830f4c6e5b33a9cb\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: signed form only: the invoice linked on the form isn't in expenser's inputs\", \"debit\": [{\"glCode\": \"5075\", \"amount\": 900.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 900.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "miss-jongwe-cleaning-fee-for-march-2026-jpeg",
+      "conversation": [
+        {
+          "invocation_id": "miss-jongwe-cleaning-fee-for-march-2026-jpeg",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 25, \"response_id\": \"eval-miss-jongwe-cleaning-fee-for-march-2026-jpeg\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"ltanga@lekkacredit.com\", \"submitted_at\": \"2026-03-30T09:43:15Z\", \"payable_to\": \"Miss Jongwe- Cleaning fee For March 2026\", \"amount\": 52.0, \"disbursed_on\": \"2026-03-30\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/miss-jongwe-cleaning-fee-for-march-2026-jpeg/signed_requisition_form/34c7a01ea020a64a075cf09799a45291ef84cd0792555431b3be7016cd60155b\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Office Cleaning: Miss Jongwe- Cleaning fee For March 2026\", \"debit\": [{\"glCode\": \"5100\", \"amount\": 52.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 52.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "mr-chishakwe",
+      "conversation": [
+        {
+          "invocation_id": "mr-chishakwe",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 26, \"response_id\": \"eval-mr-chishakwe\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:12:41Z\", \"payable_to\": \"Mr Chishakwe\", \"amount\": 100.0, \"disbursed_on\": \"2026-03-10\", \"comment\": \"Installation of access control cards ( balance)\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/mr-chishakwe/signed_requisition_form/0884055fe960c32937c8cc3a90eb3635cba84eb4eddc0e44f490fe1c403f862b\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Maintenance Equipment: Installation of access control cards ( balance)\", \"debit\": [{\"glCode\": \"5090\", \"amount\": 100.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 100.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "mr-muchenje",
+      "conversation": [
+        {
+          "invocation_id": "mr-muchenje",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 27, \"response_id\": \"eval-mr-muchenje\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:28:57Z\", \"payable_to\": \"Mr Muchenje\", \"amount\": 60.0, \"disbursed_on\": \"2026-03-02\", \"comment\": \"Lms support fee for February 2026\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/mr-muchenje/signed_requisition_form/ac9b115cacf064777fadf6bb7fde65d5329d88a934e51d7da3373bcb41e2d90f\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/mr-muchenje/invoices/2f3e82232d4bf0ecdd8e49c66b492de0517b10f4eacb6bcb172b15aa11ce36dc\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: System Support Expense: Lms support fee for February 2026\", \"debit\": [{\"glCode\": \"5135\", \"amount\": 60.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 60.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "nssa",
+      "conversation": [
+        {
+          "invocation_id": "nssa",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 28, \"response_id\": \"eval-nssa\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:35:47Z\", \"payable_to\": \"NSSA\", \"amount\": 636.0, \"disbursed_on\": \"2026-03-09\", \"comment\": \"NSSA Payment\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/nssa/signed_requisition_form/57221a01bf4a67bf6f5c344a4982aff481eef7b89cff05d31f71c9d668b612a2\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/nssa/invoices/2a1e7991e8fa3c75e1d2f654c9933a8d933607f16df394cec25723a0fa6981dd\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: NSSA Employee, NSSA: NSSA Payment\", \"debit\": [{\"glCode\": \"2040\", \"amount\": 318.0}, {\"glCode\": \"2087\", \"amount\": 318.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 636.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "rawson-real-estate",
+      "conversation": [
+        {
+          "invocation_id": "rawson-real-estate",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 29, \"response_id\": \"eval-rawson-real-estate\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-18T13:54:39Z\", \"payable_to\": \"Rawson Real Estate\", \"amount\": 50.0, \"disbursed_on\": \"2026-03-18\", \"comment\": \"Rawson evaluation fee\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/rawson-real-estate/signed_requisition_form/cb476e23f969f8b8c7f5925c1524b60f6abc28dc2877a772821f1fe1548e68c1\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: the ledger booked it to 1812 Investment property-Building, which isn't in our chart of accounts\", \"debit\": [{\"glCode\": \"1812\", \"amount\": 50.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 50.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "safeden-security-systems",
+      "conversation": [
+        {
+          "invocation_id": "safeden-security-systems",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 30, \"response_id\": \"eval-safeden-security-systems\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:26:21Z\", \"payable_to\": \"Safeden security systems\", \"amount\": 55.0, \"disbursed_on\": \"2026-03-02\", \"comment\": \"Resetting and repairing dial combination on safe\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/safeden-security-systems/signed_requisition_form/b75293fade96c4a4fbf9efd686a4e1f0e947fbffe48cbeb96feadfb705eb5f81\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/safeden-security-systems/invoices/d1b3fe7df488dc58be8ed12b917e7a44a9940a09ad47b62b45bf08863018b7af\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Security Charges: Resetting and repairing dial combination on safe\", \"debit\": [{\"glCode\": \"5076\", \"amount\": 55.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 55.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "telone-1",
+      "conversation": [
+        {
+          "invocation_id": "telone-1",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 31, \"response_id\": \"eval-telone-1\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:57:02Z\", \"payable_to\": \"Telone\", \"amount\": 20.0, \"disbursed_on\": \"2026-03-06\", \"comment\": \"Purchase of landline receiver\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/telone-1/signed_requisition_form/39a8f4748052a2f3b8eda8ebd2fe7da7cb304f49b3a8a6bda226eef357467a76\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/telone-1/invoices/70d84126b4cd90bb2cca750c09d77d61f0f94e6f1152990ea5eb68b24cffcf71\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Telecommunication: Purchase of landline receiver\", \"debit\": [{\"glCode\": \"5150\", \"amount\": 20.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 20.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "wellcash-debt-collectors",
+      "conversation": [
+        {
+          "invocation_id": "wellcash-debt-collectors",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 32, \"response_id\": \"eval-wellcash-debt-collectors\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-16T07:35:49Z\", \"payable_to\": \"Wellcash debt collectors\", \"amount\": 168.0, \"disbursed_on\": \"2026-03-11\", \"comment\": \"Wellcash Debt Collectors commission for February 2026\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/wellcash-debt-collectors/signed_requisition_form/5e08a34e794433bda77f3edef9c8b141ef195b90eb152801731a04aea29c3300\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Debtors collection commission - Lawyers: Wellcash Debt Collectors commission for February 2026\", \"debit\": [{\"glCode\": \"5077\", \"amount\": 168.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 168.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "zimdef",
+      "conversation": [
+        {
+          "invocation_id": "zimdef",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 33, \"response_id\": \"eval-zimdef\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-11T10:51:06Z\", \"payable_to\": \"ZIMDEF\", \"amount\": 39.0, \"disbursed_on\": \"2026-03-09\", \"comment\": \"Zimdef payment\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/zimdef/signed_requisition_form/7f2e38e2f270b5a39ddcc880825a1c2e9f5618f1bee2e0029dcbad6967237ce9\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/zimdef/invoices/8a27e3cd652e633b2f56f8eac729ad7614a2c7f653a5ce8d62c3aea957e60bb5\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: ZIMDEF levy: Zimdef payment\", \"debit\": [{\"glCode\": \"2084\", \"amount\": 39.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 39.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "zrp",
+      "conversation": [
+        {
+          "invocation_id": "zrp",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 34, \"response_id\": \"eval-zrp\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T12:30:05Z\", \"payable_to\": \"ZRP\", \"amount\": 20.0, \"disbursed_on\": \"2026-03-03\", \"comment\": \"Road permit fine\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/zrp/signed_requisition_form/d2fdf59a914bf5870def0974625dd1a4a36961d68c9e15a0313dbbaa7ed150d3\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Legal Fees: Road permit fine\", \"debit\": [{\"glCode\": \"5075\", \"amount\": 20.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 20.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "zimra-march-679",
+      "conversation": [
+        {
+          "invocation_id": "zimra-march-679",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 35, \"response_id\": \"eval-zimra-march-679\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"ltanga@lekkacredit.com\", \"submitted_at\": \"2026-04-21T13:34:39Z\", \"payable_to\": \"Zimra (march)\", \"amount\": 611.23, \"disbursed_on\": \"2026-04-21\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/zimra-march-679/signed_requisition_form/c2ad56b77db0b3baa76b76060ad9b5c5596fa3341f515333303f0631a9bd65c1\"], \"receipts\": [\"gs://ourfos-dev-attachments/evals/requisitions/zimra-march-679/receipts/f77a233f991a6f567ac62df9783f058824a164fc4b3506d9981f32e183b2ed3d\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Taxation - PAYE: Zimra (march)\", \"debit\": [{\"glCode\": \"2030\", \"amount\": 611.23}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 611.23}]}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "zol-wifi-liquid",
+      "conversation": [
+        {
+          "invocation_id": "zol-wifi-liquid",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"response_number\": 36, \"response_id\": \"eval-zol-wifi-liquid\", \"form_name\": \"Requisition Approval Request Form\", \"submitted_by\": \"pmushaya@lekkacredit.com\", \"submitted_at\": \"2026-03-06T13:11:15Z\", \"payable_to\": \"Zol wifi Liquid\", \"amount\": 131.0, \"disbursed_on\": \"2026-03-06\", \"comment\": \"Zol wifi bundle for march 2026NB: Please may you ignore the other requisition about the wifi bundle send before because the receipt attached is wrong so may you please use this one\", \"files\": {\"signed_requisition_form\": [\"gs://ourfos-dev-attachments/evals/requisitions/zol-wifi-liquid/signed_requisition_form/52a50d6cec9ce52d75c9e8eb113435e056add54d59a8855943fcd9c2e922ae8e\"], \"invoices\": [\"gs://ourfos-dev-attachments/evals/requisitions/zol-wifi-liquid/invoices/dae760072631d88fe8405433f036b03776cf2dd36b1d54b4aee268b4eac05096\"]}}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "{\"approve\": true, \"reason\": \"why: Telecommunication: Zol wifi bundle for march 2026NB: Please may you ignore the other requisition about the wifi bundle send before because the receipt attached is wrong so may you please use this one\", \"debit\": [{\"glCode\": \"5150\", \"amount\": 131.0}], \"credit\": [{\"glCode\": \"10000000\", \"amount\": 131.0}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

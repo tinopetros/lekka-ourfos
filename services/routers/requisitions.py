@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
 
 import store
-from classify import attachments, expenser
+from classify import expenser
 from common import log, simulate
 from integrations import mifos
 from integrations.workspace import stub as workspace  # not as stub: a route below is named that
@@ -42,9 +42,8 @@ async def classify(id: str, body: dict):
         await run_in_threadpool(simulate, "classify", code)
         classification = stub(amount, code)
     else:
-        # In memory for this request only. The document keeps the Drive ids it already had
-        files = await attachments.load(requisition)
-        classification = await expenser.classify(requisition, files)
+        # The agent fetches the files, in memory for this request only. The document keeps the refs it already had
+        classification = await expenser.classify(requisition)
 
     await run_in_threadpool(store.save, id, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")

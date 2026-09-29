@@ -10,25 +10,24 @@ from expenser.agent import Classification, app
 from requisition import Requisition
 
 
-def turn(requisition: Requisition, files: list[dict]) -> types.Content:
-    """The requisition as JSON first, then each file after a label naming its form field."""
-    parts = [types.Part(text=json.dumps(requisition.to_json()))]
-    for f in files:
-        parts.append(types.Part(text=f["field"]))
-        parts.append(types.Part.from_bytes(data=f["data"], mime_type=f["mimeType"]))
-    return types.Content(role="user", parts=parts)
+async def classify(requisition: Requisition) -> dict:
+    """One requisition in, the stub's shape out, with failures as statuses the workflow retries or hands over.
 
-
-async def classify(requisition: Requisition, files: list[dict]) -> dict:
-    """One requisition and its files in, the stub's shape out, with failures as statuses the workflow retries or hands over."""
+    The agent's own plugin fetches the files (docs/phase7/adr.md 3), so the message is the requisition alone.
+    """
     # Its own session service, so sessions never pile up on a warm instance
     runner = Runner(app=app, session_service=InMemorySessionService(), auto_create_session=True)
-    message = turn(requisition, files)
+    message = types.Content(role="user", parts=[types.Part(text=json.dumps(requisition.to_json()))])
     final = None
     try:
         async for event in runner.run_async(user_id="classify", session_id="classify", new_message=message):
             if event.is_final_response():
                 final = event
+    except RuntimeError as e:
+        # ADK wraps what a plugin raises. A fetch's HTTPException is ours, with the status the workflow acts on
+        if isinstance(e.__cause__, HTTPException):
+            raise e.__cause__ from None
+        raise
     except errors.APIError as e:
         # What the workflow retries passes through (is_transient), anything else hands over
         raise HTTPException(e.code if e.code in RETRIED else 500, f"expenser: {e.code}") from e
