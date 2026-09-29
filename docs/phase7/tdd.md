@@ -58,7 +58,7 @@ make eval-failures ─▶ ADK's own results ─▶ which cases failed which metr
 
 ### An eval case
 
-`services/evals/requisitions.evalset.json`, ADK's `EvalSet`:
+`agents/evals/requisitions.evalset.json`, ADK's `EvalSet`:
 
 ```json
 {
@@ -84,11 +84,11 @@ make eval-failures ─▶ ADK's own results ─▶ which cases failed which metr
 - `agents/expenser/files.py`, the `Attachments` plugin, first in expenser's `App`: `on_user_message_callback` reads the requisition from the message, loads its files through `classify.attachments.load`, and returns `turn(requisition, files)`. Anything that isn't a requisition, like a question typed into `adk web`, is left alone
 - classify sends the requisition alone. What a fetch raises comes out of ADK wrapped in a `RuntimeError`; classify re-raises the `HTTPException` inside, so its status still reaches the workflow
 - `adk eval` runs this same agent, so the evals need no module of their own
-- `services/evals/` is excluded from the image, like `tests/`
+- `agents/evals/` sits beside the agent, not in it, so it never reaches the image
 
 ## The metrics
 
-`services/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation. A case passes a metric only at 1
+`agents/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation. A case passes a metric only at 1
 
 ```json
 {
@@ -115,7 +115,7 @@ make eval-failures ─▶ ADK's own results ─▶ which cases failed which metr
 - `no_false_rejection`: rejected what should be approved. Reported, not a safety fail
 - `accounts` and `amounts` are not evaluated when either side rejects
 - `glId` isn't scored: a unit test holds every `glCode` in the chart to its `glId`
-- ADK keeps each run's results in `agents/expenser/.adk/eval_history/`. `services/evals/failures.py` reads which cases failed which metric; nothing is scored there
+- ADK keeps each run's results in `agents/expenser/.adk/eval_history/`. `agents/evals/failures.py` reads which cases failed which metric; nothing is scored there
 
 ## Running
 
@@ -128,7 +128,7 @@ make eval-cases                             # the eval_ids CASE takes
 make eval-failures RUNS=3                   # the failures of the last three runs again
 ```
 
-- `adk eval agents/expenser services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json`, with `services/` on the path. It reads `agents/expenser/.env`, as `make agent` does: dev's model, Model Armor template and bucket
+- `adk eval agents/expenser agents/evals/requisitions.evalset.json --config_file_path agents/evals/test_config.json`, run from `agents/`, with `services/` on the path. It reads `agents/expenser/.env`, as `make agent` does: dev's model, Model Armor template and bucket
 - By hand only (ADR 8), as me, with ADC: Vertex, Model Armor and the dev bucket
 - ADK passes a run only if every case passes, so with ADR 11's known misses a full run exits non-zero. The list of failures is what to read
 - ADK's `eval` extra is a dev dependency, never in the image

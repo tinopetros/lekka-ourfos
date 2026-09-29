@@ -1,6 +1,6 @@
 """Which cases failed which metric, read from the results `adk eval` keeps. Nothing is scored here.
 
-python3 services/evals/failures.py [RUNS]    the last RUNS results, 1 by default
+python3 agents/evals/failures.py [RUNS]    the last RUNS results, 1 by default
 """
 
 import json
@@ -8,7 +8,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-HISTORY = Path(__file__).parents[2] / "agents/expenser/.adk/eval_history"
+HISTORY = Path(__file__).parents[1] / "expenser/.adk/eval_history"
 PASSED, FAILED = 1, 2  # ADK's EvalStatus
 
 runs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
