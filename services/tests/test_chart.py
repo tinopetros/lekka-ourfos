@@ -68,10 +68,16 @@ def test_fill_looks_up_each_line():
     ]
 
 
-def test_the_chart_s_name_is_stored(capsys):
-    got = filled(answer(name="Parking"))
-    assert got.debit[0].name == "Advertising and Promotions"
-    assert "name differs" in capsys.readouterr().out
+def test_the_chart_s_name_is_stored():
+    assert filled(answer(name="advertising and  promotions")).debit[0].name == "Advertising and Promotions"
+
+
+def test_a_name_that_isn_t_its_code_s_is_a_rejection():
+    # mr-muchenje, once: System Support Expense is 5135, the model wrote 5035
+    got = filled(answer(debit_code="5035", name="System Support Expense"))
+    assert not got.approve
+    assert got.debit == got.credit == []
+    assert "GL code 5035 is Consumables in the chart, not System Support Expense" in got.comments
 
 
 def test_an_account_not_in_the_chart_is_a_rejection():

@@ -26,24 +26,35 @@ async def fill(*, callback_context, llm_response: LlmResponse) -> LlmResponse | 
 
 
 def whole(said: dict) -> dict:
-    """Each line's name, glId and accountType from the chart. An account the chart hasn't got is a rejection naming it."""
-    unknown = [line["glCode"] for side in ("debit", "credit") for line in said[side] if line["glCode"] not in BY_CODE]
-    if unknown:
-        log("expenser: account not in the chart", "WARNING", glCodes=unknown)
-        return said | {
-            "approve": False,
-            "debit": [],
-            "credit": [],
-            "comments": said["comments"] + [f"GL code {code} is not in the chart of accounts" for code in unknown],
-        }
+    """Each line's name, glId and accountType from the chart.
+
+    A line the chart can't confirm is a rejection naming it: a code the chart hasn't got, or one whose name isn't the
+    one the model wrote. The model's name is its check on its code, and a person picks which it meant.
+    """
+    lines = [line for side in ("debit", "credit") for line in said[side]]
+    problems = [problem(line) for line in lines if problem(line)]
+    if problems:
+        log("expenser: accounts the chart can't confirm", "WARNING", problems=problems)
+        return said | {"approve": False, "debit": [], "credit": [], "comments": said["comments"] + problems}
     return said | {side: [line_of(line) for line in said[side]] for side in ("debit", "credit")}
+
+
+def problem(line: dict) -> str | None:
+    row = BY_CODE.get(line["glCode"])
+    if not row:
+        return f"GL code {line['glCode']} is not in the chart of accounts"
+    if same(line["name"]) != same(row["Account"]):
+        return f"GL code {line['glCode']} is {row['Account']} in the chart, not {line['name']}"
+    return None
+
+
+def same(name: str) -> str:
+    # Case and spacing aren't a different account
+    return " ".join(name.lower().split())
 
 
 def line_of(line: dict) -> dict:
     row = BY_CODE[line["glCode"]]
-    if line["name"] != row["Account"]:
-        # The model's name is its check on the code. The code is what's posted, so it wins, and a mismatch is logged
-        log("expenser: account name differs from the chart", "WARNING", said=line["name"], glCode=line["glCode"])
     return {
         "name": row["Account"],
         "glCode": line["glCode"],
