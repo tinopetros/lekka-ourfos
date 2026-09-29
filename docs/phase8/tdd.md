@@ -25,8 +25,8 @@ In order of risk to quality, lowest first.
 ### 1. The model names the account, code fills in the rest
 
 - The model answers `name`, `glCode` and `amount` per line. `glId` and `accountType` come from the chart, by `glCode`
-- `name` stays in what the model writes, before the code: it's the model's check on itself, naming the account it means before its number. Code then writes the chart's name, so what's stored reads the same every time. A name that doesn't match its code is logged
-- A `glCode` not in the chart can't be filled: the answer becomes a rejection naming the code, never a guessed line. Fails closed, and a person sees why
+- `name` stays in what the model writes, before the code: it's the model's check on itself, naming the account it means before its number. Code then writes the chart's name, so what's stored reads the same every time
+- A line the chart can't confirm, a `glCode` it hasn't got or one whose name isn't the model's, can't be filled: the answer becomes a rejection naming it, never a guessed line. Fails closed, and a person sees why
 - An `after_model_callback` on the agent does it, so classify, `adk eval` and `adk web` all see the whole `Classification`, as today. What's stored and logged doesn't change shape
 - Expected: about a fifth less output. And a `glId` can no longer be wrong
 
@@ -70,12 +70,49 @@ In order of risk to quality, lowest first.
 ## Done when
 
 - Every hypothesis tried, kept or dropped, with its tokens and metrics in "What execution changed"
-- The kept ones deployed to dev, and smoke passes
+- Tests, lint, and every final answer in the evals a whole `Classification`. Dev gets it, and smoke, on merge to main
 - The PR's description has the before and after
 
 ## What execution changed
+
+### Results
+
+gemini-3.5-flash-lite, 36 cases, each run's tokens per call from ADK's `usage_metadata`:
+
+| Run | Prompt (`count_tokens`) | Text | Output | $ a call | Failures outside ADR 11's misses |
+|---|---|---|---|---|---|
+| main, 36 × 1 | 3,026 | 3,753 | 174 | 0.00202 | none |
+| 1 and 2, 36 × 1 | 2,452 | 3,091 | 129 | 0.00171 | none |
+| + 3a, 36 × 1 | 2,311 | 2,950 | 138 | 0.00169 | none |
+| + 3b, 36 × 1 | 2,127 | 2,766 | 139 | 0.00164 | zimra-march-679, mr-chishakwe, mr-muchenje |
+| 1, 2, 3a and the name check, 36 × 3 | 2,311 | 2,950 | 138 | 0.00169 uncached | mr-chishakwe ×1 |
+
+The kept prompt against phase 7's baseline, 36 × 3:
+
+| Metric | Phase 7, local | Phase 7, CI | Phase 8 |
+|---|---|---|---|
+| `no_false_approval` | 108/108 | 108/108 | 108/108 |
+| `no_false_rejection` | 105/108 | 108/108 | 108/108 |
+| `accounts` | 93/99 | 94/102 | 94/102 |
+| `amounts` | 93/99 | 94/102 | 94/102 |
+
+- **16% cheaper a call,** $0.00202 to $0.00169 with nothing cached. Text down 21%, output down 21%. Images unchanged
+- The 36 × 3 run cached about a third of each prompt, implicitly, back to back: $0.00129 a call. Evals get that, production's calls days apart don't
+- No metric below the baseline. Rawson and Safeden fail ×3, Bhola once, as in phase 7. Bhola was approved all three times
+- mr-chishakwe once: Security Charges for a security installation, where the ledger has Maintenance Equipment. Rerun alone, 5 of 5 passed here and 4 of 5 on main: a judgement call that varies, not a regression
+- All 108 final answers are whole `Classification`s, GL IDs filled from the chart
+- Spent about $0.40 of the $1
+
+### What was kept, and what wasn't
+
+- **Hypotheses 1 and 2 kept.** Most of the saving: 574 prompt tokens and 45 output tokens a call
+- **3 split in two.** 3a is structural, with no rule's wording changed: the prompt dedented, the credit rule said once in `__EXCEPTIONS__` and the examples, the role's lines on feedback and reversals gone (one call never sees either), and `form_name` out of the examples (no requisition has one). Kept
+- **3b dropped:** each rule reworded more tightly, 184 tokens, about 3% a call. zimra-march-679 was credited to ZB Bank "as indicated on the receipt": the reworded credit rule had lost its "CANNOT". A safety rule isn't worth 3%, and rewording until the evals pass would fit the prompt to them. Reverted, not tuned
+- **The name check fails closed.** In 3b's run mr-muchenje was System Support Expense by name and 5035, Consumables, by code: a slipped digit. The fill trusted the code. Now a name that isn't its code's is a rejection naming both, as an unknown code is. A handover, never a wrong account posted
+- `count_tokens` priced every candidate before a run, for free. `make eval-failures` prints each run's calls, dollars and tokens per call
 
 ## Not in this phase
 
 - Image resolution
 - A model or prompt change for accuracy: ADR 11's known misses stay as they are
+- Rewording the prompt's rules: 3b showed its risk, for little

@@ -9,7 +9,7 @@
 
 - `glId` and `accountType` are lookups, not judgements (phase 7 ADR 5): the chart has them, so the model no longer writes them
 - The model keeps writing `name` before `glCode`, as its own check. What's stored is the chart's name
-- An account not in the chart is a rejection that names it: never a guessed id posted to Mifos
+- An account not in the chart, or a name that isn't its code's, is a rejection that names it: never a guessed id posted to Mifos
 
 ### 3. The chart stays whole
 
@@ -25,3 +25,8 @@
 
 - Images are a fifth of the cost and carry the handwriting. Explicit caching bills storage by the hour for calls days apart
 - **Revisit** if volume grows: caching pays once calls are minutes apart
+
+### 6. The rules' wording stays ourfos-v2's
+
+- Structure changed, words didn't: a tighter rewording saved 3% and broke the credit rule once in 36
+- **Revisit** with a judge for reasons, or many more runs, if the prompt's wording is worth another look
