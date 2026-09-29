@@ -67,7 +67,8 @@ def clean(raw: dict) -> Requisition:
 
 
 def response_number(value: str) -> int:
-    if not value.isdigit():
+    # Negative only from fixtures: no real form has one, so a test run never shares a subject with a real requisition
+    if not value.removeprefix("-").isdigit():
         raise ValueError("not a whole number")
     return int(value)
 

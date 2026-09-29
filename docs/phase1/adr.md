@@ -7,6 +7,7 @@ What we chose in phase 1 and, mostly, what we knowingly left temporary. When a l
 - Google Forms sends the first email, so we have to go looking for its thread before we can reply into it
 - That is a search, a read scope on Gmail, and a whole failure mode (the thread missing) that only exists because we don't own the first email
 - **Revisit when** we send the acknowledgement ourselves: keep the thread id at the start, drop `get_thread`, and collapse all the notify calls onto a thread we already know
+- **Closed** by [phase 9 ADR 1](../phase9/adr.md)
 
 ### 2. Notify shares the classification in the meantime
 

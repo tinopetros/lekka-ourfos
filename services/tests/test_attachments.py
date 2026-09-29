@@ -13,13 +13,13 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 from classify import attachments
 from expenser.files import turn
 from expenser.screen import free_text
-from integrations.workspace import delegation, drive, gmail
+from integrations.workspace import delegation, drive
 from requisition import Requisition
 
 REQUISITION = Requisition(
     response_number=482,
     response_id="r",
-    submitted_by="ltanga@lekkacredit.com",
+    submitted_by="lekkai@lekkacredit.com",
     submitted_at="2026-09-28T21:34:33Z",
     payable_to="LMS support",
     amount=60,
@@ -67,21 +67,6 @@ def test_turn():
 def test_screening_reads_the_requisition_from_the_first_part():
     request = LlmRequest(contents=[turn(REQUISITION, [file(), file(mime_type="image/jpeg")])])
     assert free_text(request) == ["LMS support", "for September"]
-
-
-def test_send_is_only_ever_to_the_subject(monkeypatch):
-    monkeypatch.setenv("WORKSPACE_SUBJECT", "lekkai@lekkacredit.com")
-    sent = {}
-
-    def call(scope, method, url, json):
-        sent.update(scope=scope, raw=json["raw"])
-        return type("R", (), {"json": lambda self: {"id": "m", "threadId": "t"}})()
-
-    monkeypatch.setattr(gmail, "call", call)
-    gmail.send_to_self("check", "hello")
-    raw = gmail.base64.urlsafe_b64decode(sent["raw"]).decode()
-    assert sent["scope"] == gmail.GMAIL_SEND
-    assert "To: lekkai@lekkacredit.com" in raw
 
 
 def image(fmt: str, size=(40, 30), mode="RGB") -> bytes:

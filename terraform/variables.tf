@@ -18,6 +18,11 @@ variable "trigger_zip" {
   default     = "../.build/trigger.zip"
 }
 
+variable "notify_to" {
+  description = "Who every requisition's emails go to, beside whoever submitted it"
+  type        = list(string)
+}
+
 variable "simulate" {
   description = "Whether fixtures may force stubs and failures. Dev only"
   type        = bool

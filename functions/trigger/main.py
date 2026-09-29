@@ -48,12 +48,22 @@ def trigger(request):
     try:
         requisition = cleaner(raw)
     except Invalid as e:
+        # Still a run, which only hands over: with the form's add-on off, it's how anyone hears (phase 9 ADR 5)
+        execution_id = start(workflow, {"invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate})
         # The problems, never the values
-        log("rejected by cleaning", "WARNING", errors=[error.split(":")[0] for error in e.errors])
-        return {"errors": e.errors}, 400
+        log(
+            "rejected by cleaning",
+            "WARNING",
+            errors=[error.split(":")[0] for error in e.errors],
+            execution_id=execution_id,
+        )
+        return {"errors": e.errors, "execution_id": execution_id}, 400
 
-    argument = {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate}
-    execution = client.create_execution(parent=workflow, execution={"argument": json.dumps(argument)})
-    execution_id = execution.name.rsplit("/", 1)[-1]
+    execution_id = start(workflow, {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate})
     log("started", workflow=name, execution_id=execution_id, response_number=requisition.response_number)
     return {"execution_id": execution_id}, 202
+
+
+def start(workflow: str, argument: dict) -> str:
+    execution = client.create_execution(parent=workflow, execution={"argument": json.dumps(argument)})
+    return execution.name.rsplit("/", 1)[-1]

@@ -31,6 +31,7 @@
 
 - Three routes, reachable only with invoker IAM, never called by the workflow. `send` only mails `lekkai@` itself
 - They prove the grant and the scopes. Email processing is its own phase, with its own decisions about threads and recipients
+- **Closed** by [phase 9 ADR 1](../phase9/adr.md)
 
 ### 6. The trigger takes a bearer token
 
