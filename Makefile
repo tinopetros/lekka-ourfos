@@ -13,13 +13,16 @@ export TF_DATA_DIR := .terraform-$(ENV)
 # The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
 SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
-	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
+	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path 'services/evals/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
 SERVICES_BUILD := .build/services
 REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
+# make evals: runs of each case, and one case alone
+RUNS ?= 3
+CASE ?=
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # Which workflow the trigger starts. The form's webhook sends the same
@@ -29,7 +32,7 @@ TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --projec
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -39,6 +42,7 @@ help:
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
 	@echo "make smoke               no token 401, no ?workflow= 400, happy done, jailbreak and 400 handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
+	@echo "make evals [CASE=…] [RUNS=3]  expenser against real requisitions, as deployed (docs/phase7)"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
 	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
@@ -68,7 +72,7 @@ package: $(REQUIREMENTS) $(TRIGGER_ZIP)
 # services/ with expenser beside it, as the image sees them. Never a local .env or venv
 stage: services/requirements.txt
 	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
-	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
+	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests --exclude ./evals \
 		-C services . | tar -xf - -C $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
 
@@ -137,6 +141,10 @@ agent-web:
 	cd agents && uv run -q --project ../services adk web
 
 check: tf-fmt-check tf-validate-ci lock-check lint test
+
+# Paid and slow, so never part of test or check. As ourfos-services is deployed in ENV
+evals: check-env
+	cd services && PROJECT=$(PROJECT) REGION=$(REGION) RUNS=$(RUNS) CASE=$(CASE) uv run -q pytest evals -q -s -p no:warnings
 
 test:
 	cd functions/trigger && uv run -q pytest -q

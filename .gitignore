@@ -13,3 +13,5 @@ requirements.txt
 .env
 # adk run/web keep local sessions here
 .adk/
+# make evals writes a CSV per run
+services/evals/results/
