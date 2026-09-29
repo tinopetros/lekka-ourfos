@@ -17,7 +17,7 @@ FORM = {
     "payable_to": " City parking ",
     "form_id": "1FAIpQLSf-form",
     "form_name": "Requisition Approval Request Form",
-    "response_number": "482",
+    "response_number": "-482",
     "response_date": "Apr 10, 2026 3:45 PM",
     "created_at": "1775828712000",
     "response_id": "2_ABaOnud-response",
@@ -34,7 +34,7 @@ def invalid(**changes) -> list[str]:
 
 def test_clean():
     r = clean(FORM)
-    assert r.response_number == 482
+    assert r.response_number == -482
     assert r.submitted_by == "lekkai@lekkacredit.com"
     assert r.payable_to == "City parking"
     assert r.amount == 1.0
@@ -46,7 +46,7 @@ def test_clean():
 
 
 def test_extra_keys_are_ignored():
-    assert clean(FORM | {"something_new": "x"}).response_number == 482
+    assert clean(FORM | {"something_new": "x"}).response_number == -482
 
 
 def test_json_and_firestore():
@@ -169,8 +169,18 @@ def test_file_refs(raw, want):
 def test_every_fixture_cleans(fixture):
     raw = json.loads(fixture.read_text())
     raw.pop("simulate", None)
-    assert clean(raw).response_number == 482
+    assert clean(raw).response_number == -482
 
 
 def test_the_invalid_fixture_doesnt():
     assert invalid(**json.loads((FIXTURES / "invalid.json").read_text())) == ["total_amount: not a number"]
+
+
+@pytest.mark.parametrize("value, want", [("-482", -482), ("482", 482)])
+def test_a_fixtures_negative_response_number_cleans(value, want):
+    assert clean(FORM | {"response_number": value}).response_number == want
+
+
+@pytest.mark.parametrize("value", ["-", "--4", "4-8", "+4"])
+def test_a_response_number_is_still_a_whole_number(value):
+    assert invalid(response_number=value) == ["response_number: not a whole number"]

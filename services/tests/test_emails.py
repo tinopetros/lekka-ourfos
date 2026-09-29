@@ -76,11 +76,8 @@ def test_money(amount, want):
 
 def test_an_acknowledgement_is_the_forms_answers():
     html, text = emails.acknowledgement(REQUISITION)
-    assert (
-        "<strong>Your form Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com.</strong>"
-        in html
-    )
-    assert '<th align="center">Date Disbursed</th><td>Sep 18, 2026</td>' in html
+    assert "<strong>Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com:</strong>" in html
+    assert f"{emails.TH}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
     assert "Invoice(s)" not in html
     assert "Total Amount: 60" in text
@@ -100,8 +97,9 @@ def test_a_suggestion_is_ourfos_v2s_reply():
     html, text = emails.suggestion(CLASSIFICATION)
     assert html.startswith("<strong>Lekkai's suggestion: APPROVE</strong>")
     assert emails.TAKE_OVER not in html
-    assert "<td>5077</td><td>138</td><td>EXPENSE</td><td>155</td><td></td>" in html
-    assert "<td>Cash at Vault</td><td>10000000</td><td>109</td><td>ASSET</td><td></td><td>155</td>" in html
+    td = emails.TD
+    assert f"{td}5077</td>{td}138</td>{td}EXPENSE</td>{td}155</td>{td}</td>" in html
+    assert f"{td}Cash at Vault</td>{td}10000000</td>{td}109</td>{td}ASSET</td>{td}</td>{td}155</td>" in html
     assert "<li>Requisition has two approval signatures</li>" in html
     assert emails.DISCLAIMER in html and emails.DISCLAIMER in text
 
@@ -115,8 +113,9 @@ def test_a_rejection_is_deferred_to_an_accountant_without_a_table():
 
 def test_a_handover_shows_what_the_form_sent_when_it_couldnt_be_read():
     html, text = emails.handover("total_amount: not a number", {"total_amount": "sixty <dollars>"})
-    assert html.startswith("<strong>Lekkai failed to process this requisition</strong>")
-    assert emails.TAKE_OVER in html
+    assert html.startswith(
+        "<strong>Lekkai failed to process this requisition: an accountant needs to take it from here.</strong>"
+    )
     assert "total_amount: not a number" in html
     assert "sixty &lt;dollars&gt;" in html
     assert "total_amount: sixty <dollars>" in text

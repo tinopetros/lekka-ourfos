@@ -60,10 +60,18 @@ def file_links(refs: list[str]) -> tuple[str, str]:
     return ", ".join(html), ", ".join(text)
 
 
+# One look for every table, whichever email it's in: the form add-on's, light and roomy. Styles inline, since
+# Gmail drops <style>. A value wraps rather than stretch the table, so a long comment stays readable
+TABLE = '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px">'
+CELL = "border:1px solid #e3e3e3;background:#f9f9f9;padding:10px 20px"
+TH = f'<th style="{CELL};text-align:center">'
+TD = f'<td style="{CELL};max-width:400px;word-wrap:break-word">'
+
+
 def table(rows: list[tuple[str, str, str]]) -> str:
     """Label, HTML value (already escaped), as the form's add-on lays out its answers."""
-    cells = "".join(f'<tr><th align="center">{escape(label)}</th><td>{value}</td></tr>' for label, value, _ in rows)
-    return f'<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse">{cells}</table>'
+    cells = "".join(f"<tr>{TH}{escape(label)}</th>{TD}{value}</td></tr>" for label, value, _ in rows)
+    return f"{TABLE}{cells}</table>"
 
 
 def acknowledgement(r: Requisition) -> tuple[str, str]:
@@ -80,7 +88,7 @@ def acknowledgement(r: Requisition) -> tuple[str, str]:
     for field, refs in r.files.model_dump().items():
         if refs:
             rows.append((FILE_LABELS[field], *file_links(refs)))
-    heading = f"Your form {form_name()} has a new entry from {r.submitted_by}."
+    heading = f"{form_name()} has a new entry from {r.submitted_by}:"
     html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
     text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
     return html, text
@@ -99,11 +107,11 @@ def suggestion(c: dict) -> tuple[str, str]:
         head = ["Account", "GL Code", "GL ID", "Account Type", "Debit", "Credit"]
         rows = [[d["name"], d["glCode"], str(d["glId"]), d["accountType"], dr, cr] for d, dr, cr in lines]
         html.append(
-            '<table border="1" cellpadding="4" cellspacing="0">'
+            TABLE
             + "<tr>"
-            + "".join(f"<th>{h}</th>" for h in head)
+            + "".join(f"{TH}{h}</th>" for h in head)
             + "</tr>"
-            + "".join("<tr>" + "".join(f"<td>{escape(v)}</td>" for v in row) + "</tr>" for row in rows)
+            + "".join("<tr>" + "".join(f"{TD}{escape(v)}</td>" for v in row) + "</tr>" for row in rows)
             + "</table>"
         )
         text += [""] + [" | ".join(head)] + [" | ".join(row) for row in rows]
@@ -120,9 +128,9 @@ def suggestion(c: dict) -> tuple[str, str]:
 
 def handover(reason: str, raw: dict | None = None) -> tuple[str, str]:
     """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
-    heading = "Lekkai failed to process this requisition"
-    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>", f"<p><strong>{TAKE_OVER}</strong></p>"]
-    text = [heading, "", reason, "", TAKE_OVER]
+    heading = f"Lekkai failed to process this requisition: {TAKE_OVER[0].lower()}{TAKE_OVER[1:]}"
+    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
+    text = [heading, "", reason]
     if raw:
         rows = [(str(k), escape(str(v)), str(v)) for k, v in raw.items()]
         html += ["<p>What the form sent:</p>", table(rows)]

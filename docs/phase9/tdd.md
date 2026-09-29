@@ -26,8 +26,8 @@ All from `lekkai@`, HTML with a plain-text alternative, built in `services/email
 
 What the form add-on sends today, from its "All Answers":
 
-- **Your form Requisition Approval Request Form has a new entry from {submitted_by}.**, in bold like the reply's suggestion
-- A two-column table: Email address, Payable To, Total Amount, Date Disbursed, Comment, then a row per file field with files: Signed Requisition Form, Receipt(s), Invoice(s). A field left empty has no row, as today
+- **Requisition Approval Request Form has a new entry from {submitted_by}:**, in bold like the reply's suggestion
+- A two-column table: Email address, Payable To, Total Amount, Date Disbursed, Comment, then a row per file field with files: Signed Requisition Form, Receipt(s), Invoice(s). A field left empty has no row, as today. Every table in every email looks the same
 - "Sep 18, 2026" for dates. The amount as the form had it: 60, or 1,234.50
 - Files as "File 1", "File 2", each a link to Drive (`drive.google.com/open?id=…`). A `gs://` file is named without a link until the front end can show it (ADR 4)
 - Sender's name: the form's
@@ -45,7 +45,7 @@ ourfos-v2's reply, as the accountants know it:
 
 ### Handover
 
-- **Lekkai failed to process this requisition**, then the reason the workflow gives, e.g. which file couldn't be fetched, then **An accountant needs to take it from here.**, the same line a deferral ends with
+- **Lekkai failed to process this requisition: an accountant needs to take it from here.**, in one line, then the reason the workflow gives, e.g. which file couldn't be fetched
 - When the form couldn't be read: what the form sent, as sent, so a person can see what was wrong
 - Sender's name: Lekkai
 
@@ -104,6 +104,8 @@ ourfos-v2's reply, as the accountants know it:
 ## Fixtures and evals
 
 - Every fixture's submitter becomes `lekkai@`, and so does every eval case's. Smoke's emails only ever reach `lekkai@`
+- Fixtures are response `-482`: a real form never sends a negative, so a test thread never shares a subject with a real requisition. The cleaner takes a leading minus for it
+- Their Drive files are `happy`'s, so every link opens, except `file-missing`'s missing one
 - `thread-missing` goes. `acknowledge-fails` is new: no thread, so the handover is a new email
 - `invalid` is new: an amount the cleaner refuses. Smoke expects its 400, then `handed_over`
 - Smoke is five runs now, about ten emails per merge, all to `lekkai@`
