@@ -167,7 +167,32 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 
 ## What execution changed
 
--
+- 36 cases, not 34: Miss Jongwe is in both folders as the same Drive file, once a PDF and once a JPEG, so it's two type cases like Makora
+- Rawson's ledger account, 1812 Investment property-Building, isn't in our chart of accounts, so the model can't post it. The case stays, and fails `accounts` until the chart has it
+- Makururu's form links an invoice that isn't in expenser's inputs, so its case has the signed form only
+- `ourfos-app-deployer`'s dev grants for the evals are in infra's Terraform, not by hand: `deployer-grantable-roles` already allows both roles
+- `happy-gcs` is the Mr Muchenje eval case, by `gs://`, rather than copies of `happy`'s files: nobody but `ourfos-services` can read those as `lekkai@`
+- `gcloud storage cp` reads `[1]` in a file name as a wildcard: the upload copied each file to a plain name first
+- ADK's evals close each case's runner, and the Model Armor plugin closed its client with it: one app, so one client, for every runner. Cases running alongside were cancelled mid-call and recorded nothing, and later ones failed closed. The plugin now never closes it, as classify never did
+- ADK's `eval` extra is needed to run evals at all: a dev dependency of services, so never in the image
+
+### Baseline
+
+36 cases × 3 runs, gemini-3.5-flash-lite, the prompt as lifted with its examples swapped. Locally, 4 minutes:
+
+| Metric | Passed | Rate |
+|---|---|---|
+| `no_false_approval` | 108/108 | 100% |
+| `no_false_rejection` | 105/108 | 97% |
+| `accounts` | 93/99 | 94% |
+| `amounts` | 93/99 | 94% |
+
+- `rawson-real-estate` ×3: Legal Fees or Consultancy Fees. The ledger's account isn't in the chart
+- `safeden-security-systems` ×3: Maintenance Equipment, where the ledger has Security Charges, for repairing a safe's dial
+- `bhola-and-spar-greenfields` ×3, rejected: "two requisition forms are attached, but only one should be provided". The prompt's attachment rule, word for word from ourfos-v2
+- Nothing rounded. Salaries and Salaries Fake were both rejected as salaries: Fake's mismatched attachment was never the reason
+
+The dev pipeline's first run, as `ourfos-app-deployer`, 3 minutes: `no_false_approval` 108/108, `no_false_rejection` 108/108, `accounts` and `amounts` 94/102. Bhola was approved every time there, and split to the ledger's accounts once in three. The same prompt and model, so this is the variance three runs are there to show
 
 ## Not in this phase
 
