@@ -1,6 +1,6 @@
 """Which cases failed which metric, read from the results `adk eval` keeps. Nothing is scored here.
 
-    python3 services/evals/failures.py [RUNS]    the last RUNS results, 1 by default
+python3 services/evals/failures.py [RUNS]    the last RUNS results, 1 by default
 """
 
 import json
