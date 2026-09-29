@@ -7,7 +7,7 @@ import pytest
 from form import Invalid, clean, file_refs
 
 FORM = {
-    "submitter_email_address": " LTanga@lekkacredit.com ",
+    "submitter_email_address": " Lekkai@lekkacredit.com ",
     "comment": "",
     "date_disbursed": "Apr 10, 2026",
     "invoices": "",
@@ -35,7 +35,7 @@ def invalid(**changes) -> list[str]:
 def test_clean():
     r = clean(FORM)
     assert r.response_number == 482
-    assert r.submitted_by == "ltanga@lekkacredit.com"
+    assert r.submitted_by == "lekkai@lekkacredit.com"
     assert r.payable_to == "City parking"
     assert r.amount == 1.0
     assert r.disbursed_on == date(2026, 4, 10)
@@ -163,8 +163,14 @@ def test_file_refs(raw, want):
     assert file_refs(raw) == want
 
 
-@pytest.mark.parametrize("fixture", sorted(FIXTURES.glob("*.json")), ids=lambda p: p.stem)
+@pytest.mark.parametrize(
+    "fixture", sorted(p for p in FIXTURES.glob("*.json") if p.stem != "invalid"), ids=lambda p: p.stem
+)
 def test_every_fixture_cleans(fixture):
     raw = json.loads(fixture.read_text())
     raw.pop("simulate", None)
     assert clean(raw).response_number == 482
+
+
+def test_the_invalid_fixture_doesnt():
+    assert invalid(**json.loads((FIXTURES / "invalid.json").read_text())) == ["total_amount: not a number"]

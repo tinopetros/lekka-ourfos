@@ -11,7 +11,7 @@ from requisition import Requisition
 REQUISITION = Requisition(
     response_number=843,
     response_id="r",
-    submitted_by="pmushaya@lekkacredit.com",
+    submitted_by="tpetros@lekkacredit.com",
     submitted_at="2026-09-28T21:34:33Z",
     payable_to="Mr Muchenje",
     amount=60,
@@ -54,8 +54,8 @@ def test_subject_keeps_whatever_parts_there_are():
 
 
 def test_recipients_are_the_list_and_the_submitter_once_each():
-    assert emails.recipients("pmushaya@lekkacredit.com") == (
-        ["lekkai@lekkacredit.com", "directors@lekkacredit.com", "pmushaya@lekkacredit.com"],
+    assert emails.recipients("tpetros@lekkacredit.com") == (
+        ["lekkai@lekkacredit.com", "directors@lekkacredit.com", "tpetros@lekkacredit.com"],
         0,
     )
     assert emails.recipients("LEKKAI@lekkacredit.com")[0] == ["lekkai@lekkacredit.com", "directors@lekkacredit.com"]
@@ -77,7 +77,7 @@ def test_money(amount, want):
 def test_received_is_the_forms_answers():
     html, text = emails.received(REQUISITION)
     assert (
-        "<strong>Your form Requisition Approval Request Form has a new entry from pmushaya@lekkacredit.com.</strong>"
+        "<strong>Your form Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com.</strong>"
         in html
     )
     assert '<th align="center">Date Disbursed</th><td>Sep 18, 2026</td>' in html
