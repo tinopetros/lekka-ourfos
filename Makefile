@@ -40,7 +40,7 @@ help:
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, happy done, jailbreak and 400 handed_over (what CI runs)"
+	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak and 400 handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=…] [RUNS=3]  expenser against real requisitions, as deployed (docs/phase7)"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
@@ -118,7 +118,7 @@ smoke: check-env
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)?workflow=$(WORKFLOW)"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@for case in happy:done classify-jailbreak:handed_over classify-400:handed_over; do \
+	@for case in happy:done happy-gcs:done classify-jailbreak:handed_over classify-400:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
