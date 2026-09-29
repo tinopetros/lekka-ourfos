@@ -1,13 +1,15 @@
 """The requisition workflow's one service. It owns the requisition's document and calls everything else for it."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 
+import emails
 import store
 from classify import expenser
-from common import log, simulate
+from common import RETRIED, log, simulate
 from integrations import mifos
-from integrations.workspace import stub as workspace  # not as stub: a route below is named that
+from integrations.workspace import gmail
+from integrations.workspace.delegation import WorkspaceError
 from requisition import Requisition
 
 router = APIRouter(prefix="/requisitions/{id}")
@@ -73,18 +75,50 @@ def line(name: str, gl_code: str, gl_id: int, account_type: str, amount: float) 
     return {"name": name, "glCode": gl_code, "glId": gl_id, "accountType": account_type, "amount": amount}
 
 
-# The handover path goes through here too, so the thread is recorded, never required
-@router.get("/thread")
-def thread(id: str, response_number: int, code: str | None = Query(None, alias="simulate")):
-    found = workspace.get_thread(response_number, code)
-    store.record(id, thread_id=found["thread_id"])
-    return found
+@router.post("/acknowledge")
+def acknowledge(id: str, body: dict):
+    """The first email, which starts the thread every other email replies in."""
+    doc = store.get(id)
+    sent = doc.get("emails", {}).get("received")
+    if not sent:
+        simulate("acknowledge", body.get("simulate"))
+        requisition = Requisition.model_validate(doc["requisition"])
+        html, text = emails.received(requisition)
+        sent = send(
+            "received",
+            requisition.submitted_by,
+            emails.form_name(),
+            emails.subject(requisition.payable_to, requisition.response_number),
+            html,
+            text,
+        )
+        store.record(id, emails={"received": email(sent)})
+    # Its Message-ID too, so replies thread in any client. Read after the send is recorded: a retry never resends
+    thread = doc.get("thread") or {
+        "thread_id": sent["thread_id"],
+        "in_reply_to": gmail_call(gmail.rfc822_id, sent["message_id"]),
+    }
+    store.record(id, thread=thread)
+    return thread
 
 
 @router.post("/notify")
 def notify(id: str, body: dict):
-    classification = store.get(id)["classification"]
-    sent = workspace.notify(body["thread_id"], "classification", classification, body.get("simulate"))
+    doc = store.get(id)
+    if sent := doc.get("emails", {}).get("classification"):
+        return sent
+    simulate("notify", body.get("simulate"))
+    requisition = Requisition.model_validate(doc["requisition"])
+    html, text = emails.classified(doc["classification"])
+    sent = send(
+        "classification",
+        requisition.submitted_by,
+        emails.LEKKAI,
+        emails.subject(requisition.payable_to, requisition.response_number),
+        html,
+        text,
+        body["thread"],
+    )
     store.record(id, emails={"classification": email(sent)})
     return sent
 
@@ -108,17 +142,40 @@ def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None,
 
 @router.post("/confirm")
 def confirm(id: str, body: dict):
-    confirmation = {"mifos_transaction_id": body["mifos_transaction_id"]}
-    sent = workspace.notify(body["thread_id"], "confirmation", confirmation, body.get("simulate"))
-    store.record(id, emails={"confirmation": email(sent)})
-    return sent
+    # Mifos is a stub: an email confirming a post that didn't happen would be a lie (phase 9 ADR 6)
+    simulate("confirm", body.get("simulate"))
+    log("confirm: no email while Mifos is a stub", mifos_transaction_id=body["mifos_transaction_id"])
+    return {"sent": False}
 
 
-# Needs nothing from the database, so someone still hears when the database is what broke
+# Needs nothing from the database, so someone still hears when the database is what broke. A form the trigger
+# couldn't clean comes here too, with no requisition: only what the form sent
 @router.post("/handover")
 def handover(id: str, body: dict):
-    sent = workspace.notify(body["thread_id"], "error", body["error"], body.get("simulate"))
-    store.record(id, emails={"handover": email(sent)})
+    try:
+        if sent := store.get(id).get("emails", {}).get("handover"):
+            return sent
+    except HTTPException:
+        pass  # Sent anyway: someone has to hear
+    simulate("notify", body.get("simulate"))
+    requisition, raw = body.get("requisition"), body.get("raw") or {}
+    if requisition:
+        submitter, payable_to, number = (requisition.get(k) for k in ("submitted_by", "payable_to", "response_number"))
+    else:
+        submitter, payable_to, number = (
+            raw.get(k) for k in ("submitter_email_address", "payable_to", "response_number")
+        )
+    html, text = emails.handed_over(body["error"], None if requisition else raw)
+    sent = send(
+        "handover",
+        submitter if isinstance(submitter, str) else None,
+        emails.LEKKAI,
+        emails.subject(payable_to, number),
+        html,
+        text,
+        body.get("thread"),
+    )
+    store.record(id, emails={"handover": email(sent)}, **({} if requisition else {"raw": raw}))
     return sent
 
 
@@ -130,4 +187,20 @@ def complete(id: str, body: dict):
 
 
 def email(sent: dict) -> dict:
-    return {"message_id": sent["message_id"], "at": store.NOW}
+    return {"message_id": sent["message_id"], "thread_id": sent["thread_id"], "at": store.NOW}
+
+
+def send(kind: str, submitter: str | None, sender_name: str, subject: str, html: str, text: str, thread=None) -> dict:
+    to, dropped = emails.recipients(submitter)
+    sent = gmail_call(gmail.send, to, sender_name, subject, html, text, thread)
+    # Counts, not addresses: who it went to is in Gmail
+    log(f"emailed: {kind}", to=len(to), dropped=dropped, reply=bool(thread), message_id=sent["message_id"])
+    return sent
+
+
+def gmail_call(fn, *args):
+    """Gmail's retryable statuses pass through for the workflow to retry. Anything else is ours: a 500, handed over"""
+    try:
+        return fn(*args)
+    except WorkspaceError as e:
+        raise HTTPException(e.status if e.status in RETRIED else 500, f"gmail: {e}") from e

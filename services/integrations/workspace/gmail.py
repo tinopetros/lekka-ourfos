@@ -1,6 +1,7 @@
-"""Gmail as lekkai@, a setup check (docs/phase6/adr.md 5)."""
+"""Gmail as lekkai@: a requisition's emails, in one thread we start (docs/phase9/tdd.md). Blocking: run in a thread."""
 
 import base64
+from email.headerregistry import Address
 from email.message import EmailMessage
 
 from integrations.workspace.delegation import call, subject
@@ -10,48 +11,39 @@ GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send"
 GMAIL_USER = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 
-def headers(message: dict, *names: str) -> dict:
-    found = {h["name"].lower(): h["value"] for h in message.get("payload", {}).get("headers", [])}
-    return {name.lower(): found.get(name.lower()) for name in names}
+def message(
+    to: list[str], sender_name: str, subject_line: str, html: str, text: str, in_reply_to: str | None = None
+) -> EmailMessage:
+    """HTML with a plain-text alternative. A reply points at the first email, so any client threads it."""
+    m = EmailMessage()
+    m["From"] = Address(sender_name, addr_spec=subject())
+    m["To"] = ", ".join(to)
+    # One line, whatever the form's values held: a header can't carry a line break
+    m["Subject"] = " ".join(subject_line.split())
+    if in_reply_to:
+        m["In-Reply-To"] = m["References"] = in_reply_to
+    m.set_content(text)
+    m.add_alternative(html, subtype="html")
+    return m
 
 
-def messages(subject_contains: str, limit: int = 10) -> list[dict]:
-    listed = call(
-        GMAIL_READ, "GET", f"{GMAIL_USER}/messages", params={"q": f'subject:"{subject_contains}"', "maxResults": limit}
-    ).json()
-    found = []
-    for m in listed.get("messages", []):
-        message = call(
-            GMAIL_READ,
-            "GET",
-            f"{GMAIL_USER}/messages/{m['id']}",
-            params={"format": "metadata", "metadataHeaders": ["Subject", "From", "Date"]},
-        ).json()
-        found.append(
-            {"id": message["id"], "threadId": message["threadId"]} | headers(message, "Subject", "From", "Date")
-        )
-    return found
+def send(to: list[str], sender_name: str, subject_line: str, html: str, text: str, thread: dict | None = None) -> dict:
+    """A new thread, or a reply in one: {thread_id, in_reply_to} from the first email's send."""
+    m = message(to, sender_name, subject_line, html, text, thread and thread["in_reply_to"])
+    body = {"raw": base64.urlsafe_b64encode(m.as_bytes()).decode()}
+    if thread:
+        body["threadId"] = thread["thread_id"]
+    sent = call(GMAIL_SEND, "POST", f"{GMAIL_USER}/messages/send", json=body).json()
+    return {"message_id": sent["id"], "thread_id": sent["threadId"]}
 
 
-def thread(thread_id: str) -> list[dict]:
+def rfc822_id(message_id: str) -> str:
+    """The Message-ID Gmail gave an email we sent, for replies to point at."""
     got = call(
         GMAIL_READ,
         "GET",
-        f"{GMAIL_USER}/threads/{thread_id}",
-        params={"format": "metadata", "metadataHeaders": ["Subject", "From", "To", "Date"]},
+        f"{GMAIL_USER}/messages/{message_id}",
+        params={"format": "metadata", "metadataHeaders": ["Message-ID"]},
     ).json()
-    return [
-        {"id": m["id"], "snippet": m.get("snippet", "")} | headers(m, "Subject", "From", "To", "Date")
-        for m in got.get("messages", [])
-    ]
-
-
-def send_to_self(subject_line: str, body: str) -> dict:
-    """Only ever to the subject itself: proves gmail.send without mailing anyone (docs/phase6/adr.md 5)."""
-    message = EmailMessage()
-    message["To"] = message["From"] = subject()
-    message["Subject"] = subject_line
-    message.set_content(body)
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    sent = call(GMAIL_SEND, "POST", f"{GMAIL_USER}/messages/send", json={"raw": raw}).json()
-    return {"id": sent["id"], "threadId": sent["threadId"]}
+    headers = {h["name"].lower(): h["value"] for h in got.get("payload", {}).get("headers", [])}
+    return headers["message-id"]
