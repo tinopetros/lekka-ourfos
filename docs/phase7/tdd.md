@@ -32,7 +32,7 @@ make eval-failures ─▶ ADK's own results ─▶ which cases failed which metr
 - Named by where it came from: `requisitions/<requisition id>/<field>/<sha256>`. Metadata repeats `source`, `id` and `field`. The content type is set on upload, never guessed from a name
 - Evals live in dev only: `evals/requisitions/<case>/<field>/<sha256>`. Prod never holds test data
 - Who reads, on the bucket, not the project: `ourfos-services` in both. I read it as the project's owner
-- Nothing writes to it from code yet. The front end will; the eval files go up once (see Bootstrapped, once)
+- Nothing writes to it from code yet. The front end will; the eval files went up once, by hand
 
 ## One fetch
 
