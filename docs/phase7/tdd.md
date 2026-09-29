@@ -52,7 +52,7 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 
 - From expenser's `.eml` files (`src/expenser/tests/evals/inputs/`), each a form notification: fields, and Drive links per field. The local files match the links in order
 - Expected answers from expenser's `answers.ts` and `answers.csv`, the ledger as it was posted. The ledger is the answer, odd entries included (ADR 6)
-- About 34 cases:
+- 36 cases:
   - the 31 or so distinct requisitions across both folders
   - Makora three times, one attachment each: JPEG, PNG and PDF. Its `.jpg`, `[1].jpg` and `[2].jpeg` are the same bytes, so they're one case
   - Salaries and Salaries Fake, both rejected, for different reasons: a salary is never filed, and Fake's attachment is Mr saruchera's consultancy requisition, not a payroll
@@ -85,7 +85,7 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 
 ## The harness
 
-- `services/evals/expenser/agent.py`: `app = App(root_agent=expenser's root_agent, plugins=[Attachments(), *expenser's plugins])`. `AgentEvaluator` runs a module's `App`, plugins and all, so Model Armor screens as in prod
+- `services/evals/expenser_app/agent.py`: `app = App(root_agent=expenser's root_agent, plugins=[Attachments(), *expenser's plugins])`. `AgentEvaluator` runs a module's `App`, plugins and all, so Model Armor screens as in prod
 - `Attachments`, a plugin, only in the eval module: `on_user_message_callback` reads the requisition from the first part, loads its files through `attachments.load`, and returns `turn(requisition, files)`. The same bytes, labels and order classify gives the model
 - `services/evals/` is excluded from the image, like `tests/`
 
@@ -127,13 +127,14 @@ make evals ENV=dev                                   # pytest services/evals, ev
 make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 ```
 
-- pytest, marked `eval`, so `make test` and GitHub's check never run it
+- pytest, outside `services/tests`, the only path `make test` collects, so neither it nor GitHub's check runs them. ADK's `eval` extra is a dev dependency, never in the image
+- Configured as the deployed `ourfos-services` is: its model, Model Armor template and bucket are read from Cloud Run, so a run scores what's live
 - By hand as me, with ADC: Vertex, Model Armor and the dev bucket
 - On every merge to main: an `evals` step in the dev pipeline, after `smoke` and before `plan-prod`, as `ourfos-app-deployer`, like smoke
 - 3 runs per case, to see Flash-Lite's variance
 - Passes when every metric's pass rate, across cases and runs, is at least 0.70 (ADR 8). The per-metric failures are the hillclimb's list
-- For a look rather than a gate: `adk eval services/evals/expenser services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json --print_detailed_results`, or `adk web` for one case's trace
-- Cost: about 34 cases × 3 runs × 4 Model Armor screens, well inside the free 2M tokens a month. The model's tokens are cents
+- For a look rather than a gate: `adk eval services/evals/expenser_app services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json --print_detailed_results`, or `adk web` for one case's trace
+- Cost: 36 cases × 3 runs × 4 Model Armor screens, well inside the free 2M tokens a month. The model's tokens are cents
 
 ## The prompt
 
@@ -149,20 +150,12 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 
 ## Terraform
 
-- lekka-ourfos-infra: the bucket and its readers, in both projects
+- lekka-ourfos-infra: the bucket and its readers, in both projects. In dev, `ourfos-app-deployer` may also call Vertex and Model Armor, for the pipeline's evals
 - lekka-ourfos: `ATTACHMENTS_BUCKET` on `ourfos-services`
 
 ## Bootstrapped, once
 
 - The eval files, uploaded from expenser's inputs, each with its content type. The converting script writes the evalset's refs as it goes
-- `ourfos-app-deployer` may call Vertex and Model Armor in dev, for the pipeline's evals. By hand, as its other grants are:
-
-```bash
-for R in roles/aiplatform.user roles/modelarmor.user; do
-  gcloud projects add-iam-policy-binding ourfos-dev --condition=None --role=$R \
-    --member=serviceAccount:ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
-done
-```
 
 ## Done when
 
