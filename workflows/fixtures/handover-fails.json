@@ -15,6 +15,6 @@
     "response_id": "fixture-response",
     "simulate": {
         "classify": 400,
-        "notify": 500
+        "handover": 500
     }
 }

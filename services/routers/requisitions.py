@@ -79,20 +79,20 @@ def line(name: str, gl_code: str, gl_id: int, account_type: str, amount: float) 
 def acknowledge(id: str, body: dict):
     """The first email, which starts the thread every other email replies in."""
     doc = store.get(id)
-    sent = doc.get("emails", {}).get("received")
+    sent = doc.get("emails", {}).get("acknowledgement")
     if not sent:
         simulate("acknowledge", body.get("simulate"))
         requisition = Requisition.model_validate(doc["requisition"])
-        html, text = emails.received(requisition)
+        html, text = emails.acknowledgement(requisition)
         sent = send(
-            "received",
+            "acknowledgement",
             requisition.submitted_by,
             emails.form_name(),
             emails.subject(requisition.payable_to, requisition.response_number),
             html,
             text,
         )
-        store.record(id, emails={"received": email(sent)})
+        store.record(id, emails={"acknowledgement": email(sent)})
     # Its Message-ID too, so replies thread in any client. Read after the send is recorded: a retry never resends
     thread = doc.get("thread") or {
         "thread_id": sent["thread_id"],
@@ -102,16 +102,16 @@ def acknowledge(id: str, body: dict):
     return thread
 
 
-@router.post("/notify")
-def notify(id: str, body: dict):
+@router.post("/suggest")
+def suggest(id: str, body: dict):
     doc = store.get(id)
-    if sent := doc.get("emails", {}).get("classification"):
+    if sent := doc.get("emails", {}).get("suggestion"):
         return sent
-    simulate("notify", body.get("simulate"))
+    simulate("suggest", body.get("simulate"))
     requisition = Requisition.model_validate(doc["requisition"])
-    html, text = emails.classified(doc["classification"])
+    html, text = emails.suggestion(doc["classification"])
     sent = send(
-        "classification",
+        "suggestion",
         requisition.submitted_by,
         emails.LEKKAI,
         emails.subject(requisition.payable_to, requisition.response_number),
@@ -119,7 +119,7 @@ def notify(id: str, body: dict):
         text,
         body["thread"],
     )
-    store.record(id, emails={"classification": email(sent)})
+    store.record(id, emails={"suggestion": email(sent)})
     return sent
 
 
@@ -157,7 +157,7 @@ def handover(id: str, body: dict):
             return sent
     except HTTPException:
         pass  # Sent anyway: someone has to hear
-    simulate("notify", body.get("simulate"))
+    simulate("handover", body.get("simulate"))
     requisition, raw = body.get("requisition"), body.get("raw") or {}
     if requisition:
         submitter, payable_to, number = (requisition.get(k) for k in ("submitted_by", "payable_to", "response_number"))
@@ -165,7 +165,7 @@ def handover(id: str, body: dict):
         submitter, payable_to, number = (
             raw.get(k) for k in ("submitter_email_address", "payable_to", "response_number")
         )
-    html, text = emails.handed_over(body["error"], None if requisition else raw)
+    html, text = emails.handover(body["error"], None if requisition else raw)
     sent = send(
         "handover",
         submitter if isinstance(submitter, str) else None,

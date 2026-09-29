@@ -13,6 +13,8 @@ from requisition import Requisition
 # Their questions' titles on the form, for the fields with files
 FILE_LABELS = {"signed_requisition_form": "Signed Requisition Form", "receipts": "Receipt(s)", "invoices": "Invoice(s)"}
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
+# Wherever Lekkai stops, so a deferral and a handover say it the same way
+TAKE_OVER = "An accountant needs to take it from here."
 LEKKAI = "Lekkai"
 
 
@@ -64,7 +66,7 @@ def table(rows: list[tuple[str, str, str]]) -> str:
     return f'<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse">{cells}</table>'
 
 
-def received(r: Requisition) -> tuple[str, str]:
+def acknowledgement(r: Requisition) -> tuple[str, str]:
     """The first email: the form's answers, as the add-on sent them."""
     rows = [
         ("Email address", f'<a href="mailto:{escape(r.submitted_by)}">{escape(r.submitted_by)}</a>', r.submitted_by),
@@ -84,12 +86,12 @@ def received(r: Requisition) -> tuple[str, str]:
     return html, text
 
 
-def classified(c: dict) -> tuple[str, str]:
-    """ourfos-v2's reply: the suggestion, its reason, the lines, the comments."""
-    suggestion = f"Lekkai's Suggestion: {'APPROVE' if c['approve'] else 'DEFER'}"
+def suggestion(c: dict) -> tuple[str, str]:
+    """ourfos-v2's reply: the suggestion, its reason, the lines, the comments. A deferral hands it to a person."""
+    heading = f"Lekkai's suggestion: {'APPROVE' if c['approve'] else 'DEFER'}"
     reason = c.get("reason") or ""
-    html = [f"<strong>{suggestion}</strong>", f"<p>{escape(reason)}</p>"]
-    text = [suggestion, "", reason]
+    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
+    text = [heading, "", reason]
     lines = [(d, money(d["amount"]), "") for d in c.get("debit", [])] + [
         (d, "", money(d["amount"])) for d in c.get("credit", [])
     ]
@@ -108,16 +110,19 @@ def classified(c: dict) -> tuple[str, str]:
     if c.get("comments"):
         html.append("<ul>" + "".join(f"<li>{escape(x)}</li>" for x in c["comments"]) + "</ul>")
         text += [""] + [f"- {x}" for x in c["comments"]]
+    if not c["approve"]:
+        html.append(f"<p><strong>{TAKE_OVER}</strong></p>")
+        text += ["", TAKE_OVER]
     html.append(f"<p><em>{DISCLAIMER}</em></p>")
     text += ["", DISCLAIMER]
     return "\n".join(html), "\n".join(text)
 
 
-def handed_over(reason: str, raw: dict | None = None) -> tuple[str, str]:
+def handover(reason: str, raw: dict | None = None) -> tuple[str, str]:
     """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
-    heading = "Lekkai handed this over: it needs a person"
-    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
-    text = [heading, "", reason]
+    heading = "Lekkai failed to process this requisition"
+    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>", f"<p><strong>{TAKE_OVER}</strong></p>"]
+    text = [heading, "", reason, "", TAKE_OVER]
     if raw:
         rows = [(str(k), escape(str(v)), str(v)) for k, v in raw.items()]
         html += ["<p>What the form sent:</p>", table(rows)]

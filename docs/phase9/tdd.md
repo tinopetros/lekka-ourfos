@@ -9,7 +9,7 @@
 ## Shape
 
 ```
-form ─▶ trigger ─┬─ clean ─▶ workflow ─▶ receive ─▶ acknowledge ─▶ classify ─▶ check ─▶ notify ─▶ post … confirm
+form ─▶ trigger ─┬─ clean ─▶ workflow ─▶ receive ─▶ acknowledge ─▶ classify ─▶ check ─▶ suggest ─▶ post … confirm
                  │                                     │ first email: the thread        │ reply: the suggestion
                  └─ can't clean ─▶ workflow ─▶ handover: a new email, with what the form sent
                                      any failure ─▶ handover: a reply, or a new email if there's no thread yet
@@ -22,7 +22,7 @@ form ─▶ trigger ─┬─ clean ─▶ workflow ─▶ receive ─▶ acknow
 
 All from `lekkai@`, HTML with a plain-text alternative, built in `services/emails.py`. Every value from the form is escaped: the payee and comment are free text
 
-### Received
+### Acknowledgement
 
 What the form add-on sends today, from its "All Answers":
 
@@ -32,23 +32,24 @@ What the form add-on sends today, from its "All Answers":
 - Files as "File 1", "File 2", each a link to Drive (`drive.google.com/open?id=…`). A `gs://` file is named without a link until the front end can show it (ADR 4)
 - Sender's name: the form's
 
-### Classified
+### Suggestion
 
 ourfos-v2's reply, as the accountants know it:
 
-- **Lekkai's Suggestion: APPROVE** or **DEFER**, then the reason
+- **Lekkai's suggestion: APPROVE** or **DEFER**, then the reason
 - The table: Account, GL Code, GL ID, Account Type, Debit, Credit. A rejection has no lines, so no table
 - The comments as bullets
+- A deferral ends with **An accountant needs to take it from here.** An approval doesn't: once Mifos is real, the posted email ends it
 - *Lekkai is an experimental AI agent at Lekka, it may make mistakes...*
 - Sender's name: Lekkai
 
-### Handed over
+### Handover
 
-- **Lekkai handed this over: it needs a person**, then the reason the workflow gives, e.g. which file couldn't be fetched
+- **Lekkai failed to process this requisition**, then the reason the workflow gives, e.g. which file couldn't be fetched, then **An accountant needs to take it from here.**, the same line a deferral ends with
 - When the form couldn't be read: what the form sent, as sent, so a person can see what was wrong
 - Sender's name: Lekkai
 
-### Posted
+### Confirmation
 
 - Not while Mifos is a stub: `confirm` records nothing and sends nothing. An email confirming a post that didn't happen would be a lie (ADR 6)
 
@@ -58,7 +59,7 @@ ourfos-v2's reply, as the accountants know it:
 - Gmail threads a reply by its thread id and a matching subject. Recipients' clients thread it by `In-Reply-To` and `References`. Every reply sets all three, pointing at the first email
 - The first email's `Message-ID` is read back once, with `gmail.readonly`, which `lekkai@` already has
 - A person replying before Lekkai does doesn't matter: ours still points at the first email, in the same thread
-- `acknowledge` returns `{thread_id, in_reply_to}`. The workflow hands it to `notify` and `handover`, so a handover never needs the database for it (phase 4 ADR 2)
+- `acknowledge` returns `{thread_id, in_reply_to}`. The workflow hands it to `suggest` and `handover`, so a handover never needs the database for it (phase 4 ADR 2)
 
 ## Recipients
 
@@ -71,7 +72,16 @@ ourfos-v2's reply, as the accountants know it:
 
 ## One send per kind
 
-- Each email is stored as `emails.<kind>`: `received`, `classification`, `handover`. Before sending, the service looks: if this run already sent that kind, it answers with what's stored and sends nothing
+- Each email is named for its step, and stored as `emails.<kind>`:
+
+  | Step | Email |
+  |---|---|
+  | `acknowledge` | `acknowledgement` |
+  | `suggest`, was `notify` | `suggestion` |
+  | `handover` | `handover` |
+  | `confirm` | `confirmation`, with Mifos |
+
+-  Before sending, the service looks: if this run already sent that kind, it answers with what's stored and sends nothing
 - So a send that landed but answered late, then retried, isn't a second email
 - The gap: Gmail sends, then the store's write fails, then a retry sends again. Rare, and a duplicate email at worst: accepted
 - `handover` checks too, but sends anyway if the database can't be read: someone has to hear
@@ -86,9 +96,9 @@ ourfos-v2's reply, as the accountants know it:
 
 ## Code
 
-- `integrations/workspace/gmail.py`: `send(to, sender_name, subject, html, text, thread=None)`. `messages()`, `thread()` and `send_to_self()`, phase 6's setup check, go
-- `routers/gmail.py` and `make workspace` go: a real email is now the check
-- `integrations/workspace/stub.py` goes. Fixtures still force failures with `simulate`, before the real send: `acknowledge`, `notify`, `confirm`
+- `integrations/workspace/gmail.py`: `send(to, sender_name, subject, html, text, thread=None)`, and `rfc822_id()` for the first email's `Message-ID`
+- **Goes:** phase 6's setup check, which only ever mailed `lekkai@` to prove the scopes: `messages()`, `thread()`, `send_to_self()`, `routers/gmail.py` and `make workspace`. A real email is the check now
+- `integrations/workspace/stub.py` goes. Fixtures still force failures with `simulate`, before the real send, keyed by step: `acknowledge`, `suggest`, `handover`, `confirm`
 - The document keeps `thread` and `emails.<kind>`: `{message_id, thread_id, at}`
 
 ## Fixtures and evals
@@ -105,8 +115,8 @@ ourfos-v2's reply, as the accountants know it:
 
 ## Bootstrapped, once
 
+- Dev: turn off the dev form's add-on notification when this merges, since merging deploys dev. Otherwise a dev submission gets two first emails
 - Prod: turn off the add-on's notification when the tag with this goes out, not before, or nobody hears; not long after, or everyone hears twice
-- Dev: nothing. The add-on only mails prod's list
 
 ## Done when
 

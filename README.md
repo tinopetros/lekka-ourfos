@@ -22,7 +22,7 @@ Google Form ─▶ intake ─▶ Workflows execution ─▶ one thread of emails
                  │            ├─ acknowledge (the first email, which starts the thread)
                  │            ├─ classify    (expenser, an ADK agent, in the workflow's service)
                  |            ├─ check       (deterministic, in the workflow)
-                 │            ├─ notify      (a reply: Lekkai's suggestion)
+                 │            ├─ suggest     (a reply: Lekkai's suggestion)
                  │            ├─ post        (Mifos, and read it back)
                  │            └─ confirm     (a reply: posted, once Mifos is real)
                  ▼

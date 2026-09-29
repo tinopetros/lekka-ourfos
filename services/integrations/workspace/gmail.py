@@ -37,6 +37,7 @@ def send(to: list[str], sender_name: str, subject_line: str, html: str, text: st
     return {"message_id": sent["id"], "thread_id": sent["threadId"]}
 
 
+# RFC 822 is email's standard: its Message-ID header is what mail clients thread on, not Gmail's own API id
 def rfc822_id(message_id: str) -> str:
     """The Message-ID Gmail gave an email we sent, for replies to point at."""
     got = call(
