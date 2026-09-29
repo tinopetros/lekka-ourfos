@@ -9,7 +9,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
 class Files(BaseModel):
-    """Drive file ids per upload field. Not fetched yet."""
+    """Per upload field: Drive file ids, or gs:// refs into our attachments bucket."""
 
     model_config = ConfigDict(extra="forbid")
 

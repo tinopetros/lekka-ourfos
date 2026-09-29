@@ -12,8 +12,11 @@ FILE_FIELDS = tuple(Files.model_fields)
 # Month names only: 04/05/2026 reads two ways, so slashes aren't accepted until a real payload pins them
 DATE_FORMATS = ("%b %d, %Y", "%B %d, %Y", "%d %b %Y", "%d %B %Y")
 
-# open?id=, file/d/ and uc?id= links, inside anchors or not, whatever separates them
-DRIVE_ID = re.compile(r"drive\.google\.com/(?:open\?id=|file/d/|uc\?(?:export=\w+&)?id=)([A-Za-z0-9_-]+)")
+# Drive's open?id=, file/d/ and uc?id= links, inside anchors or not, whatever separates them. Or a gs:// ref,
+# kept whole: the service decides whether it may read that bucket
+FILE_REF = re.compile(
+    r"drive\.google\.com/(?:open\?id=|file/d/|uc\?(?:export=\w+&)?id=)([A-Za-z0-9_-]+)|(gs://[a-z0-9._-]+/[^\s\"'<>,]+)"
+)
 CURRENCY = re.compile(r"^(US\$|USD|ZWL|ZIG|\$)", re.IGNORECASE)
 # Commas only as thousands separators, so 1.200,00 is refused rather than read as 1.2
 AMOUNT = re.compile(r"^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$")
@@ -49,7 +52,7 @@ def clean(raw: dict) -> Requisition:
 
     for key, (into, to) in FIELDS.items():
         parse(key, to, into)
-    fields["files"] = {key: drive_ids(text(key) or "") for key in FILE_FIELDS}
+    fields["files"] = {key: file_refs(text(key) or "") for key in FILE_FIELDS}
 
     if errors:
         raise Invalid(errors)
@@ -102,8 +105,9 @@ def epoch_ms(value: str) -> datetime:
     return datetime.fromtimestamp(int(value) / 1000, UTC)
 
 
-def drive_ids(value: str) -> list[str]:
-    return list(dict.fromkeys(DRIVE_ID.findall(value)))
+def file_refs(value: str) -> list[str]:
+    """Drive ids and gs:// refs, in the order given, each once."""
+    return list(dict.fromkeys(drive or gcs for drive, gcs in FILE_REF.findall(value)))
 
 
 # The form's key: the clean field, and how to read it

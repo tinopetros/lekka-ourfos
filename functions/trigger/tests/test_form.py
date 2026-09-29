@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from form import Invalid, clean, drive_ids
+from form import Invalid, clean, file_refs
 
 FORM = {
     "submitter_email_address": " LTanga@lekkacredit.com ",
@@ -149,10 +149,18 @@ def test_not_text():
         ("https://drive.google.com/uc?export=download&id=A1", ["A1"]),
         ("https://drive.google.com/open?id=A1 https://drive.google.com/open?id=A1", ["A1"]),
         ("File 1", []),
+        (
+            "gs://ourfos-dev-attachments/evals/requisitions/a/receipts/0f1e",
+            ["gs://ourfos-dev-attachments/evals/requisitions/a/receipts/0f1e"],
+        ),
+        (
+            "https://drive.google.com/open?id=A1, gs://b/o/1 gs://b/o/2, gs://b/o/1",
+            ["A1", "gs://b/o/1", "gs://b/o/2"],
+        ),
     ],
 )
-def test_drive_ids(raw, want):
-    assert drive_ids(raw) == want
+def test_file_refs(raw, want):
+    assert file_refs(raw) == want
 
 
 @pytest.mark.parametrize("fixture", sorted(FIXTURES.glob("*.json")), ids=lambda p: p.stem)
