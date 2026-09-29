@@ -49,14 +49,14 @@ PROMPT = f"""
 
     __EXAMPLES__
     - INPUT:
-        {{"response_number": 101, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "City parking", "amount": 1.0, "disbursed_on": "2026-04-10", "files": {{"signed_requisition_form": ["1a2b3c"], "receipts": [], "invoices": []}}}}
+        {{"response_number": 101, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "Town parking", "amount": 3.0, "disbursed_on": "2026-05-06", "comment": "Parking for a client site visit", "files": {{"signed_requisition_form": ["1a2b3c"], "receipts": [], "invoices": []}}}}
     - Output:
-        {{"approve": true, "reason": "City parking", "debit": [{{"name": "Advertising and Promotions", "glCode": "5020", "glId": 66, "accountType": "EXPENSE", "amount": 1.0}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 1.0}}], "comments": ["Requisition has approval signature"]}}
+        {{"approve": true, "reason": "Parking for a client site visit", "debit": [{{"name": "Advertising and Promotions", "glCode": "5020", "glId": 66, "accountType": "EXPENSE", "amount": 3.0}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 3.0}}], "comments": ["Requisition has approval signature"]}}
 
     - INPUT (PAYE/ZIMRA — note: attached receipt shows a ZB Bank slip, but the requisition does not mention a bank):
-        {{"response_number": 102, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "Zimra (march)", "amount": 611.23, "disbursed_on": "2026-04-21", "files": {{"signed_requisition_form": ["4d5e6f"], "receipts": ["7g8h9i"], "invoices": []}}}}
+        {{"response_number": 102, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "Zimra (june)", "amount": 482.5, "disbursed_on": "2026-07-20", "files": {{"signed_requisition_form": ["4d5e6f"], "receipts": ["7g8h9i"], "invoices": []}}}}
     - Output (credit is Cash at Vault because the requisition does not mention a bank):
-        {{"approve": true, "reason": "Zimra (March) tax payment", "debit": [{{"name": "Taxation - PAYE", "glCode": "2030", "glId": 38, "accountType": "LIABILITY", "amount": 611.23}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 611.23}}], "comments": ["Requisition has two approval signatures", "PAYE liability account debited"]}}
+        {{"approve": true, "reason": "Zimra (June) tax payment", "debit": [{{"name": "Taxation - PAYE", "glCode": "2030", "glId": 38, "accountType": "LIABILITY", "amount": 482.5}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 482.5}}], "comments": ["Requisition has two approval signatures", "PAYE liability account debited"]}}
 
     __CHART OF ACCOUNTS__
     See this csv below of our chart of asset and expense accounts that we will be using:
