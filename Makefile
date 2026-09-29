@@ -133,12 +133,14 @@ workspace: check-env
 	@curl -sf -H "Authorization: Bearer $$(gcloud auth print-identity-token)" -H 'content-type: application/json' \
 		$(if $(BODY),-X POST --data '$(BODY)') "$(SERVICES_URL)/workspace/$(ROUTE)" | python3 -m json.tool
 
-# Reads agents/expenser/.env
+# Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it
+ADK := cd agents && PYTHONPATH=../services uv run -q --project ../services adk
+
 agent:
-	cd agents && uv run -q --project ../services adk run expenser
+	$(ADK) run expenser
 
 agent-web:
-	cd agents && uv run -q --project ../services adk web
+	$(ADK) web
 
 check: tf-fmt-check tf-validate-ci lock-check lint test
 

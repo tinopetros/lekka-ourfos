@@ -11,7 +11,7 @@ from PIL import Image
 os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates/t")
 
 from classify import attachments
-from classify.expenser import turn
+from expenser.files import turn
 from expenser.screen import free_text
 from integrations.workspace import delegation, drive, gmail
 from requisition import Requisition
