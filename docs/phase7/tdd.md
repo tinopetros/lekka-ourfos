@@ -9,20 +9,16 @@
 ## Shape
 
 ```
-make evals ─▶ pytest services/evals ─▶ AgentEvaluator("evals.expenser")
-                                          │
-                                          App(expenser's root_agent,
-                                              plugins=[Attachments, expenser's Model Armor])
-                                          │   Attachments: gs:// refs in the requisition ─▶ bytes,
-                                          │   through classify's own load and turn()
-                                          ▼
-                                       custom metrics ─▶ pass rate per metric, failing and rounded cases listed
-
-form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ bare id ─▶ Drive, as lekkai@   (as phase 6)
-                                                        └─ gs://    ─▶ the attachments bucket
+make evals ─▶ adk eval agents/expenser ─┐
+form ─▶ trigger ─▶ workflow ─▶ classify ─┴─▶ expenser's App: the requisition, files as refs
+                                               ├─ Attachments plugin: fetch(ref) ─┬─ bare id ─▶ Drive, as lekkai@
+                                               │                                  └─ gs://    ─▶ the attachments bucket
+                                               ├─ Model Armor: fields, whole prompt
+                                               └─ the model: JSON + one part per file
+make eval-failures ─▶ ADK's own results ─▶ which cases failed which metric
 ```
 
-- The workflow, its steps and statuses are phase 6's. Only where a file can come from changes
+- The workflow, its steps and statuses are phase 6's. Where a file can come from changes, and the agent fetches it, not classify (ADR 3)
 
 ## Already on this branch
 
@@ -35,7 +31,7 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 - Uniform bucket-level access, public access prevention enforced, Google's default soft delete, no versioning: an object is named by its content, so it never changes
 - Named by where it came from: `requisitions/<requisition id>/<field>/<sha256>`. Metadata repeats `source`, `id` and `field`. The content type is set on upload, never guessed from a name
 - Evals live in dev only: `evals/requisitions/<case>/<field>/<sha256>`. Prod never holds test data
-- Who reads, on the bucket, not the project: `ourfos-services` in both. In dev, `ourfos-app-deployer` too, for the evals in the pipeline. I read it as the project's owner
+- Who reads, on the bucket, not the project: `ourfos-services` in both. I read it as the project's owner
 - Nothing writes to it from code yet. The front end will; the eval files go up once (see Bootstrapped, once)
 
 ## One fetch
@@ -83,15 +79,16 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 - `user_content` is the clean requisition as classify sends it, files as refs. The plugin swaps them for bytes, labelled by field, before the invocation starts
 - `final_response` holds only what's scored, and the `why`
 
-## The harness
+## The agent fetches
 
-- `services/evals/expenser_app/agent.py`: `app = App(root_agent=expenser's root_agent, plugins=[Attachments(), *expenser's plugins])`. `AgentEvaluator` runs a module's `App`, plugins and all, so Model Armor screens as in prod
-- `Attachments`, a plugin, only in the eval module: `on_user_message_callback` reads the requisition from the first part, loads its files through `attachments.load`, and returns `turn(requisition, files)`. The same bytes, labels and order classify gives the model
+- `agents/expenser/files.py`, the `Attachments` plugin, first in expenser's `App`: `on_user_message_callback` reads the requisition from the message, loads its files through `classify.attachments.load`, and returns `turn(requisition, files)`. Anything that isn't a requisition, like a question typed into `adk web`, is left alone
+- classify sends the requisition alone. What a fetch raises comes out of ADK wrapped in a `RuntimeError`; classify re-raises the `HTTPException` inside, so its status still reaches the workflow
+- `adk eval` runs this same agent, so the evals need no module of their own
 - `services/evals/` is excluded from the image, like `tests/`
 
 ## The metrics
 
-`services/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation. A case passes a metric only at 1: the 0.70 is across cases (see Running)
+`services/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation. A case passes a metric only at 1
 
 ```json
 {
@@ -113,28 +110,30 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 - `no_false_approval`: approved what should be rejected. The dangerous one
 - `accounts`: the same `glCode`s on each side. Lines are summed per account, so a split or a merge doesn't matter
 - `amounts`: each account within a cent of the ledger's
-  - **Rounded:** the total is the form's amount, and each account is within the gap between the form and the ledger (Bhola: 97 − 96.97). Passes, and is listed as rounded for me to look at
+  - **Rounded:** the total is the form's amount, and each account is within the gap between the form and the ledger (Bhola: 97 − 96.97). Passes
   - Anything else fails
 - `no_false_rejection`: rejected what should be approved. Reported, not a safety fail
 - `accounts` and `amounts` are not evaluated when either side rejects
 - `glId` isn't scored: a unit test holds every `glCode` in the chart to its `glId`
-- The harness writes ADK's results to a file and prints the rounded and failing cases from it, per metric
+- ADK keeps each run's results in `agents/expenser/.adk/eval_history/`. `services/evals/failures.py` reads which cases failed which metric; nothing is scored there
 
 ## Running
 
 ```
-make evals ENV=dev                                   # pytest services/evals, every case 3 times
-make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
+make evals                                  # every case once, then which failed which metric
+make evals CASE=bhola-and-spar-greenfields  # one case, or several: CASE=a,b
+make evals RUNS=3                           # three times over, to see Flash-Lite's variance
+make evals CASE=zrp DETAIL=1                # with ADK's detailed tables
+make eval-cases                             # the eval_ids CASE takes
+make eval-failures RUNS=3                   # the failures of the last three runs again
 ```
 
-- pytest, outside `services/tests`, the only path `make test` collects, so neither it nor GitHub's check runs them. ADK's `eval` extra is a dev dependency, never in the image
-- Configured as the deployed `ourfos-services` is: its model, Model Armor template and bucket are read from Cloud Run, so a run scores what's live
-- By hand as me, with ADC: Vertex, Model Armor and the dev bucket
-- On every merge to main: an `evals` step in the dev pipeline, after `smoke` and before `plan-prod`, as `ourfos-app-deployer`, like smoke
-- 3 runs per case, to see Flash-Lite's variance
-- Passes when every metric's pass rate, across cases and runs, is at least 0.70 (ADR 8). The per-metric failures are the hillclimb's list
-- For a look rather than a gate: `adk eval services/evals/expenser_app services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json --print_detailed_results`, or `adk web` for one case's trace
-- Cost: 36 cases × 3 runs × 4 Model Armor screens, well inside the free 2M tokens a month. The model's tokens are cents
+- `adk eval agents/expenser services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json`, with `services/` on the path. It reads `agents/expenser/.env`, as `make agent` does: dev's model, Model Armor template and bucket
+- By hand only (ADR 8), as me, with ADC: Vertex, Model Armor and the dev bucket
+- ADK passes a run only if every case passes, so with ADR 11's known misses a full run exits non-zero. The list of failures is what to read
+- ADK's `eval` extra is a dev dependency, never in the image
+- `adk web` with a case's requisition pasted in shows one case's trace
+- Cost: about 20 cents for every case once. The model is most of it; Model Armor is inside its free 2M tokens a month
 
 ## The prompt
 
@@ -150,7 +149,7 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 
 ## Terraform
 
-- lekka-ourfos-infra: the bucket and its readers, in both projects. In dev, `ourfos-app-deployer` may also call Vertex and Model Armor, for the pipeline's evals
+- lekka-ourfos-infra: the bucket and its readers, in both projects. The dev grants for the pipeline's evals, added first, came out again with ADR 8
 - lekka-ourfos: `ATTACHMENTS_BUCKET` on `ourfos-services`
 
 ## Bootstrapped, once
@@ -160,8 +159,7 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 ## Done when
 
 - Both buckets exist, and `fetch(ref)` is deployed: `happy` and `happy-gcs` pass smoke on dev
-- The dev pipeline runs the evals after smoke
-- The eval files are up, and the evalset, metrics and harness are committed
+- The eval files are up, and the evalset and metrics are committed
 - `make evals` runs end to end, and the baseline per metric is below
 - Hillclimbing comes after, as its own commits, measured against the baseline. It isn't what done means
 

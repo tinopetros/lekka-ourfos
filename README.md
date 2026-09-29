@@ -57,13 +57,13 @@ Fixtures are what the form's webhook posts: every value a string, files as Drive
 
 The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`, and `?workflow=requisition`; `make start` and `make smoke` send both for you. Classify fetches a requisition's files from Drive as `lekkai@`, and `make workspace` checks Gmail as it. See [phase 6](docs/phase6/tdd.md).
 
-`make evals` scores expenser against 36 real requisitions, configured as dev's `ourfos-services` is: `CASE=<eval_id>` for one, `RUNS=1` for a quick look. It prints each metric's pass rate and the cases that failed it, and the dev pipeline runs it after smoke. See [phase 7](docs/phase7/tdd.md).
+`make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](docs/phase7/tdd.md).
 
 Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment
 
-A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it, runs the evals and plans prod. Tagging that commit (`0.1.0`) releases it to prod. See [phase 2](docs/phase2/tdd.md).
+A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans prod. Tagging that commit (`0.1.0`) releases it to prod. See [phase 2](docs/phase2/tdd.md).
 
 ## TODO
 

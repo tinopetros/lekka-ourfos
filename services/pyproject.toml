@@ -19,5 +19,3 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = [".", "../agents"]
-# evals/ is paid and slow: `make evals` names it
-testpaths = ["tests"]

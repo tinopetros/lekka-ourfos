@@ -20,9 +20,10 @@ TRIGGER_ZIP := .build/trigger.zip
 SERVICES_BUILD := .build/services
 REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
-# make evals: runs of each case, and one case alone
-RUNS ?= 3
+# make evals: which cases (comma separated eval_ids, all when empty), and how many times over
 CASE ?=
+RUNS ?= 1
+EVALS := ../services/evals
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # Which workflow the trigger starts. The form's webhook sends the same
@@ -32,7 +33,7 @@ TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --projec
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals eval-cases eval-failures check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -42,7 +43,9 @@ help:
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
 	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak and 400 handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
-	@echo "make evals [CASE=…] [RUNS=3]  expenser against real requisitions, as deployed (docs/phase7)"
+	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
+	@echo "make eval-cases          the eval_ids CASE takes"
+	@echo "make eval-failures       which cases failed which metric, in the last RUNS runs"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
 	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
@@ -144,9 +147,20 @@ agent-web:
 
 check: tf-fmt-check tf-validate-ci lock-check lint test
 
-# Paid and slow, so never part of test or check. As ourfos-services is deployed in ENV
-evals: check-env
-	cd services && PROJECT=$(PROJECT) REGION=$(REGION) RUNS=$(RUNS) CASE=$(CASE) uv run -q pytest evals -q -s -p no:warnings
+# ADK's own eval, by hand: paid, about 20 cents for every case once, so never part of test, check or a build.
+# Reads agents/expenser/.env like `make agent`. Exits non-zero if any case failed; the failures are listed
+evals:
+	@status=0; for run in $$(seq $(RUNS)); do \
+		( $(ADK) eval expenser $(EVALS)/requisitions.evalset.json$(if $(CASE),:$(CASE)) \
+			--config_file_path $(EVALS)/test_config.json --log_level warning $(if $(DETAIL),--print_detailed_results) ) || status=1; \
+	done; python3 services/evals/failures.py $(RUNS); exit $$status
+
+# Which cases failed which metric, from the results ADK itself keeps: its last RUNS runs
+eval-failures:
+	@python3 services/evals/failures.py $(RUNS)
+
+eval-cases:
+	@python3 -c 'import json; [print(c["eval_id"]) for c in json.load(open("services/evals/requisitions.evalset.json"))["eval_cases"]]'
 
 test:
 	cd functions/trigger && uv run -q pytest -q

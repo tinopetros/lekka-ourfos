@@ -13,11 +13,13 @@
 - Any other bucket is refused: refs will come from a client, and the services account can read more than attachments
 - Prod reads the bucket for real, so `ourfos-services` reads it in both projects
 
-### 3. Evals run inside ADK, not beside it
+### 3. Evals are ADK's own, and the agent fetches its files
 
-- `AgentEvaluator` runs our `App`, Model Armor included. A plugin in the eval module swaps refs for bytes through classify's own load and `turn()`, so the model sees what prod shows it
-- The plugin lives only in the eval module. The deployed agent never fetches
-- pytest over `AgentEvaluator`, as ADK's docs suggest for CI. `adk eval` and `adk web` read the same files for a closer look
+- `make evals` is `adk eval` on the deployed agent, `agents/expenser`, unchanged: no second agent module, no runner of ours. Custom metrics are ADK's `code_config`, and the results are the ones ADK keeps. `make eval-failures` only reads them
+- So the agent fetches its own files: a plugin, before Model Armor, turns the requisition's refs into the turn classify used to build. classify, `adk eval` and `adk web` all hand the agent the same thing, the requisition
+- This reverses phase 6's classify-fetches. The agent now imports services' fetch code; they ship side by side in one image and one environment
+- ADK wraps a plugin's exception in a `RuntimeError`. classify unwraps a fetch's `HTTPException`, so the workflow still retries or hands over on its status. A test holds ADK to that
+- Drive refs only fetch on Cloud Run, as `ourfos-services`. Locally, `adk web` and `adk eval` read `gs://` refs only
 
 ### 4. Evals read GCS, not Drive
 
@@ -39,12 +41,12 @@
 
 - Two of the prompt's examples, City parking and Zimra (March), were eval cases. A score would count what the model was shown
 
-### 8. On merge, at 0.70
+### 8. By hand, not in CI
 
-- A step in the dev pipeline, after smoke and before prod's plan: every merge is scored against the model it just deployed, so a model or prompt change that drifts stops there
-- Cloud Build, not GitHub: evals need Vertex, Model Armor and the bucket, and `make check` stays without GCP credentials. Pull requests don't run it; `make evals` does, by hand
-- Passes when every metric's pass rate, across cases and runs, is at least 0.70. Low on purpose: nothing posts to Mifos yet, so a person still checks every run
-- **Revisit** the bar as we see the baseline, and as posting gets real. A scheduled run, for drift with no change of ours, when it matters
+- A run of every case costs about 20 cents, more than a month of the application's own model use. Run before and after a prompt or model change, not on every merge
+- ADK passes a run only when every case passes, so with ADR 11's known misses a full run fails. Read which cases failed which metric, not the exit code
+- The first baseline was 92% or better on every metric, and no false approval in 108 case runs: that's the level to hold
+- **Revisit** once posts to Mifos are real, and a drifting model costs more than a run: in CI, or on a schedule
 
 ### 9. Fixtures for plumbing, evals for judgement
 
@@ -56,3 +58,12 @@
 - The bucket holds real signatures, names and amounts: private, readers granted by name
 - The evalset holds names and staff emails, as `happy` does. The repo is private and personal
 - **Revisit** if the repo's audience grows
+
+### 11. Known misses, until Mifos
+
+The baseline's failures, accepted for now: most cases pass, and these matter once posts are real. **Revisit** all of them when Mifos comes in
+
+- **Rawson: an account the chart doesn't have.** The ledger booked a valuation fee to 1812, Investment property-Building, which isn't in `accounts.csv`, so the model can't choose it. Even with it there, a valuation fee could fairly go either way. There will always be cases like this. Check Mifos's chart for new or changed accounts regularly, and add them to `accounts.csv`
+- **Bhola: two requisitions on one submission.** The prompt, from ourfos-v2, allows one requisition form per submission, so the model rejects or splits Bhola's two unpredictably. Our own front end should enforce one per submission, so it never reaches the model
+- **Safeden: a judgement call.** Repairing a safe's dial goes to Maintenance Equipment every time; the ledger has Security Charges. Both are defensible. Leave it to the prompt's account comments, if at all
+- **Salaries Fake: rejected for the wrong reason.** It's rejected as a salary, never because its attachment is Mr saruchera's requisition, not a payroll. A good place to hillclimb whether the model checks the attachment against the form
