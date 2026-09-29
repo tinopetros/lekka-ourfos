@@ -126,6 +126,8 @@ ourfos-v2's reply, as the accountants know it:
 
 ## What execution changed
 
+- Workflows' `if()` is a function, so both branches are evaluated: `if(requisition == null, null, requisition.response_number)` failed on a null requisition, before the run's `try`, so `invalid` went red instead of handing over. `map.get` with a key path returns null instead
+
 ## Not in this phase
 
 - Reading replies: the thread id is stored, so it's one `threads.get` when we want it

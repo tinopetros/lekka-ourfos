@@ -15,11 +15,12 @@ main:
           - condition: ${sys.get_env("SIMULATE") == "on"}
             assign:
               - simulate: ${default(map.get(args, "simulate"), simulate)}
+    # map.get, not if(): Workflows evaluates both of if()'s branches, so a null requisition's lookup still runs
     - log_start:
         call: sys.log
         args:
           severity: INFO
-          json: { message: "requisition started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', response_number: '${if(requisition == null, null, requisition.response_number)}' }
+          json: { message: "requisition started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', response_number: '${map.get(args, ["requisition", "response_number"])}' }
     - run:
         try:
           call: process
