@@ -35,7 +35,7 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 - Uniform bucket-level access, public access prevention enforced, Google's default soft delete, no versioning: an object is named by its content, so it never changes
 - Named by where it came from: `requisitions/<requisition id>/<field>/<sha256>`. Metadata repeats `source`, `id` and `field`. The content type is set on upload, never guessed from a name
 - Evals live in dev only: `evals/requisitions/<case>/<field>/<sha256>`. Prod never holds test data
-- Who reads, on the bucket, not the project: `ourfos-services` in both. In dev, me and `ourfos-build` too
+- Who reads, on the bucket, not the project: `ourfos-services` in both. In dev, `ourfos-app-deployer` too, for the evals in the pipeline. I read it as the project's owner
 - Nothing writes to it from code yet. The front end will; the eval files go up once (see Bootstrapped, once)
 
 ## One fetch
@@ -91,7 +91,7 @@ form ─▶ trigger ─▶ workflow ─▶ classify ─▶ fetch(ref) ─┬─ 
 
 ## The metrics
 
-`services/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation:
+`services/evals/metrics.py`, ADK custom metrics, each 1 or 0 per invocation. A case passes a metric only at 1: the 0.70 is across cases (see Running)
 
 ```json
 {
@@ -127,10 +127,11 @@ make evals ENV=dev                                   # pytest services/evals, ev
 make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 ```
 
-- pytest, marked `eval`, so `make test` and CI never run it
-- As me, with ADC: Vertex, Model Armor and the dev bucket
+- pytest, marked `eval`, so `make test` and GitHub's check never run it
+- By hand as me, with ADC: Vertex, Model Armor and the dev bucket
+- On every merge to main: an `evals` step in the dev pipeline, after `smoke` and before `plan-prod`, as `ourfos-app-deployer`, like smoke
 - 3 runs per case, to see Flash-Lite's variance
-- Fails until every case passes. The per-metric failures are the hillclimb's list
+- Passes when every metric's pass rate, across cases and runs, is at least 0.70 (ADR 8). The per-metric failures are the hillclimb's list
 - For a look rather than a gate: `adk eval services/evals/expenser services/evals/requisitions.evalset.json --config_file_path services/evals/test_config.json --print_detailed_results`, or `adk web` for one case's trace
 - Cost: about 34 cases × 3 runs × 4 Model Armor screens, well inside the free 2M tokens a month. The model's tokens are cents
 
@@ -143,7 +144,7 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 
 - Still the whole workflow: the trigger's cleaning, `simulate`'s failures, retries, handovers, fetch errors. `make smoke` and `make start`
 - Evals score one step's judgement, with real files. Fixtures prove the plumbing around it
-- `happy` stays on Drive, so smoke keeps covering Drive. `happy-gcs`, new, has the same files by `gs://`
+- `happy` stays on Drive, so smoke keeps covering Drive. `happy-gcs`, new, is the Mr Muchenje eval case's requisition and files, by `gs://`
 - `nssa`, `bank` and `salary` go: they judged without files, and the evals now cover them with
 
 ## Terraform
@@ -154,11 +155,19 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 ## Bootstrapped, once
 
 - The eval files, uploaded from expenser's inputs, each with its content type. The converting script writes the evalset's refs as it goes
-- `happy`'s two files copied into `evals/requisitions/happy/` in dev, for `happy-gcs`
+- `ourfos-app-deployer` may call Vertex and Model Armor in dev, for the pipeline's evals. By hand, as its other grants are:
+
+```bash
+for R in roles/aiplatform.user roles/modelarmor.user; do
+  gcloud projects add-iam-policy-binding ourfos-dev --condition=None --role=$R \
+    --member=serviceAccount:ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
+done
+```
 
 ## Done when
 
 - Both buckets exist, and `fetch(ref)` is deployed: `happy` and `happy-gcs` pass smoke on dev
+- The dev pipeline runs the evals after smoke
 - The eval files are up, and the evalset, metrics and harness are committed
 - `make evals` runs end to end, and the baseline per metric is below
 - Hillclimbing comes after, as its own commits, measured against the baseline. It isn't what done means
@@ -173,5 +182,5 @@ make evals ENV=dev CASE=bhola-and-spar-greenfields   # one case
 - A reused requisition: the hash in the object names is what it needs
 - Reversing a requisition
 - A judge for rejection reasons
-- Evals in CI
+- A scheduled eval run, for drift with no change of ours
 - `check` and rounding: a model that posts the ledger's 96.97 for a form's 97 hands over in prod

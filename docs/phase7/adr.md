@@ -34,17 +34,17 @@
 ### 6. The ledger's odd entries stand
 
 - Parking as Advertising and Promotions, a valuation fee as Investment property. Parking depends on why the trip was made
-- Evals hold the model to how Lekka books, not to how a chart reads
 
 ### 7. No eval case in the prompt
 
 - Two of the prompt's examples, City parking and Zimra (March), were eval cases. A score would count what the model was shown
-- Swapped for synthetic examples that teach the same things. So this changes the lifted prompt (phase 5 ADR 5) before the baseline, on purpose
 
-### 8. By hand, not in CI
+### 8. On merge, at 0.70
 
-- Slow, paid, and it varies run to run: three runs per case to see how much
-- Run before and after each prompt change. CI can call the same pytest later
+- A step in the dev pipeline, after smoke and before prod's plan: every merge is scored against the model it just deployed, so a model or prompt change that drifts stops there
+- Cloud Build, not GitHub: evals need Vertex, Model Armor and the bucket, and `make check` stays without GCP credentials. Pull requests don't run it; `make evals` does, by hand
+- Passes when every metric's pass rate, across cases and runs, is at least 0.70. Low on purpose: nothing posts to Mifos yet, so a person still checks every run
+- **Revisit** the bar as we see the baseline, and as posting gets real. A scheduled run, for drift with no change of ours, when it matters
 
 ### 9. Fixtures for plumbing, evals for judgement
 
