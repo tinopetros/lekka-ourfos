@@ -1,6 +1,6 @@
 # Run by both triggers in ourfos-prod (docs/phase2/tdd.md, "Bootstrapped, once"):
 #
-#   lekka-ourfos-dev   push to main  _ENV=dev   package, build, apply dev, smoke, plan prod
+#   lekka-ourfos-dev   push to main  _ENV=dev   package, build, apply dev, smoke, evals, plan prod
 #   lekka-ourfos-prod  tag 0.1.0     _ENV=prod  dev passed? package, build, apply prod
 #
 # Every step is a make target, so a run by hand does what this does.
@@ -52,6 +52,12 @@ steps:
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
     args: [-c, "[ ${_ENV} = dev ] || exit 0; apt-get -qq update && apt-get -qq install -y make >/dev/null && make smoke ENV=dev"]
+
+  # Dev only. Expenser against real requisitions, as just deployed: under 0.70 on any metric stops here (docs/phase7)
+  - id: evals
+    name: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    entrypoint: bash
+    args: [-c, "[ ${_ENV} = dev ] || exit 0; apt-get -qq update && apt-get -qq install -y make >/dev/null && make evals ENV=dev"]
 
   # What tagging this commit would do to prod. Read it here before tagging
   - id: plan-prod
