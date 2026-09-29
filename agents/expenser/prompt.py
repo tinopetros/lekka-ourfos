@@ -3,13 +3,15 @@
 - It reads our requisition as JSON, not the form's email, so "email" is "requisition" and the examples are ours
 - The files follow the requisition, each labelled with its form field
 - The format section only names the fields: output_schema holds the shape, so no single-line JSON or tuples
+- The model names each account by name and GL code, and sees only the chart's columns it reads: code fills in the
+  rest (docs/phase8/adr.md 2 and 3)
 
 The attachment rules are back as they were (docs/phase6/adr.md 4).
 """
 
-from pathlib import Path
+from .chart import shown
 
-ACCOUNTS = (Path(__file__).parent / "accounts.csv").read_text()
+ACCOUNTS = shown()
 
 PROMPT = f"""
     __ROLE__
@@ -51,12 +53,12 @@ PROMPT = f"""
     - INPUT:
         {{"response_number": 101, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "Town parking", "amount": 3.0, "disbursed_on": "2026-05-06", "comment": "Parking for a client site visit", "files": {{"signed_requisition_form": ["1a2b3c"], "receipts": [], "invoices": []}}}}
     - Output:
-        {{"approve": true, "reason": "Parking for a client site visit", "debit": [{{"name": "Advertising and Promotions", "glCode": "5020", "glId": 66, "accountType": "EXPENSE", "amount": 3.0}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 3.0}}], "comments": ["Requisition has approval signature"]}}
+        {{"approve": true, "reason": "Parking for a client site visit", "debit": [{{"name": "Advertising and Promotions", "glCode": "5020", "amount": 3.0}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "amount": 3.0}}], "comments": ["Requisition has approval signature"]}}
 
     - INPUT (PAYE/ZIMRA — note: attached receipt shows a ZB Bank slip, but the requisition does not mention a bank):
         {{"response_number": 102, "form_name": "Requisition Approval Request Form", "submitted_by": "ltanga@lekkacredit.com", "payable_to": "Zimra (june)", "amount": 482.5, "disbursed_on": "2026-07-20", "files": {{"signed_requisition_form": ["4d5e6f"], "receipts": ["7g8h9i"], "invoices": []}}}}
     - Output (credit is Cash at Vault because the requisition does not mention a bank):
-        {{"approve": true, "reason": "Zimra (June) tax payment", "debit": [{{"name": "Taxation - PAYE", "glCode": "2030", "glId": 38, "accountType": "LIABILITY", "amount": 482.5}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "glId": 109, "accountType": "ASSET", "amount": 482.5}}], "comments": ["Requisition has two approval signatures", "PAYE liability account debited"]}}
+        {{"approve": true, "reason": "Zimra (June) tax payment", "debit": [{{"name": "Taxation - PAYE", "glCode": "2030", "amount": 482.5}}], "credit": [{{"name": "Cash at Vault", "glCode": "10000000", "amount": 482.5}}], "comments": ["Requisition has two approval signatures", "PAYE liability account debited"]}}
 
     __CHART OF ACCOUNTS__
     See this csv below of our chart of asset and expense accounts that we will be using:
@@ -66,7 +68,7 @@ PROMPT = f"""
     __FORMAT__
     - approve: true or false of whether you approve the expense given the information you have
     - reason: the short summary for the reason of the expense, this will be filed in the journal and reuse existing test as much as possible except to add clarity / disambiguation
-    - debit: the accounts to debit, each with the account's name, GL code, GL ID, account type and the amount, else empty
+    - debit: the accounts to debit, each with the account's name and GL code, and the amount, else empty
     - credit: similar to debit but for accounts to credit, else empty
     - comments: short sentences of reasons supporting your approval or disapproval
 
