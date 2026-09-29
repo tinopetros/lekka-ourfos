@@ -58,7 +58,7 @@ ourfos-v2's reply, as the accountants know it:
 - Gmail threads a reply by its thread id and a matching subject. Recipients' clients thread it by `In-Reply-To` and `References`. Every reply sets all three, pointing at the first email
 - The first email's `Message-ID` is read back once, with `gmail.readonly`, which `lekkai@` already has
 - A person replying before Lekkai does doesn't matter: ours still points at the first email, in the same thread
-- `acknowledge` returns `{thread_id, in_reply_to}`. The workflow hands it to `notify`, `confirm` and `handover`, so a handover never needs the database for it (phase 4 ADR 2)
+- `acknowledge` returns `{thread_id, in_reply_to}`. The workflow hands it to `notify` and `handover`, so a handover never needs the database for it (phase 4 ADR 2)
 
 ## Recipients
 
@@ -79,7 +79,7 @@ ourfos-v2's reply, as the accountants know it:
 ## A form the trigger can't clean (ADR 5)
 
 - Today the add-on emails every submission, even one we then refuse. With the add-on off, a 400 from the trigger would tell nobody
-- So the trigger starts the workflow anyway, with `invalid` (the problems, never the values) and the form's `raw` payload, and still answers 400 with the problems and the execution id
+- So the trigger starts the workflow anyway, with `invalid`, the problems and the form's `raw` payload, and still answers 400 with the problems and the execution id
 - The workflow goes straight to `handover`. Nothing is received, classified or posted: `requisition` is null
 - The email goes to the list, and to the submitter if the payload has an address in our domain. Its subject uses the payee and response number when there are any
 - A missing token, `?workflow=`, or a body that isn't JSON still just answers 401 or 400: nothing to email about, or nobody it's from
@@ -89,7 +89,7 @@ ourfos-v2's reply, as the accountants know it:
 - `integrations/workspace/gmail.py`: `send(to, sender_name, subject, html, text, thread=None)`. `messages()`, `thread()` and `send_to_self()`, phase 6's setup check, go
 - `routers/gmail.py` and `make workspace` go: a real email is now the check
 - `integrations/workspace/stub.py` goes. Fixtures still force failures with `simulate`, before the real send: `acknowledge`, `notify`, `confirm`
-- `store.record` keeps `thread_id` and `emails.<kind>`: `{message_id, at}`
+- The document keeps `thread` and `emails.<kind>`: `{message_id, thread_id, at}`
 
 ## Fixtures and evals
 

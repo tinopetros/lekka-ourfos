@@ -33,7 +33,7 @@ TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --projec
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke workspace evals eval-cases eval-report check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke evals eval-cases eval-report check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -41,13 +41,12 @@ help:
 	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak and 400 handed_over (what CI runs)"
+	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak, 400 and invalid handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
 	@echo "make eval-report         which cases failed which metric, and what they cost, in the last RUNS runs"
 	@echo "make test                the trigger's cleaner and token, the services' attachments"
-	@echo "make workspace ROUTE=…   Gmail as lekkai@: messages?subject=…, threads/<id>, send BODY='{…}'"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
 	@echo "make build               Cloud Build the services image, if this hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
@@ -92,8 +91,9 @@ deploy: build tf-apply
 
 destroy: tf-destroy
 
+# An invalid form answers 400 but still starts a run, which hands over
 start:
-	@curl -sf -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
+	@curl -s -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/$(FIXTURE).json "$(TRIGGER_URL)?workflow=$(WORKFLOW)" \
 		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])'
 
@@ -121,7 +121,7 @@ smoke: check-env
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)?workflow=$(WORKFLOW)"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@for case in happy:done happy-gcs:done classify-jailbreak:handed_over classify-400:handed_over; do \
+	@for case in happy:done happy-gcs:done classify-jailbreak:handed_over classify-400:handed_over invalid:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
@@ -130,11 +130,6 @@ smoke: check-env
 			[ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
-
-# Gmail as lekkai@, by hand: ROUTE='messages?subject=…', ROUTE=threads/<id>, or ROUTE=send BODY='{…}'
-workspace: check-env
-	@curl -sf -H "Authorization: Bearer $$(gcloud auth print-identity-token)" -H 'content-type: application/json' \
-		$(if $(BODY),-X POST --data '$(BODY)') "$(SERVICES_URL)/workspace/$(ROUTE)" | python3 -m json.tool
 
 # Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for
 # expenser.evals' custom metrics

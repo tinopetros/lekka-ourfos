@@ -22,6 +22,8 @@ resource "google_cloud_run_v2_service" "services" {
           FIRESTORE_DATABASE        = "ourfos"
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
+          NOTIFY_TO                 = join(",", var.notify_to)
+          FORM_NAME                 = "Requisition Approval Request Form"
         }
         content {
           name  = env.key
