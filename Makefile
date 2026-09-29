@@ -13,7 +13,7 @@ export TF_DATA_DIR := .terraform-$(ENV)
 # The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
 SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
-	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path '*/.adk/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
+	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path '*/.adk/*' ! -path 'agents/expenser/evals/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
@@ -23,7 +23,7 @@ TF_ARGS ?=
 # make evals: which cases (comma separated eval_ids, all when empty), and how many times over
 CASE ?=
 RUNS ?= 1
-EVALS := evals
+EVALS := expenser/evals
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # Which workflow the trigger starts. The form's webhook sends the same
@@ -77,7 +77,7 @@ stage: services/requirements.txt
 	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
 		-C services . | tar -xf - -C $(SERVICES_BUILD)
-	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ --exclude .adk -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
+	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ --exclude .adk --exclude expenser/evals -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
 
 # As ourfos-build rather than the compute account (roles/editor), staged in our
 # africa-south1 bucket rather than the US default
@@ -136,8 +136,8 @@ workspace: check-env
 	@curl -sf -H "Authorization: Bearer $$(gcloud auth print-identity-token)" -H 'content-type: application/json' \
 		$(if $(BODY),-X POST --data '$(BODY)') "$(SERVICES_URL)/workspace/$(ROUTE)" | python3 -m json.tool
 
-# Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for the
-# evals' custom metrics
+# Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for
+# expenser.evals' custom metrics
 ADK := cd agents && PYTHONPATH=../services:. uv run -q --project ../services adk
 
 agent:
@@ -154,14 +154,14 @@ evals:
 	@status=0; for run in $$(seq $(RUNS)); do \
 		( $(ADK) eval expenser $(EVALS)/requisitions.evalset.json$(if $(CASE),:$(CASE)) \
 			--config_file_path $(EVALS)/test_config.json --log_level warning $(if $(DETAIL),--print_detailed_results) ) || status=1; \
-	done; python3 agents/evals/failures.py $(RUNS); exit $$status
+	done; python3 agents/expenser/evals/failures.py $(RUNS); exit $$status
 
 # Which cases failed which metric, from the results ADK itself keeps: its last RUNS runs
 eval-failures:
-	@python3 agents/evals/failures.py $(RUNS)
+	@python3 agents/expenser/evals/failures.py $(RUNS)
 
 eval-cases:
-	@python3 -c 'import json; [print(c["eval_id"]) for c in json.load(open("agents/evals/requisitions.evalset.json"))["eval_cases"]]'
+	@python3 -c 'import json; [print(c["eval_id"]) for c in json.load(open("agents/expenser/evals/requisitions.evalset.json"))["eval_cases"]]'
 
 test:
 	cd functions/trigger && uv run -q pytest -q
