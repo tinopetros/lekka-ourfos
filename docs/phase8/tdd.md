@@ -52,7 +52,7 @@ In order of risk to quality, lowest first.
 ## Checking cheaply
 
 - **Free first.** Unit tests, and Gemini's `count_tokens`, which generates nothing: a candidate's saving is known before any eval is paid for
-- **What each run cost.** `make eval-failures` also prints tokens per call and dollars per run, from the `usage_metadata` ADK already keeps. Still stock ADK, still only reading its results
+- **What each run cost.** `make eval-report`, once `make eval-failures`, also prints tokens per call and dollars per run, from the `usage_metadata` ADK already keeps. Still stock ADK, still only reading its results
 - **One paid rung at a time,** each only if the one before passed:
   1. `count_tokens` and unit tests: free
   2. 36 cases once: about 6 cents
@@ -109,7 +109,7 @@ The kept prompt against phase 7's baseline, 36 × 3:
 - **3 split in two.** 3a is structural, with no rule's wording changed: the prompt dedented, the credit rule said once in `__EXCEPTIONS__` and the examples, the role's lines on feedback and reversals gone (one call never sees either), and `form_name` out of the examples (no requisition has one). Kept
 - **3b dropped:** each rule reworded more tightly, 184 tokens, about 3% a call. zimra-march-679 was credited to ZB Bank "as indicated on the receipt": the reworded credit rule had lost its "CANNOT". A safety rule isn't worth 3%, and rewording until the evals pass would fit the prompt to them. Reverted, not tuned
 - **The name check fails closed.** In 3b's run mr-muchenje was System Support Expense by name and 5035, Consumables, by code: a slipped digit. The fill trusted the code. Now a name that isn't its code's is a rejection naming both, as an unknown code is. A handover, never a wrong account posted
-- `count_tokens` priced every candidate before a run, for free. `make eval-failures` prints each run's calls, dollars and tokens per call
+- `count_tokens` priced every candidate before a run, for free. `make eval-report` prints each run's calls, dollars and tokens per call
 
 ## Not in this phase
 

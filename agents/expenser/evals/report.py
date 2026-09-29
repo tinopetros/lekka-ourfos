@@ -1,6 +1,6 @@
 """Which cases failed which metric, and what the runs cost, read from the results `adk eval` keeps. Nothing is scored here.
 
-python3 agents/expenser/evals/failures.py [RUNS]    the last RUNS results, 1 by default
+python3 agents/expenser/evals/report.py [RUNS]    the last RUNS results, 1 by default
 """
 
 import json
