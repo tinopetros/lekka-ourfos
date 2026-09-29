@@ -133,28 +133,21 @@ make eval-failures RUNS=3                   # the failures of the last three run
 - ADK passes a run only if every case passes, so with ADR 11's known misses a full run exits non-zero. The list of failures is what to read
 - ADK's `eval` extra is a dev dependency, never in the image
 - `adk web` with a case's requisition pasted in shows one case's trace
-- Cost: about 20 cents for every case once. The model is most of it; Model Armor is inside its free 2M tokens a month
 
 ## The prompt
 
 - Its two examples, City parking and Zimra (March), are eval cases too. They're swapped for synthetic ones that teach the same things, a parking expense and a PAYE liability, with other payees and amounts
-- Nothing else changes before the baseline
 
 ## Fixtures
 
 - Still the whole workflow: the trigger's cleaning, `simulate`'s failures, retries, handovers, fetch errors. `make smoke` and `make start`
 - Evals score one step's judgement, with real files. Fixtures prove the plumbing around it
 - `happy` stays on Drive, so smoke keeps covering Drive. `happy-gcs`, new, is the Mr Muchenje eval case's requisition and files, by `gs://`
-- `nssa`, `bank` and `salary` go: they judged without files, and the evals now cover them with
 
 ## Terraform
 
 - lekka-ourfos-infra: the bucket and its readers, in both projects. The dev grants for the pipeline's evals, added first, came out again with ADR 8
 - lekka-ourfos: `ATTACHMENTS_BUCKET` on `ourfos-services`
-
-## Bootstrapped, once
-
-- The eval files, uploaded from expenser's inputs, each with its content type. The converting script writes the evalset's refs as it goes
 
 ## Done when
 
