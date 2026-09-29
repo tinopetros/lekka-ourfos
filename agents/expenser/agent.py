@@ -46,5 +46,6 @@ app = App(
     root_agent=root_agent,
     plugins=[
         Attachments(),
-        FieldsModelArmorPlugin(config=ModelArmorConfig(prompt_template_name=os.environ["MODEL_ARMOR_TEMPLATE"]))],
+        FieldsModelArmorPlugin(config=ModelArmorConfig(prompt_template_name=os.environ["MODEL_ARMOR_TEMPLATE"])),
+    ],
 )
