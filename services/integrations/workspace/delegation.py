@@ -40,11 +40,12 @@ def session(scope: str) -> AuthorizedSession:
 
 
 class WorkspaceError(Exception):
-    """A call Google answered with an error. status is Google's, so the caller can map it."""
+    """A call Google answered with an error. status is Google's, so the caller can map it; code is its reason, if any."""
 
-    def __init__(self, status: int, message: str):
+    def __init__(self, status: int, message: str, code: str | None = None):
         super().__init__(message)
         self.status = status
+        self.code = code
 
 
 def call(scope: str, method: str, url: str, **kwargs):
@@ -54,8 +55,16 @@ def call(scope: str, method: str, url: str, **kwargs):
         # Usually the Admin console: the client id isn't granted this scope yet
         raise WorkspaceError(401, f"cannot act as {subject()}: {e}") from e
     if not response.ok:
-        raise WorkspaceError(response.status_code, f"{response.status_code} {reason(response)}")
+        raise WorkspaceError(response.status_code, f"{response.status_code} {reason(response)}", code(response))
     return response
+
+
+def code(response) -> str | None:
+    """Google's reason for an error, e.g. "fileNotDownloadable", when it gives one."""
+    try:
+        return response.json()["error"]["errors"][0]["reason"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        return None
 
 
 def reason(response) -> str:
