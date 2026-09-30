@@ -1,0 +1,151 @@
+# What every workflow shares: Terraform puts this file under each one's own (docs/phase10/adr.md 2).
+# `at` is the submission's path on the service, /forms/<form>/<id>, and the run is the execution id
+
+# Every HTTP call, all to the services: OIDC, a timeout, the execution id, and where it failed.
+# Retries are the caller's call
+call_service:
+  params: [at, method, path, body: null, query: null, timeout: 20]
+  steps:
+    - request:
+        try:
+          call: http.request
+          args:
+            method: ${method}
+            url: ${sys.get_env("SERVICES_URL") + at + path}
+            auth:
+              type: OIDC
+              audience: ${sys.get_env("SERVICES_URL")}
+            headers:
+              X-Execution-Id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+            body: ${body}
+            query: ${query}
+            timeout: ${timeout}
+          result: response
+        except:
+          as: e
+          steps:
+            - add_where:
+                assign:
+                  - e.at: ${method + " " + path}
+            # The service's own reason, e.g. which file couldn't be fetched, so the handover says it
+            - add_detail:
+                switch:
+                  - condition: ${get_type(map.get(e, "body")) == "map"}
+                    steps:
+                      - detail:
+                          switch:
+                            - condition: ${get_type(map.get(e.body, "detail")) == "string"}
+                              assign:
+                                - e.message: '${e.message + ": " + e.body.detail}'
+            - rethrow:
+                raise: ${e}
+    - ok:
+        return: ${response.body}
+
+# The one place every failure ends up: a reply, or a new email when there's no thread yet. If this fails too, the
+# execution goes red
+handover:
+  params: [at, e, thread, submission, raw, test, code: null]
+  steps:
+    - reason:
+        assign:
+          - reason: ${default(map.get(e, "message"), json.encode_to_string(e))}
+    - where:
+        switch:
+          - condition: ${map.get(e, "at") != null}
+            assign:
+              - reason: '${e.at + ": " + reason}'
+    - log:
+        call: sys.log
+        args:
+          severity: WARNING
+          json: { message: "handing over", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', reason: "${reason}" }
+    - send:
+        try:
+          try:
+            call: call_service
+            args:
+              at: ${at}
+              method: POST
+              path: /handover
+              # Everything it needs, so it doesn't need the database. raw only when there's no submission
+              body:
+                thread: ${thread}
+                error: ${reason}
+                submission: ${submission}
+                raw: ${if(submission == null, raw, null)}
+                test: ${test}
+                simulate: ${code}
+          retry:
+            predicate: ${is_transient}
+            max_retries: 3
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: handover_error
+          steps:
+            - log_failed:
+                call: sys.log
+                args:
+                  severity: ERROR
+                  json: { message: "handover email failed", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', reason: "${reason}", error: "${handover_error}" }
+            - fail:
+                raise: ${handover_error}
+    - done:
+        return: ${reason}
+
+# Best effort: a run that ended stays ended, even if we can't write it down
+complete:
+  params: [at, result]
+  steps:
+    - write:
+        try:
+          try:
+            call: call_service
+            args:
+              at: ${at}
+              method: POST
+              path: /complete
+              body: '${map.merge(result, {"workflow": sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")})}'
+          retry:
+            predicate: ${is_transient}
+            max_retries: 2
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: e
+          steps:
+            - log:
+                call: sys.log
+                args:
+                  severity: ERROR
+                  json: { message: "not completed", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', error: "${e}" }
+
+is_transient:
+  params: [e]
+  steps:
+    - tags:
+        assign:
+          - tags: ${default(map.get(e, "tags"), [])}
+    - decide:
+        return: ${default(map.get(e, "code"), 0) in [429, 502, 503, 504] or "ConnectionError" in tags or "ConnectionFailedError" in tags}
+
+# Reads and classify have no side effects, so a timeout is safe to retry too
+is_retryable_read:
+  params: [e]
+  steps:
+    - timeout:
+        switch:
+          - condition: ${"TimeoutError" in default(map.get(e, "tags"), [])}
+            return: true
+    - transient:
+        call: is_transient
+        args:
+          e: ${e}
+        result: transient
+    - decide:
+        return: ${transient}
+
+is_connection_failed:
+  params: [e]
+  steps:
+    - decide:
+        return: ${"ConnectionFailedError" in default(map.get(e, "tags"), [])}

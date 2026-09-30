@@ -1,3 +1,20 @@
+# Each form's name, as its add-on's sender name was, and who hears: the list in env/<env>.tfvars, and a Reply-To
+# only where replies go elsewhere (docs/phase10/tdd.md)
+locals {
+  form_names = {
+    requisition   = "Requisition Approval Request Form"
+    vehicle_log   = "Vehicle Log Form"
+    loan_approval = "Loan Approval Request Form"
+    write_off     = "Write-off Request Form"
+  }
+  forms = {
+    for form, name in local.form_names : form => merge(
+      { name = name, notify_to = var.notify_to[form] },
+      contains(keys(var.reply_to), form) ? { reply_to = var.reply_to[form] } : {},
+    )
+  }
+}
+
 resource "google_cloud_run_v2_service" "services" {
   name                = "ourfos-services"
   location            = var.region
@@ -27,8 +44,7 @@ resource "google_cloud_run_v2_service" "services" {
           FIRESTORE_DATABASE        = "ourfos"
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
-          NOTIFY_TO                 = join(",", var.notify_to)
-          FORM_NAME                 = "Requisition Approval Request Form"
+          FORMS                     = jsonencode(local.forms)
         }
         content {
           name  = env.key
