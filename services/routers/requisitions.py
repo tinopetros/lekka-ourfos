@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 
 import emails
 import store
-from classify import expenser
+from classify import attachments, expenser
 from common import RETRIED, log, simulate
 from integrations import mifos
 from integrations.workspace import gmail
@@ -40,8 +40,11 @@ async def classify(id: str, body: dict):
     requisition = Requisition.model_validate((await run_in_threadpool(store.get, id))["requisition"])
     amount = requisition.amount
     if code:
-        # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched
+        # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched,
+        # except for "files": fetched for real, then the canned answer, so a fixture covers the fetch without the model
         await run_in_threadpool(simulate, "classify", code)
+        if code == "files":
+            await attachments.load(requisition)
         classification = stub(amount, code)
     else:
         # The agent fetches the files, in memory for this request only. The document keeps the refs it already had

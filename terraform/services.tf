@@ -5,6 +5,11 @@ resource "google_cloud_run_v2_service" "services" {
 
   template {
     service_account = local.sa.services
+    # docs/release1/adr.md 1
+    scaling {
+      max_instance_count = 1
+    }
+    max_instance_request_concurrency = 10
     containers {
       image = var.services_image
       # Up to 40 MB of attachments, and a base64 copy of them, beside ADK and the SDKs
