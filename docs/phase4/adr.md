@@ -17,6 +17,7 @@
 
 - One document per run. Real requisitions will bring ids of their own; those become fields
 - **Revisit** with phase 1 ADR 6: when a re-run should skip `post`, key on `response_number` and hang its executions under it
+- **Closed** by [phase 10 ADR 3](../phase10/adr.md)
 
 ### 4. A status only where it changes what we'd tell someone
 
