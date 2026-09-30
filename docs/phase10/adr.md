@@ -9,7 +9,7 @@
 
 ### 2. The workflows share one file of plumbing
 
-- Workflows can't call a subworkflow in another definition, and `call_service`, `handover`, `complete` and the retry predicates are about 200 lines each workflow would copy
+- Workflows can't call a subworkflow in another definition, and `call_service`, `handover`, `complete` and the retry predicates are about 150 lines each workflow would copy
 - `workflows/lib.workflows.yaml` holds them, and Terraform appends it to each workflow's own file. Both are maps of subworkflows, so the join is still one valid definition
 - A change to the plumbing redeploys every workflow, which is what we'd want
 
