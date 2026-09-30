@@ -1,4 +1,4 @@
-"""Gmail as lekkai@: a requisition's emails, in one thread we start (docs/phase9/tdd.md). Blocking: run in a thread."""
+"""Gmail as lekkai@: a submission's emails, in one thread we start (docs/phase9/tdd.md). Blocking: run in a thread."""
 
 import base64
 from email.headerregistry import Address
@@ -12,12 +12,21 @@ GMAIL_USER = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 
 def message(
-    to: list[str], sender_name: str, subject_line: str, html: str, text: str, in_reply_to: str | None = None
+    to: list[str],
+    sender_name: str,
+    subject_line: str,
+    html: str,
+    text: str,
+    in_reply_to: str | None = None,
+    reply_to: list[str] | None = None,
 ) -> EmailMessage:
     """HTML with a plain-text alternative. A reply points at the first email, so any client threads it."""
     m = EmailMessage()
     m["From"] = Address(sender_name, addr_spec=subject())
     m["To"] = ", ".join(to)
+    # Where a reply goes, when not to lekkai@ alone: a loan request's to who decides it
+    if reply_to:
+        m["Reply-To"] = ", ".join(reply_to)
     # One line, whatever the form's values held: a header can't carry a line break
     m["Subject"] = " ".join(subject_line.split())
     if in_reply_to:
@@ -27,9 +36,17 @@ def message(
     return m
 
 
-def send(to: list[str], sender_name: str, subject_line: str, html: str, text: str, thread: dict | None = None) -> dict:
+def send(
+    to: list[str],
+    sender_name: str,
+    subject_line: str,
+    html: str,
+    text: str,
+    thread: dict | None = None,
+    reply_to: list[str] | None = None,
+) -> dict:
     """A new thread, or a reply in one: {thread_id, in_reply_to} from the first email's send."""
-    m = message(to, sender_name, subject_line, html, text, thread and thread["in_reply_to"])
+    m = message(to, sender_name, subject_line, html, text, thread and thread["in_reply_to"], reply_to)
     body = {"raw": base64.urlsafe_b64encode(m.as_bytes()).decode()}
     if thread:
         body["threadId"] = thread["thread_id"]
