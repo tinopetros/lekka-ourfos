@@ -63,8 +63,8 @@ check-env:
 	cd $* && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
 
 # Fixed mtimes so the zip, and so the function, only changes when the code does
-# requisition.py comes from services/, so the trigger and the service share one shape
-$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/trigger/form.py services/requisition.py functions/trigger/requirements.txt
+# The models come from services/, so the trigger and the service share one shape
+$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/trigger/form.py services/submission.py services/requisition.py services/forms.py functions/trigger/requirements.txt
 	rm -rf .build/trigger $@ && mkdir -p .build/trigger
 	cp $^ .build/trigger/
 	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *

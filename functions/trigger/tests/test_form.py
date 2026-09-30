@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from form import Invalid, clean, file_refs, flag
+from forms import FORMS
 
 FORM = {
     "submitter_email_address": " Lekkai@lekkacredit.com ",
@@ -24,6 +25,7 @@ FORM = {
 }
 
 FIXTURES = Path(__file__).parents[3] / "workflows/fixtures"
+REQUISITIONS = FIXTURES / "requisition"
 
 
 def invalid(**changes) -> list[str]:
@@ -164,16 +166,69 @@ def test_file_refs(raw, want):
 
 
 @pytest.mark.parametrize(
-    "fixture", sorted(p for p in FIXTURES.glob("*.json") if p.stem != "invalid"), ids=lambda p: p.stem
+    "fixture",
+    sorted(p for p in FIXTURES.glob("*/*.json") if p.stem != "invalid"),
+    ids=lambda p: f"{p.parent.name}/{p.stem}",
 )
 def test_every_fixture_cleans(fixture):
     raw = json.loads(fixture.read_text())
     raw.pop("simulate", None)
-    assert clean(raw).response_number == -482
+    assert clean(raw, fixture.parent.name).response_number == -482
 
 
-def test_the_invalid_fixture_doesnt():
-    assert invalid(**json.loads((FIXTURES / "invalid.json").read_text())) == ["total_amount: not a number"]
+@pytest.mark.parametrize(
+    "form, want",
+    [
+        ("requisition", ["total_amount: not a number"]),
+        ("vehicle_log", ["trip_name_purpose: field required"]),
+        ("loan_approval", ["applicant_last_name: field required"]),
+        ("write_off", ["client_full_name: field required"]),
+    ],
+)
+def test_every_invalid_fixture_doesnt(form, want):
+    with pytest.raises(Invalid) as e:
+        clean(json.loads((FIXTURES / form / "invalid.json").read_text()), form)
+    assert e.value.errors == want
+
+
+def test_every_form_has_fixtures():
+    assert {p.name for p in FIXTURES.iterdir() if p.is_dir()} == set(FORMS)
+    assert all((FIXTURES / form / "happy.json").exists() for form in FORMS)
+
+
+def happy(form: str) -> dict:
+    return json.loads((FIXTURES / form / "happy.json").read_text())
+
+
+def test_a_text_form_keeps_its_answers_as_text():
+    v = clean(happy("vehicle_log") | {"odometer_end_reading": " 52,204 km ", "comment": ""}, "vehicle_log")
+    assert v.odometer_end_reading == "52,204 km"
+    assert v.comment is None
+    assert v.vehicle_images == ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"]
+    assert v.submitted_by == "lekkai@lekkacredit.com"
+
+
+def test_a_text_form_keeps_what_it_doesnt_know_out():
+    w = clean(happy("write_off") | {"something_new": "x"}, "write_off")
+    assert "something_new" not in w.to_json()
+    assert w.to_json()["current_balance"] == "212.52"
+
+
+def test_a_text_form_is_strict_where_its_identity_is():
+    with pytest.raises(Invalid) as e:
+        clean(
+            happy("loan_approval") | {"created_at": "yesterday", "submitter_email_address": "nobody"}, "loan_approval"
+        )
+    assert [err.split(":")[0] for err in e.value.errors] == ["submitter_email_address", "created_at"]
+
+
+def test_a_text_form_without_its_uploads_has_none():
+    assert clean(happy("write_off") | {"supporting_documents": ""}, "write_off").supporting_documents == []
+
+
+@pytest.mark.parametrize("value", ["a/b", "..", "", "x" * 201])
+def test_a_response_id_must_name_a_document(value):
+    assert invalid(response_id=value)[0].startswith("response_id:")
 
 
 @pytest.mark.parametrize("value, want", [("-482", -482), ("482", 482)])

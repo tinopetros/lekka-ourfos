@@ -14,5 +14,5 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-# requisition.py lives in services/. make package copies it next to main.py
+# submission.py, requisition.py and forms.py live in services/. make package copies them next to main.py
 pythonpath = [".", "../../services"]

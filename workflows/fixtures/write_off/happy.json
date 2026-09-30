@@ -1,0 +1,20 @@
+{
+    "submitter_email_address": "lekkai@lekkacredit.com",
+    "created_at": "1775828712000",
+    "form_id": "fixture-form",
+    "response_number": "-482",
+    "response_date": "Apr 10, 2026, 3:45:12 PM",
+    "response_id": "fixture-response",
+    "form_name": "Write-off Request Form",
+    "client_full_name": "Fixture Client",
+    "client_number": "000000482",
+    "loan_account_number": "000001027",
+    "original_principal": "600",
+    "loan_term": "12",
+    "total_recovered": "1110",
+    "current_balance": "212.52",
+    "outstanding_instalments": "2",
+    "reason": "No longer employed",
+    "justification": "The client is no longer employed and the SSB deductions stopped. The full principal has been recovered.",
+    "supporting_documents": "<a href='https://drive.google.com/open?id=1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g'>File 1</a>"
+}

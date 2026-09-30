@@ -6,15 +6,15 @@ from google.cloud.workflows import executions_v1
 
 from auth import authorized
 from form import Invalid, clean, flag
+from forms import FORMS
+from submission import ID
 
 client = executions_v1.ExecutionsClient()
 
-# ?workflow= picks one: its cleaner, and the workflow Terraform named. One webhook URL per form
+# ?workflow= names the form, as its webhook always has, and the form names its workflow (docs/phase10/tdd.md)
 WORKFLOWS = {
-    "requisition": (
-        clean,
-        client.workflow_path(os.environ["PROJECT_ID"], os.environ["REGION"], os.environ["WORKFLOW"]),
-    ),
+    name: client.workflow_path(os.environ["PROJECT_ID"], os.environ["REGION"], form.workflow)
+    for name, form in FORMS.items()
 }
 
 
@@ -34,11 +34,11 @@ def trigger(request):
         log("unauthorized", "WARNING")
         return {"error": "unauthorized"}, 401, {"WWW-Authenticate": "Bearer"}
     if request.method != "POST":
-        return {"error": "POST a requisition"}, 405
+        return {"error": "POST a form"}, 405
     name = request.args.get("workflow")
     if name not in WORKFLOWS:
         return {"error": f"?workflow= must be one of: {', '.join(WORKFLOWS)}"}, 400
-    cleaner, workflow = WORKFLOWS[name]
+    workflow = WORKFLOWS[name]
     # A real run that tells only lekkai@ and its submitter (docs/release1/adr.md 3)
     try:
         test = flag(request.args.get("test"))
@@ -51,25 +51,34 @@ def trigger(request):
     # Beside the form's keys, from dev fixtures only. The prod workflow drops it
     simulate = raw.pop("simulate", None)
     try:
-        requisition = cleaner(raw)
+        submission = clean(raw, name)
     except Invalid as e:
-        # Still a run, which only hands over: with the form's add-on off, it's how anyone hears (phase 9 ADR 5)
-        execution_id = start(workflow, {"invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate, "test": test})
+        # Still a run, which only hands over: with the form's add-on off, it's how anyone hears (phase 9 ADR 5).
+        # Stored under its response_id when that's usable, otherwise under the run's own id
+        response_id = raw.get("response_id")
+        id = {"id": response_id} if isinstance(response_id, str) and ID.match(response_id) else {}
+        execution_id = start(
+            workflow,
+            {"form": name, **id, "invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate, "test": test},
+        )
         # The problems, never the values
         log(
             "rejected by cleaning",
             "WARNING",
+            form=name,
             errors=[error.split(":")[0] for error in e.errors],
             execution_id=execution_id,
             test=test,
         )
         return {"errors": e.errors, "execution_id": execution_id}, 400
 
+    id = submission.response_id
     execution_id = start(
-        workflow, {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate, "test": test}
+        workflow,
+        {"form": name, "id": id, "submission": submission.to_json(), "raw": raw, "simulate": simulate, "test": test},
     )
-    log("started", workflow=name, execution_id=execution_id, response_number=requisition.response_number, test=test)
-    return {"execution_id": execution_id}, 202
+    log("started", form=name, execution_id=execution_id, response_number=submission.response_number, test=test)
+    return {"execution_id": execution_id, "id": id}, 202
 
 
 def start(workflow: str, argument: dict) -> str:
