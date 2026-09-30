@@ -5,6 +5,11 @@ resource "google_cloud_run_v2_service" "services" {
 
   template {
     service_account = local.sa.services
+    # One instance, however busy: a run's calls come one after another, so a second only adds a cold start. Many runs
+    # at once share it (80 requests an instance), and a 429 at the limit is one the workflow retries
+    scaling {
+      max_instance_count = 1
+    }
     containers {
       image = var.services_image
       # Up to 40 MB of attachments, and a base64 copy of them, beside ADK and the SDKs
