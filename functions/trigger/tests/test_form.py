@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from form import Invalid, clean, file_refs
+from form import Invalid, clean, file_refs, flag
 
 FORM = {
     "submitter_email_address": " Lekkai@lekkacredit.com ",
@@ -184,3 +184,14 @@ def test_a_fixtures_negative_response_number_cleans(value, want):
 @pytest.mark.parametrize("value", ["-", "--4", "4-8", "+4"])
 def test_a_response_number_is_still_a_whole_number(value):
     assert invalid(response_number=value) == ["response_number: not a whole number"]
+
+
+@pytest.mark.parametrize("value, want", [(None, False), ("true", True), ("TRUE", True), ("False", False)])
+def test_a_flag_is_true_or_false(value, want):
+    assert flag(value) is want
+
+
+@pytest.mark.parametrize("value", ["", "1", "yes", "truee"])
+def test_a_flag_is_never_guessed(value):
+    with pytest.raises(ValueError):
+        flag(value)

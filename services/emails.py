@@ -23,15 +23,17 @@ def form_name() -> str:
     return os.environ["FORM_NAME"]
 
 
-def subject(payable_to=None, response_number=None) -> str:
+def subject(payable_to=None, response_number=None, test=False) -> str:
     """The same on every email of a requisition, so Gmail keeps them in one thread. Whatever parts there are."""
     parts = [form_name(), payable_to and str(payable_to), response_number and f"#{response_number}"]
-    return " - ".join(p for p in parts if p)
+    return ("[TEST] " if test else "") + " - ".join(p for p in parts if p)
 
 
-def recipients(submitter: str | None) -> tuple[list[str], int]:
-    """The project's list and the submitter, once each, in our domain only. And how many were dropped."""
-    wanted = [a.strip().lower() for a in os.environ["NOTIFY_TO"].split(",")] + [(submitter or "").strip().lower()]
+def recipients(submitter: str | None, test=False) -> tuple[list[str], int]:
+    """The project's list, or lekkai@ alone for a test, and the submitter, once each, in our domain only. And how
+    many were dropped (docs/release1/adr.md 3)."""
+    listed = [sender()] if test else os.environ["NOTIFY_TO"].split(",")
+    wanted = [a.strip().lower() for a in listed] + [(submitter or "").strip().lower()]
     domain = "@" + sender().rsplit("@", 1)[1]
     to = list(dict.fromkeys(a for a in wanted if a.endswith(domain) and a.count("@") == 1))
     return to, len({a for a in wanted if a} - set(to))

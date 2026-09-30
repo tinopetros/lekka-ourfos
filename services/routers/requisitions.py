@@ -26,6 +26,7 @@ def receive(id: str, body: dict):
         **simulate,
         requisition=requisition.to_firestore(),
         raw=body.get("raw"),
+        test=bool(body.get("test")),
         response_number=requisition.response_number,
         status="received",
         execution={"id": id, "revision": body.get("revision"), "started_at": store.NOW},
@@ -91,9 +92,10 @@ def acknowledge(id: str, body: dict):
             "acknowledgement",
             requisition.submitted_by,
             emails.form_name(),
-            emails.subject(requisition.payable_to, requisition.response_number),
+            emails.subject(requisition.payable_to, requisition.response_number, doc.get("test")),
             html,
             text,
+            test=doc.get("test"),
         )
         store.record(id, emails={"acknowledgement": email(sent)})
     # Its Message-ID too, so replies thread in any client. Read after the send is recorded: a retry never resends
@@ -117,10 +119,11 @@ def suggest(id: str, body: dict):
         "suggestion",
         requisition.submitted_by,
         emails.LEKKAI,
-        emails.subject(requisition.payable_to, requisition.response_number),
+        emails.subject(requisition.payable_to, requisition.response_number, doc.get("test")),
         html,
         text,
         body["thread"],
+        doc.get("test"),
     )
     store.record(id, emails={"suggestion": email(sent)})
     return sent
@@ -173,10 +176,11 @@ def handover(id: str, body: dict):
         "handover",
         submitter if isinstance(submitter, str) else None,
         emails.LEKKAI,
-        emails.subject(payable_to, number),
+        emails.subject(payable_to, number, body.get("test")),
         html,
         text,
         body.get("thread"),
+        body.get("test"),
     )
     store.record(id, emails={"handover": email(sent)}, **({} if requisition else {"raw": raw}))
     return sent
@@ -193,11 +197,20 @@ def email(sent: dict) -> dict:
     return {"message_id": sent["message_id"], "thread_id": sent["thread_id"], "at": store.NOW}
 
 
-def send(kind: str, submitter: str | None, sender_name: str, subject: str, html: str, text: str, thread=None) -> dict:
-    to, dropped = emails.recipients(submitter)
+def send(
+    kind: str, submitter: str | None, sender_name: str, subject: str, html: str, text: str, thread=None, test=False
+) -> dict:
+    to, dropped = emails.recipients(submitter, test)
     sent = gmail_call(gmail.send, to, sender_name, subject, html, text, thread)
     # Counts, not addresses: who it went to is in Gmail
-    log(f"emailed: {kind}", to=len(to), dropped=dropped, reply=bool(thread), message_id=sent["message_id"])
+    log(
+        f"emailed: {kind}",
+        to=len(to),
+        dropped=dropped,
+        reply=bool(thread),
+        test=bool(test),
+        message_id=sent["message_id"],
+    )
     return sent
 
 

@@ -60,6 +60,8 @@ The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigge
 
 Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](docs/phase9/tdd.md).
 
+`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@` and whoever submitted, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](docs/release1/adr.md).
+
 `make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](docs/phase7/tdd.md).
 
 Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer, or `"files"` to fetch the files for real first. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
