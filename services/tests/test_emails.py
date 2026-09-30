@@ -161,3 +161,18 @@ def test_a_reply_is_sent_in_its_thread(monkeypatch):
     assert sent["scope"] == gmail.GMAIL_SEND
     assert sent["body"]["threadId"] == "t1"
     assert b"In-Reply-To: <x>" in base64.urlsafe_b64decode(sent["body"]["raw"])
+
+
+def test_a_test_tells_only_lekkai_and_the_submitter():
+    assert emails.recipients("tpetros@lekkacredit.com", test=True) == (
+        ["lekkai@lekkacredit.com", "tpetros@lekkacredit.com"],
+        0,
+    )
+    assert emails.recipients("someone@gmail.com", test=True) == (["lekkai@lekkacredit.com"], 1)
+
+
+def test_a_tests_subject_says_so():
+    assert (
+        emails.subject("Mr Muchenje", -482, test=True)
+        == "[TEST] Requisition Approval Request Form - Mr Muchenje - #-482"
+    )

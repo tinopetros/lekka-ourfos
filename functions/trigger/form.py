@@ -66,6 +66,15 @@ def clean(raw: dict) -> Requisition:
         ) from e
 
 
+def flag(value: str | None) -> bool:
+    """A query flag: absent is false, and only true or false otherwise, in any case."""
+    if value is None:
+        return False
+    if value.lower() not in ("true", "false"):
+        raise ValueError(f"not true or false: {value!r}")
+    return value.lower() == "true"
+
+
 def response_number(value: str) -> int:
     # Negative only from fixtures: no real form has one, so a test run never shares a subject with a real requisition
     if not value.removeprefix("-").isdigit():

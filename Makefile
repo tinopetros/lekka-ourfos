@@ -38,7 +38,7 @@ SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
-	@echo "make run [FIXTURE=happy] run workflows/fixtures/<FIXTURE>.json, wait, show its logs"
+	@echo "make run [FIXTURE=happy] [TEST=1]  run workflows/fixtures/<FIXTURE>.json, wait, show its logs. TEST=1: a test run"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
 	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak, 400 and invalid handed_over (what CI runs)"
@@ -94,7 +94,7 @@ destroy: tf-destroy
 # An invalid form answers 400 but still starts a run, which hands over
 start:
 	@curl -s -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @workflows/fixtures/$(FIXTURE).json "$(TRIGGER_URL)?workflow=$(WORKFLOW)" \
+		--data @workflows/fixtures/$(FIXTURE).json "$(TRIGGER_URL)?workflow=$(WORKFLOW)$(if $(TEST),&test=true)" \
 		| python3 -c 'import sys, json; print(json.load(sys.stdin)["execution_id"])'
 
 wait:

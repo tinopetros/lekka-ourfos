@@ -5,7 +5,7 @@ import functions_framework
 from google.cloud.workflows import executions_v1
 
 from auth import authorized
-from form import Invalid, clean
+from form import Invalid, clean, flag
 
 client = executions_v1.ExecutionsClient()
 
@@ -39,6 +39,11 @@ def trigger(request):
     if name not in WORKFLOWS:
         return {"error": f"?workflow= must be one of: {', '.join(WORKFLOWS)}"}, 400
     cleaner, workflow = WORKFLOWS[name]
+    # A real run that tells only lekkai@ and its submitter (docs/release1/adr.md 3)
+    try:
+        test = flag(request.args.get("test"))
+    except ValueError:
+        return {"error": "?test= must be true or false"}, 400
     raw = request.get_json(silent=True)
     if not isinstance(raw, dict):
         return {"error": "body must be a JSON object"}, 400
@@ -49,18 +54,21 @@ def trigger(request):
         requisition = cleaner(raw)
     except Invalid as e:
         # Still a run, which only hands over: with the form's add-on off, it's how anyone hears (phase 9 ADR 5)
-        execution_id = start(workflow, {"invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate})
+        execution_id = start(workflow, {"invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate, "test": test})
         # The problems, never the values
         log(
             "rejected by cleaning",
             "WARNING",
             errors=[error.split(":")[0] for error in e.errors],
             execution_id=execution_id,
+            test=test,
         )
         return {"errors": e.errors, "execution_id": execution_id}, 400
 
-    execution_id = start(workflow, {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate})
-    log("started", workflow=name, execution_id=execution_id, response_number=requisition.response_number)
+    execution_id = start(
+        workflow, {"requisition": requisition.to_json(), "raw": raw, "simulate": simulate, "test": test}
+    )
+    log("started", workflow=name, execution_id=execution_id, response_number=requisition.response_number, test=test)
     return {"execution_id": execution_id}, 202
 
 
