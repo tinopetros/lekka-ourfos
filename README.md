@@ -64,7 +64,7 @@ Every email is ours, from `lekkai@`: the first on receipt, then replies in its t
 
 `make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](docs/phase7/tdd.md).
 
-Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
+Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer, or `"files"` to fetch the files for real first. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
 
 ## Deployment
 

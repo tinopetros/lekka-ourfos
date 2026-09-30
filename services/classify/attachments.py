@@ -1,6 +1,8 @@
 """A requisition's files, fetched from Drive or our bucket for the model (docs/phase6/tdd.md, docs/phase7/tdd.md)."""
 
+import asyncio
 import io
+import time
 
 from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -14,25 +16,40 @@ from requisition import Requisition
 
 
 async def load(requisition: Requisition) -> list[dict]:
-    """Every file, in field order, or an HTTPException the workflow retries or hands over. Never a silent drop."""
-    files = []
-    for field, refs in requisition.files.model_dump().items():
-        for ref in refs:
-            try:
-                got = await run_in_threadpool(fetch, ref)
-            except (WorkspaceError, gcs.GcsError) as e:
-                # Retryable statuses pass through. Anything else is this file's problem, so a handover
-                status = e.status if e.status in RETRIED else 422
-                raise HTTPException(status, f"{field} {ref}: cannot fetch, {e}") from e
-            files.append(normalize({"field": field} | got))
+    """Every file, in field order, or an HTTPException the workflow retries or hands over. Never a silent drop.
+
+    Fetched all at once, so a requisition takes as long as its slowest file (docs/release1/adr.md 2).
+    """
+    wanted = [(field, ref) for field, refs in requisition.files.model_dump().items() for ref in refs]
+    started = time.monotonic()
+    got = await asyncio.gather(*(run_in_threadpool(fetch, field, ref) for field, ref in wanted))
+    files = [normalize({"field": field} | f) for (field, _), f in zip(wanted, got, strict=True)]
     check(files)
-    log("attachments", count=len(files), bytes=sum(f["size"] for f in files))
+    log("attachments", count=len(files), bytes=sum(f["size"] for f in files), ms=ms(started))
     return files
 
 
-def fetch(ref: str) -> dict:
+def fetch(field: str, ref: str) -> dict:
     """A gs:// ref is our bucket. Anything else is a Drive id, as every requisition before phase 7 has."""
-    return gcs.fetch(ref) if ref.startswith("gs://") else drive.fetch(ref)
+    started = time.monotonic()
+    try:
+        got = gcs.fetch(ref) if ref.startswith("gs://") else drive.fetch(ref)
+    except (WorkspaceError, gcs.GcsError) as e:
+        # Retryable statuses pass through. Anything else is this file's problem, so a handover
+        status = e.status if e.status in RETRIED else 422
+        raise HTTPException(status, f"{field} {ref}: cannot fetch, {e}") from e
+    log(
+        "attachment fetched",
+        field=field,
+        source="gcs" if ref.startswith("gs://") else "drive",
+        bytes=got["size"],
+        ms=ms(started),
+    )
+    return got
+
+
+def ms(started: float) -> int:
+    return round((time.monotonic() - started) * 1000)
 
 
 # What Drive or a browser sometimes calls a type Gemini knows by another name

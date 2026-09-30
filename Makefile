@@ -41,7 +41,7 @@ help:
 	@echo "make run [FIXTURE=happy] [TEST=1]  run workflows/fixtures/<FIXTURE>.json, wait, show its logs. TEST=1: a test run"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc ID=<execution>  its requisition document, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, happy and happy-gcs done, jailbreak, 400 and invalid handed_over (what CI runs)"
+	@echo "make smoke               no token 401, no ?workflow= 400, happy, happy-gcs and google-doc done, jailbreak, 400 and invalid handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
@@ -121,7 +121,7 @@ smoke: check-env
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)?workflow=$(WORKFLOW)"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@for case in happy:done happy-gcs:done classify-jailbreak:handed_over classify-400:handed_over invalid:handed_over; do \
+	@for case in happy:done happy-gcs:done google-doc:done classify-jailbreak:handed_over classify-400:handed_over invalid:handed_over; do \
 		fixture=$${case%%:*}; want=$${case#*:}; \
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait ID=$$($(MAKE) -s start FIXTURE=$$fixture) 2>/dev/null); \
