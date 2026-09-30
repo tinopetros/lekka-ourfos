@@ -70,7 +70,7 @@ def trigger(request):
             execution_id=execution_id,
             test=test,
         )
-        return {"errors": e.errors, "execution_id": execution_id}, 400
+        return {"errors": e.errors, "execution_id": execution_id, **id}, 400
 
     id = submission.response_id
     execution_id = start(
