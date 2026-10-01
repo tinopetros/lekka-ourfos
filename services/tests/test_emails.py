@@ -100,7 +100,7 @@ def test_money(amount, want):
 def test_an_acknowledgement_is_the_forms_answers():
     html, text = emails.acknowledgement(R, REQUISITION)
     assert "<strong>Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com:</strong>" in html
-    assert f"{emails.TH}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
+    assert f"{emails.QUESTION}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
     assert "Invoice(s)" not in html
     assert "Total Amount: 60" in text
