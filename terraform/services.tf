@@ -45,6 +45,7 @@ resource "google_cloud_run_v2_service" "services" {
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
           FORMS                     = jsonencode(local.forms)
+          TEST_TO                   = join(",", var.test_to)
         }
         content {
           name  = env.key

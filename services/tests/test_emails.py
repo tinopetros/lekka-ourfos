@@ -63,6 +63,7 @@ FIXTURES = Path(__file__).parents[2] / "workflows/fixtures"
 def env(monkeypatch):
     monkeypatch.setenv("WORKSPACE_SUBJECT", "lekkai@lekkacredit.com")
     monkeypatch.setenv("FORMS", json.dumps(FORMS))
+    monkeypatch.setenv("TEST_TO", "tpetros@lekkacredit.com")
     emails.config.cache_clear()
 
 
@@ -185,12 +186,16 @@ def test_a_reply_is_sent_in_its_thread(monkeypatch):
     assert b"In-Reply-To: <x>" in base64.urlsafe_b64decode(sent["body"]["raw"])
 
 
-def test_a_test_tells_only_lekkai_and_the_submitter():
-    assert emails.recipients(R, "tpetros@lekkacredit.com", test=True) == (
+def test_a_test_tells_lekkai_and_a_submitter_test_to_lists():
+    assert emails.recipients(R, " TPetros@lekkacredit.com", test=True) == (
         ["lekkai@lekkacredit.com", "tpetros@lekkacredit.com"],
         0,
     )
-    assert emails.recipients(R, "someone@gmail.com", test=True) == (["lekkai@lekkacredit.com"], 1)
+
+
+@pytest.mark.parametrize("submitter", ["ltanga@lekkacredit.com", "someone@gmail.com", None])
+def test_a_test_tells_only_lekkai_otherwise(submitter):
+    assert emails.recipients(R, submitter, test=True) == (["lekkai@lekkacredit.com"], 0)
 
 
 def test_a_tests_subject_says_so():

@@ -101,7 +101,7 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
   | loan approval | `lekkai@`, `directors@`; Reply-To `directors@`, `lekkai@` | `lekkai@`; Reply-To `lekkai@` |
   | write-off     | `lekkai@`, `directors@`                                   | `lekkai@`                     |
 
-- Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@` and the submitter, and its Reply-To is `lekkai@` only
+- Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@`, and the submitter if `test_to` lists them (release 1 ADR 3), and its Reply-To is `lekkai@` only
 
 ## Code
 

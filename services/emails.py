@@ -54,13 +54,19 @@ def reply_to(form: str, test=False) -> list[str]:
 
 
 def recipients(form: str, submitter: str | None, test=False) -> tuple[list[str], int]:
-    """The form's list, or lekkai@ alone for a test, and the submitter, once each, in our domain only. And how
-    many were dropped (docs/release1/adr.md 3)."""
+    """The form's list and the submitter, once each, in our domain only. And how many were dropped. A test goes to
+    lekkai@, and to its submitter only if TEST_TO lists them (docs/release1/adr.md 3)."""
     listed = [sender()] if test else config()[form]["notify_to"]
+    if test and (submitter or "").strip().lower() not in test_to():
+        submitter = None
     wanted = [a.strip().lower() for a in listed] + [(submitter or "").strip().lower()]
     domain = "@" + sender().rsplit("@", 1)[1]
     to = list(dict.fromkeys(a for a in wanted if a.endswith(domain) and a.count("@") == 1))
     return to, len({a for a in wanted if a} - set(to))
+
+
+def test_to() -> set[str]:
+    return {a.strip().lower() for a in os.environ.get("TEST_TO", "").split(",") if a.strip()}
 
 
 def money(amount: float) -> str:
