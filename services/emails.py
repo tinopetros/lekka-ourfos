@@ -1,38 +1,62 @@
-"""A requisition's emails: who they go to, their subject, and what they say (docs/phase9/tdd.md).
+"""Every form's emails: who they go to, their subject, and what they say (docs/phase9/tdd.md, docs/phase10/tdd.md).
 
-Every value from the form is escaped: the payee and comment are free text.
+Every value from a form is escaped: most of them are free text.
 """
 
+import json
 import os
+import re
 from datetime import date
+from functools import cache
 from html import escape
 
+from forms import FORMS
 from integrations.workspace.delegation import subject as sender
 from requisition import Requisition
+from submission import Submission
 
 # Their questions' titles on the form, for the fields with files
 FILE_LABELS = {"signed_requisition_form": "Signed Requisition Form", "receipts": "Receipt(s)", "invoices": "Invoice(s)"}
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
-# Wherever Lekkai stops, so a deferral and a handover say it the same way
-TAKE_OVER = "An accountant needs to take it from here."
+# Where Lekkai stops on a requisition, so a deferral says it as the handover does
+TAKE_OVER = f"{FORMS['requisition'].taker.capitalize()} needs to take it from here."
 LEKKAI = "Lekkai"
+# An answer that's only a link, like a loan's client folder, is linked
+URL = re.compile(r"^https?://\S+$")
 
 
-def form_name() -> str:
-    # Set by Terraform: the name of whatever comes through this workflow, form or front end
-    return os.environ["FORM_NAME"]
+@cache
+def config() -> dict:
+    """Set by Terraform, per form: its name, who hears, and where replies go."""
+    return json.loads(os.environ["FORMS"])
 
 
-def subject(payable_to=None, response_number=None, test=False) -> str:
-    """The same on every email of a requisition, so Gmail keeps them in one thread. Whatever parts there are."""
-    parts = [form_name(), payable_to and str(payable_to), response_number and f"#{response_number}"]
+def form_name(form: str) -> str:
+    # The name of whatever comes through, form or front end
+    return config()[form]["name"]
+
+
+def names(form: str, answers: dict) -> str | None:
+    """What the subject names, after the form: a payee, a trip, an applicant."""
+    return " ".join(str(answers[k]).strip() for k in FORMS[form].subject if answers.get(k)) or None
+
+
+def subject(form: str, name=None, response_number=None, test=False) -> str:
+    """The same on every email of a submission, so Gmail keeps them in one thread. Whatever parts there are."""
+    parts = [form_name(form), name and str(name), response_number and f"#{response_number}"]
     return ("[TEST] " if test else "") + " - ".join(p for p in parts if p)
 
 
-def recipients(submitter: str | None, test=False) -> tuple[list[str], int]:
-    """The project's list, or lekkai@ alone for a test, and the submitter, once each, in our domain only. And how
+def reply_to(form: str, test=False) -> list[str]:
+    """Only where a form's replies go elsewhere, the loan's to its directors. A test's go to lekkai@ alone."""
+    listed = config()[form].get("reply_to") or []
+    return [sender()] if listed and test else listed
+
+
+def recipients(form: str, submitter: str | None, test=False) -> tuple[list[str], int]:
+    """The form's list, or lekkai@ alone for a test, and the submitter, once each, in our domain only. And how
     many were dropped (docs/release1/adr.md 3)."""
-    listed = [sender()] if test else os.environ["NOTIFY_TO"].split(",")
+    listed = [sender()] if test else config()[form]["notify_to"]
     wanted = [a.strip().lower() for a in listed] + [(submitter or "").strip().lower()]
     domain = "@" + sender().rsplit("@", 1)[1]
     to = list(dict.fromkeys(a for a in wanted if a.endswith(domain) and a.count("@") == 1))
@@ -77,10 +101,38 @@ def table(rows: list[tuple[str, str, str]]) -> str:
     return f"{TABLE}{cells}</table>"
 
 
-def acknowledgement(r: Requisition) -> tuple[str, str]:
-    """The first email: the form's answers, as the add-on sent them."""
+def acknowledgement(form: str, s: Submission) -> tuple[str, str]:
+    """The first email: the form's answers, as its add-on sent them."""
+    rows = requisition_rows(s) if isinstance(s, Requisition) else text_rows(form, s)
+    heading = f"{form_name(form)} has a new entry from {s.submitted_by}:"
+    html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
+    text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
+    return html, text
+
+
+def submitter_row(s: Submission) -> tuple[str, str, str]:
+    return ("Email address", f'<a href="mailto:{escape(s.submitted_by)}">{escape(s.submitted_by)}</a>', s.submitted_by)
+
+
+def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
+    """The form's questions in its order, empty ones left out. A line break stays one, and a lone link is linked."""
+    spec, rows = FORMS[form], [submitter_row(s)]
+    for key, label in spec.labels.items():
+        value = getattr(s, key)
+        if not value:
+            continue
+        if key in spec.files:
+            rows.append((label, *file_links(value)))
+        elif URL.match(value):
+            rows.append((label, f'<a href="{escape(value)}">{escape(value)}</a>', value))
+        else:
+            rows.append((label, escape(value).replace("\n", "<br>"), value))
+    return rows
+
+
+def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     rows = [
-        ("Email address", f'<a href="mailto:{escape(r.submitted_by)}">{escape(r.submitted_by)}</a>', r.submitted_by),
+        submitter_row(r),
         ("Payable To", escape(r.payable_to), r.payable_to),
         ("Total Amount", money(r.amount), money(r.amount)),
     ]
@@ -91,10 +143,7 @@ def acknowledgement(r: Requisition) -> tuple[str, str]:
     for field, refs in r.files.model_dump().items():
         if refs:
             rows.append((FILE_LABELS[field], *file_links(refs)))
-    heading = f"{form_name()} has a new entry from {r.submitted_by}:"
-    html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
-    text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
-    return html, text
+    return rows
 
 
 def suggestion(c: dict) -> tuple[str, str]:
@@ -129,9 +178,10 @@ def suggestion(c: dict) -> tuple[str, str]:
     return "\n".join(html), "\n".join(text)
 
 
-def handover(reason: str, raw: dict | None = None) -> tuple[str, str]:
+def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:
     """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
-    heading = f"Lekkai failed to process this requisition: {TAKE_OVER[0].lower()}{TAKE_OVER[1:]}"
+    spec = FORMS[form]
+    heading = f"Lekkai failed to process this {spec.noun}: {spec.taker} needs to take it from here."
     html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
     text = [heading, "", reason]
     if raw:

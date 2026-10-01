@@ -19,8 +19,19 @@ variable "trigger_zip" {
 }
 
 variable "notify_to" {
-  description = "Who every requisition's emails go to, beside whoever submitted it"
-  type        = list(string)
+  description = "Per form: who its emails go to, beside whoever submitted it"
+  type        = map(list(string))
+
+  validation {
+    condition     = length(setsubtract(["requisition", "vehicle_log", "loan_approval", "write_off"], keys(var.notify_to))) == 0
+    error_message = "Every form needs its list."
+  }
+}
+
+variable "reply_to" {
+  description = "Per form, only where replies shouldn't go to lekkai@ alone"
+  type        = map(list(string))
+  default     = {}
 }
 
 variable "simulate" {

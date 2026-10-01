@@ -1,44 +1,29 @@
-"""The requisition workflow's one service. It owns the requisition's document and calls everything else for it."""
+"""What only a requisition's workflow, expense, does: classify, suggest, post and confirm. Receiving,
+acknowledging and handing over are every form's (routers/forms.py)."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
 
 import emails
 import store
 from classify import attachments, expenser
-from common import RETRIED, log, simulate
+from common import log, simulate
 from integrations import mifos
-from integrations.workspace import gmail
-from integrations.workspace.delegation import WorkspaceError
 from requisition import Requisition
+from routers.forms import email, run_id, send
 
-router = APIRouter(prefix="/requisitions/{id}")
+FORM = "requisition"
+router = APIRouter(prefix=f"/forms/{FORM}/{{id}}")
 
 
-@router.post("")
-def receive(id: str, body: dict):
-    # Cleaned by the trigger already. A failure here is ours, so a 500 that hands over
-    requisition = Requisition.model_validate(body["requisition"])
-    # Only ever set on dev: the prod workflow drops it
-    simulate = {"simulate": body["simulate"]} if body.get("simulate") else {}
-    store.save(
-        id,
-        **simulate,
-        requisition=requisition.to_firestore(),
-        raw=body.get("raw"),
-        test=bool(body.get("test")),
-        response_number=requisition.response_number,
-        status="received",
-        execution={"id": id, "revision": body.get("revision"), "started_at": store.NOW},
-    )
-    log("received", response_number=requisition.response_number)
-    return {"status": "received"}
+def run(id: str) -> store.Doc:
+    return store.run(FORM, id, run_id())
 
 
 @router.post("/classify")
 async def classify(id: str, body: dict):
     code = body.get("simulate")
-    requisition = Requisition.model_validate((await run_in_threadpool(store.get, id))["requisition"])
+    requisition = Requisition.model_validate((await run_in_threadpool(store.submission(FORM, id).get))["answers"])
     amount = requisition.amount
     if code:
         # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched,
@@ -51,7 +36,7 @@ async def classify(id: str, body: dict):
         # The agent fetches the files, in memory for this request only. The document keeps the refs it already had
         classification = await expenser.classify(requisition)
 
-    await run_in_threadpool(store.save, id, status="classified", classification=classification)
+    await run_in_threadpool(run(id).save, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")
     return classification
 
@@ -79,53 +64,27 @@ def line(name: str, gl_code: str, gl_id: int, account_type: str, amount: float) 
     return {"name": name, "glCode": gl_code, "glId": gl_id, "accountType": account_type, "amount": amount}
 
 
-@router.post("/acknowledge")
-def acknowledge(id: str, body: dict):
-    """The first email, which starts the thread every other email replies in."""
-    doc = store.get(id)
-    sent = doc.get("emails", {}).get("acknowledgement")
-    if not sent:
-        simulate("acknowledge", body.get("simulate"))
-        requisition = Requisition.model_validate(doc["requisition"])
-        html, text = emails.acknowledgement(requisition)
-        sent = send(
-            "acknowledgement",
-            requisition.submitted_by,
-            emails.form_name(),
-            emails.subject(requisition.payable_to, requisition.response_number, doc.get("test")),
-            html,
-            text,
-            test=doc.get("test"),
-        )
-        store.record(id, emails={"acknowledgement": email(sent)})
-    # Its Message-ID too, so replies thread in any client. Read after the send is recorded: a retry never resends
-    thread = doc.get("thread") or {
-        "thread_id": sent["thread_id"],
-        "in_reply_to": gmail_call(gmail.rfc822_id, sent["message_id"]),
-    }
-    store.record(id, thread=thread)
-    return thread
-
-
 @router.post("/suggest")
 def suggest(id: str, body: dict):
-    doc = store.get(id)
+    this = run(id)
+    doc = this.get()
     if sent := doc.get("emails", {}).get("suggestion"):
         return sent
     simulate("suggest", body.get("simulate"))
-    requisition = Requisition.model_validate(doc["requisition"])
+    requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     html, text = emails.suggestion(doc["classification"])
     sent = send(
+        FORM,
         "suggestion",
         requisition.submitted_by,
         emails.LEKKAI,
-        emails.subject(requisition.payable_to, requisition.response_number, doc.get("test")),
+        emails.subject(FORM, requisition.payable_to, requisition.response_number, doc.get("test")),
         html,
         text,
         body["thread"],
         doc.get("test"),
     )
-    store.record(id, emails={"suggestion": email(sent)})
+    this.record(emails={"suggestion": email(sent)})
     return sent
 
 
@@ -133,16 +92,20 @@ def suggest(id: str, body: dict):
 def post(id: str, body: dict):
     # "unrecorded" posts, then fails the write that follows
     code = body.get("simulate")
-    classification = store.get(id)["classification"]
-    posted = mifos.post(id, classification["debit"], classification["credit"], None if code == "unrecorded" else code)
-    store.record(id, fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
+    this = run(id)
+    classification = this.get()["classification"]
+    # The run's id is the reference Mifos keeps, as it was before a submission had runs
+    posted = mifos.post(
+        this.ref.id, classification["debit"], classification["credit"], None if code == "unrecorded" else code
+    )
+    this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
     return posted
 
 
 @router.get("/read-back/{mifos_transaction_id}")
 def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None, alias="simulate")):
     # The stub echoes what we posted. Real Mifos will answer from the ledger
-    classification = store.get(id)["classification"]
+    classification = run(id).get()["classification"]
     return mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
 
 
@@ -152,71 +115,3 @@ def confirm(id: str, body: dict):
     simulate("confirm", body.get("simulate"))
     log("confirm: no email while Mifos is a stub", mifos_transaction_id=body["mifos_transaction_id"])
     return {"sent": False}
-
-
-# Needs nothing from the database, so someone still hears when the database is what broke. A form the trigger
-# couldn't clean comes here too, with no requisition: only what the form sent
-@router.post("/handover")
-def handover(id: str, body: dict):
-    try:
-        if sent := store.get(id).get("emails", {}).get("handover"):
-            return sent
-    except HTTPException:
-        pass  # Sent anyway: someone has to hear
-    simulate("handover", body.get("simulate"))
-    requisition, raw = body.get("requisition"), body.get("raw") or {}
-    if requisition:
-        submitter, payable_to, number = (requisition.get(k) for k in ("submitted_by", "payable_to", "response_number"))
-    else:
-        submitter, payable_to, number = (
-            raw.get(k) for k in ("submitter_email_address", "payable_to", "response_number")
-        )
-    html, text = emails.handover(body["error"], None if requisition else raw)
-    sent = send(
-        "handover",
-        submitter if isinstance(submitter, str) else None,
-        emails.LEKKAI,
-        emails.subject(payable_to, number, body.get("test")),
-        html,
-        text,
-        body.get("thread"),
-        body.get("test"),
-    )
-    store.record(id, emails={"handover": email(sent)}, **({} if requisition else {"raw": raw}))
-    return sent
-
-
-@router.post("/complete")
-def complete(id: str, body: dict):
-    ended = {k: body[k] for k in ("status", "reason", "mifos_transaction_id") if body.get(k) is not None}
-    store.record(id, **ended, execution={"completed_at": store.NOW})
-    return {"status": body["status"]}
-
-
-def email(sent: dict) -> dict:
-    return {"message_id": sent["message_id"], "thread_id": sent["thread_id"], "at": store.NOW}
-
-
-def send(
-    kind: str, submitter: str | None, sender_name: str, subject: str, html: str, text: str, thread=None, test=False
-) -> dict:
-    to, dropped = emails.recipients(submitter, test)
-    sent = gmail_call(gmail.send, to, sender_name, subject, html, text, thread)
-    # Counts, not addresses: who it went to is in Gmail
-    log(
-        f"emailed: {kind}",
-        to=len(to),
-        dropped=dropped,
-        reply=bool(thread),
-        test=bool(test),
-        message_id=sent["message_id"],
-    )
-    return sent
-
-
-def gmail_call(fn, *args):
-    """Gmail's retryable statuses pass through for the workflow to retry. Anything else is ours: a 500, handed over"""
-    try:
-        return fn(*args)
-    except WorkspaceError as e:
-        raise HTTPException(e.status if e.status in RETRIED else 500, f"gmail: {e}") from e

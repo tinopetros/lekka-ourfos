@@ -1,10 +1,13 @@
 import base64
 import email
+import json
 from email import policy
+from pathlib import Path
 
 import pytest
 
 import emails
+from forms import FORMS as SPECS
 from integrations.workspace import gmail
 from requisition import Requisition
 
@@ -37,36 +40,55 @@ CLASSIFICATION = {
 }
 
 
+R = "requisition"
+
+FORMS = {
+    "requisition": {
+        "name": "Requisition Approval Request Form",
+        "notify_to": ["lekkai@lekkacredit.com", " Directors@lekkacredit.com"],
+    },
+    "vehicle_log": {"name": "Vehicle Log Form", "notify_to": ["lekkai@lekkacredit.com"]},
+    "loan_approval": {
+        "name": "Loan Approval Request Form",
+        "notify_to": ["lekkai@lekkacredit.com", "directors@lekkacredit.com"],
+        "reply_to": ["directors@lekkacredit.com", "lekkai@lekkacredit.com"],
+    },
+    "write_off": {"name": "Write-off Request Form", "notify_to": ["lekkai@lekkacredit.com"]},
+}
+
+FIXTURES = Path(__file__).parents[2] / "workflows/fixtures"
+
+
 @pytest.fixture(autouse=True)
 def env(monkeypatch):
     monkeypatch.setenv("WORKSPACE_SUBJECT", "lekkai@lekkacredit.com")
-    monkeypatch.setenv("FORM_NAME", "Requisition Approval Request Form")
-    monkeypatch.setenv("NOTIFY_TO", "lekkai@lekkacredit.com, Directors@lekkacredit.com")
+    monkeypatch.setenv("FORMS", json.dumps(FORMS))
+    emails.config.cache_clear()
 
 
 def test_subject_is_the_forms():
-    assert emails.subject("Mr Muchenje", 843) == "Requisition Approval Request Form - Mr Muchenje - #843"
+    assert emails.subject(R, "Mr Muchenje", 843) == "Requisition Approval Request Form - Mr Muchenje - #843"
 
 
 def test_subject_keeps_whatever_parts_there_are():
-    assert emails.subject(None, "12") == "Requisition Approval Request Form - #12"
-    assert emails.subject() == "Requisition Approval Request Form"
+    assert emails.subject(R, None, "12") == "Requisition Approval Request Form - #12"
+    assert emails.subject(R) == "Requisition Approval Request Form"
 
 
 def test_recipients_are_the_list_and_the_submitter_once_each():
-    assert emails.recipients("tpetros@lekkacredit.com") == (
+    assert emails.recipients(R, "tpetros@lekkacredit.com") == (
         ["lekkai@lekkacredit.com", "directors@lekkacredit.com", "tpetros@lekkacredit.com"],
         0,
     )
-    assert emails.recipients("LEKKAI@lekkacredit.com")[0] == ["lekkai@lekkacredit.com", "directors@lekkacredit.com"]
-    assert emails.recipients(None) == (["lekkai@lekkacredit.com", "directors@lekkacredit.com"], 0)
+    assert emails.recipients(R, "LEKKAI@lekkacredit.com")[0] == ["lekkai@lekkacredit.com", "directors@lekkacredit.com"]
+    assert emails.recipients(R, None) == (["lekkai@lekkacredit.com", "directors@lekkacredit.com"], 0)
 
 
 @pytest.mark.parametrize(
     "submitter", ["someone@gmail.com", "x@lekkacredit.com.evil.com", "x@evil.com@lekkacredit.com", "lekkacredit.com"]
 )
 def test_only_our_domain_is_mailed(submitter):
-    assert emails.recipients(submitter) == (["lekkai@lekkacredit.com", "directors@lekkacredit.com"], 1)
+    assert emails.recipients(R, submitter) == (["lekkai@lekkacredit.com", "directors@lekkacredit.com"], 1)
 
 
 @pytest.mark.parametrize("amount, want", [(60, "60"), (1234.5, "1,234.50"), (96.97, "96.97")])
@@ -75,7 +97,7 @@ def test_money(amount, want):
 
 
 def test_an_acknowledgement_is_the_forms_answers():
-    html, text = emails.acknowledgement(REQUISITION)
+    html, text = emails.acknowledgement(R, REQUISITION)
     assert "<strong>Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com:</strong>" in html
     assert f"{emails.TH}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
@@ -86,7 +108,7 @@ def test_an_acknowledgement_is_the_forms_answers():
 
 def test_the_forms_values_are_escaped():
     html, _ = emails.acknowledgement(
-        REQUISITION.model_copy(update={"payable_to": "<b>x</b>", "comment": "a & <script>"})
+        R, REQUISITION.model_copy(update={"payable_to": "<b>x</b>", "comment": "a & <script>"})
     )
     assert "&lt;b&gt;x&lt;/b&gt;" in html
     assert "a &amp; &lt;script&gt;" in html
@@ -112,7 +134,7 @@ def test_a_rejection_is_deferred_to_an_accountant_without_a_table():
 
 
 def test_a_handover_shows_what_the_form_sent_when_it_couldnt_be_read():
-    html, text = emails.handover("total_amount: not a number", {"total_amount": "sixty <dollars>"})
+    html, text = emails.handover(R, "total_amount: not a number", {"total_amount": "sixty <dollars>"})
     assert html.startswith(
         "<strong>Lekkai failed to process this requisition: an accountant needs to take it from here.</strong>"
     )
@@ -164,15 +186,103 @@ def test_a_reply_is_sent_in_its_thread(monkeypatch):
 
 
 def test_a_test_tells_only_lekkai_and_the_submitter():
-    assert emails.recipients("tpetros@lekkacredit.com", test=True) == (
+    assert emails.recipients(R, "tpetros@lekkacredit.com", test=True) == (
         ["lekkai@lekkacredit.com", "tpetros@lekkacredit.com"],
         0,
     )
-    assert emails.recipients("someone@gmail.com", test=True) == (["lekkai@lekkacredit.com"], 1)
+    assert emails.recipients(R, "someone@gmail.com", test=True) == (["lekkai@lekkacredit.com"], 1)
 
 
 def test_a_tests_subject_says_so():
     assert (
-        emails.subject("Mr Muchenje", -482, test=True)
+        emails.subject(R, "Mr Muchenje", -482, test=True)
         == "[TEST] Requisition Approval Request Form - Mr Muchenje - #-482"
     )
+
+
+IDENTITY = {
+    "response_number": -482,
+    "response_id": "r",
+    "submitted_by": "lekkai@lekkacredit.com",
+    "submitted_at": "2026-04-10T13:45:12Z",
+}
+
+
+def submission(form: str, **changes):
+    """A form's happy fixture, as the trigger cleans it: text, empty answers dropped, uploads as Drive ids."""
+    raw = json.loads((FIXTURES / form / "happy.json").read_text())
+    spec = SPECS[form]
+    answers = {k: raw[k] for k in spec.labels if raw.get(k) and k not in spec.files}
+    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in spec.files if raw.get(k)}
+    return spec.model(**IDENTITY, **answers | changes)
+
+
+def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():
+    html, text = emails.acknowledgement("vehicle_log", submission("vehicle_log"))
+    assert "<strong>Vehicle Log Form has a new entry from lekkai@lekkacredit.com:</strong>" in html
+    labels = [line.split(":")[0] for line in text.splitlines()[2:]]
+    assert labels[:3] == ["Email address", "Trip Name / Purpose", "Vehicle"]
+    assert labels[-2:] == ["Vehicle Images", "Destination"]
+    assert "Issues Description" not in labels
+    assert '<a href="https://drive.google.com/open?id=1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g">File 1</a>' in html
+
+
+def test_a_lone_link_is_linked_and_a_line_break_kept():
+    html, _ = emails.acknowledgement(
+        "loan_approval",
+        submission("loan_approval", purpose="Stock\n<b>and</b> fuel", client_folder="https://x/y?a=1&b"),
+    )
+    assert f'{emails.TD}<a href="https://x/y?a=1&amp;b">https://x/y?a=1&amp;b</a></td>' in html
+    assert f"{emails.TD}Stock<br>&lt;b&gt;and&lt;/b&gt; fuel</td>" in html
+
+
+@pytest.mark.parametrize(
+    "form, answers, want",
+    [
+        ("requisition", {"payable_to": "Mr Muchenje"}, "Requisition Approval Request Form - Mr Muchenje - #-482"),
+        ("vehicle_log", {"trip_name_purpose": "CBD"}, "Vehicle Log Form - CBD - #-482"),
+        (
+            "loan_approval",
+            {"applicant_first_name": "Fixture", "applicant_last_name": "Applicant"},
+            "Loan Approval Request Form - Fixture Applicant - #-482",
+        ),
+        ("write_off", {"client_full_name": "Fixture Client"}, "Write-off Request Form - Fixture Client - #-482"),
+        ("loan_approval", {"applicant_last_name": "Applicant"}, "Loan Approval Request Form - Applicant - #-482"),
+    ],
+)
+def test_every_forms_subject_is_its_add_ons(form, answers, want):
+    assert emails.subject(form, emails.names(form, answers), -482) == want
+
+
+@pytest.mark.parametrize(
+    "form, want",
+    [
+        ("requisition", "requisition: an accountant"),
+        ("vehicle_log", "vehicle log: someone"),
+        ("loan_approval", "loan approval request: a director"),
+        ("write_off", "write-off request: a director"),
+    ],
+)
+def test_a_handover_says_what_it_was_and_who_takes_it(form, want):
+    html, _ = emails.handover(form, "POST /acknowledge: 500")
+    assert html.startswith(f"<strong>Lekkai failed to process this {want} needs to take it from here.</strong>")
+
+
+def test_every_forms_list_is_its_own():
+    assert emails.recipients("vehicle_log", "tpetros@lekkacredit.com")[0] == [
+        "lekkai@lekkacredit.com",
+        "tpetros@lekkacredit.com",
+    ]
+
+
+def test_a_loan_requests_replies_go_to_the_directors_and_lekkai():
+    assert emails.reply_to("loan_approval") == ["directors@lekkacredit.com", "lekkai@lekkacredit.com"]
+    assert emails.reply_to("loan_approval", test=True) == ["lekkai@lekkacredit.com"]
+    assert emails.reply_to("vehicle_log") == emails.reply_to("vehicle_log", test=True) == []
+
+
+def test_reply_to_is_a_header_only_when_there_is_one():
+    assert parsed(gmail.message(["a@lekkacredit.com"], "L", "s", "", "", reply_to=["d@lekkacredit.com"]))[
+        "Reply-To"
+    ] == ("d@lekkacredit.com")
+    assert parsed(gmail.message(["a@lekkacredit.com"], "L", "s", "", ""))["Reply-To"] is None

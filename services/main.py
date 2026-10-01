@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Request
 
 from common import execution_id
-from routers import requisitions
+from routers import forms, requisitions
 
 app = FastAPI(title="ourfos-services")
 app.include_router(requisitions.router)
+app.include_router(forms.router)
 
 
 @app.middleware("http")

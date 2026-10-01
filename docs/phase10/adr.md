@@ -1,0 +1,30 @@
+# Phase 10: decisions and shortcuts
+
+### 1. One submission, one run: receipt is shared code, not a shared run
+
+- A run of its own for receipt, which then starts the form's workflow, would split one submission across two executions: two logs to follow, and a second run that may never start, with nobody left to hand over
+- So each form's workflow receives and acknowledges itself, through the same service endpoints
+- A later workflow, an approval or a reversal, is a run of its own on the same submission, started by whatever asks for it, not a continuation of receipt
+- `intake` serves all three new forms for now. A form gets its own workflow when it gets its own unique steps on submission
+
+### 2. The workflows share one file of plumbing
+
+- Workflows can't call a subworkflow in another definition, and `call_service`, `handover`, `complete` and the retry predicates are about 150 lines each workflow would copy
+- `workflows/lib.workflows.yaml` holds them, and Terraform appends it to each workflow's own file. Both are maps of subworkflows, so the join is still one valid definition
+- A change to the plumbing redeploys every workflow, which is what we'd want
+- The catch: Workflows only ever sees the joined text. A subworkflow lib has can't be defined again in a workflow's own file, or the definition has the same key twice. And the console shows lib's subworkflows at the bottom of each workflow, as if written there
+
+### 3. A submission is the document, and each run is one under it
+
+- Closes phase 4 ADR 3: the document id was the execution id, one document per run, which leaves a later run on the same requisition e.g. a reversal, nowhere to go
+- Keyed by the form's `response_id`, so a second run of one submission, the add-on firing twice or a re-run, lands on the same document. Our own front end will bring ids of its own, as phase 4 said
+- What was submitted, and the thread, are the submission's. What a run did is the run's. The submission mirrors its latest run's status, for lists
+- One collection per form: their answers have nothing in common but who sent them, and each will be listed on its own
+- Prod's requisitions are rewritten into this shape once, carefully, as their own task after this is released. Dev's aren't: they're keyed by execution id and have no `runs`, so they're easy to find and delete
+- Not taken: **one `submissions` collection with a `form` field**, as ourfos-v2 did. One place to list everything, but every query filters by form, and each form's indexes share one collection
+
+### 4. Strict only where a step reads the value
+
+- Phase 5 ADR 3 made the requisition's types strict, since classify and post read them. Nothing reads a vehicle log's odometer yet, and refusing one for `52,204 km` loses a log nobody would have checked
+- So the new forms clean their identity and subject fields strictly, and keep every other answer as text
+- A field gets its type when a step reads it, or when the front end collects it typed

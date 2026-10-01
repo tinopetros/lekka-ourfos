@@ -7,21 +7,22 @@ A form is submitted, something reviews it, it gets filed, and somebody gets a
 reply. This repo holds the orchestration — the workflow definitions, the
 services those workflows call, and the apps that read the same records.
 
-| Workflow      | What it does                                             | Status |
-| ------------- | -------------------------------------------------------- | ------ |
-| `requisition` | Requisition form → posted Mifos journal entry, one thread of emails | Design |
+| Workflow  | Forms                                                 | What it does                                                        | Status |
+| --------- | ----------------------------------------------------- | ------------------------------------------------------------------- | ------ |
+| `expense` | requisition                                           | Requisition form → posted Mifos journal entry, one thread of emails | Design |
+| `intake`  | vehicle log, loan approval request, write-off request | Received and acknowledged: stored, and the first email sent         | Design |
 
-Other form types — vehicle logs, loan approval requests — are persisted on
-arrival and wait for now. Their workflows come later; nothing is lost in the meantime.
+A submission is one document, keyed by the form's `response_id`, and every workflow run on it is a document under it: a later approval or reversal is a run of its own. See [phase 10](docs/phase10/tdd.md).
 
 ## The shape of it
 
 ```
-Google Form ─▶ intake ─▶ Workflows execution ─▶ one thread of emails, then done
+Google Form ─▶ trigger ─▶ Workflows execution ─▶ one thread of emails, then done
                  │            │
-                 │            ├─ acknowledge (the first email, which starts the thread)
-                 │            ├─ classify    (expenser, an ADK agent, in the workflow's service)
-                 |            ├─ check       (deterministic, in the workflow)
+                 │            ├─ receive     (every form)
+                 │            ├─ acknowledge (every form: the first email, which starts the thread)
+                 │            ├─ classify    (expense on: expenser, an ADK agent, in the services)
+                 │            ├─ check       (deterministic, in the workflow)
                  │            ├─ suggest     (a reply: Lekkai's suggestion)
                  │            ├─ post        (Mifos, and read it back)
                  │            └─ confirm     (a reply: posted, once Mifos is real)
@@ -47,18 +48,20 @@ services/          called BY workflows — invoker is the workflow's SA only
   integrations/    third parties: Mifos, and Workspace as lekkai@
 agents/            ADK agents, run inside services for now (expenser, behind Model Armor)
 apps/              user-facing — behind IAP
-workflows/         the definitions, plus fixtures for running them
+workflows/         the definitions, their shared lib, and fixtures per form for running them
 ```
 
 ## Testing by hand
 
 The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
 
-Fixtures are what the form's webhook posts: every value a string, files as Drive links or `gs://` refs into the attachments bucket. The trigger cleans them into one `Requisition` (`services/requisition.py`) and answers 400 with every problem when it can't; `make test` covers the cleaner. See [phase 5](docs/phase5/tdd.md).
+Fixtures are what a form's webhook posts, in `workflows/fixtures/<form>/`: every value a string, files as Drive links or `gs://` refs into the attachments bucket. The trigger cleans them into the form's model (`services/forms.py`) and answers 400 with every problem when it can't; `make test` covers the cleaners. A requisition is strictly typed; the other forms are text, bar who sent them and when ([phase 10 ADR 4](docs/phase10/adr.md)). See [phase 5](docs/phase5/tdd.md).
 
-The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`, and `?workflow=requisition`; `make start` and `make smoke` send both for you. Classify fetches a requisition's files from Drive as `lekkai@`. See [phase 6](docs/phase6/tdd.md).
+`make run FORM=vehicle_log FIXTURE=happy` runs one, `FORM=requisition` by default. Each run is a fresh submission, `fixture-<fixture>-<time>`; `SUBMISSION=<id>` runs on one again. `make doc FORM=<form> ID=<submission>` shows it and its runs.
 
-Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](docs/phase9/tdd.md).
+The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`, and `?workflow=<form>`: `requisition`, `vehicle_log`, `loan_approval` or `write_off`. It names the form, not the workflow; `make start` and `make smoke` send both for you. Classify fetches a requisition's files from Drive as `lekkai@`. See [phase 6](docs/phase6/tdd.md).
+
+Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to the form's `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. A loan request's replies go to `directors@` and `lekkai@`. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](docs/phase9/tdd.md).
 
 `?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@` and whoever submitted, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](docs/release1/adr.md).
 

@@ -7,6 +7,8 @@ resource "google_storage_bucket_object" "trigger" {
 resource "google_cloudfunctions2_function" "trigger" {
   name     = "trigger"
   location = var.region
+  # It names the workflows itself, from forms.py, so they exist before it can start one
+  depends_on = [google_workflows_workflow.this]
 
   build_config {
     runtime           = "python313"
@@ -26,7 +28,6 @@ resource "google_cloudfunctions2_function" "trigger" {
     environment_variables = {
       PROJECT_ID = var.project_id
       REGION     = var.region
-      WORKFLOW   = google_workflows_workflow.requisition.name
     }
     # Made by hand, value and all (docs/phase6/tdd.md, Bootstrapped, once). Read when an instance starts
     secret_environment_variables {

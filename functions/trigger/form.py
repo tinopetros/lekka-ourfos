@@ -1,11 +1,13 @@
-"""The form's webhook payload, every value a string, into a clean Requisition. Nothing is guessed."""
+"""A form's webhook payload, every value a string, into its clean submission. Nothing is guessed."""
 
 import re
 from datetime import UTC, date, datetime
 
 from pydantic import ValidationError
 
-from requisition import Files, Requisition
+from forms import FORMS
+from requisition import Files
+from submission import Submission
 
 FILE_FIELDS = tuple(Files.model_fields)
 
@@ -28,7 +30,14 @@ class Invalid(Exception):
         self.errors = errors
 
 
-def clean(raw: dict) -> Requisition:
+def clean(raw: dict, form: str = "requisition") -> Submission:
+    spec = FORMS[form]
+    if form == "requisition":
+        parsers, files = REQUISITION, FILE_FIELDS
+    else:
+        # Text, bar the identity fields (docs/phase10/adr.md 4)
+        parsers = IDENTITY | {key: (key, str) for key in spec.labels if key not in spec.files}
+        files = spec.files
     errors = []
     fields = {}
 
@@ -50,17 +59,21 @@ def clean(raw: dict) -> Requisition:
         except ValueError as e:
             errors.append(f"{key}: {e}")
 
-    for key, (into, to) in FIELDS.items():
+    for key, (into, to) in parsers.items():
         parse(key, to, into)
-    fields["files"] = {key: file_refs(text(key) or "") for key in FILE_FIELDS}
+    refs = {key: file_refs(text(key) or "") for key in files}
+    if form == "requisition":
+        fields["files"] = refs
+    else:
+        fields |= refs
 
     if errors:
         raise Invalid(errors)
     try:
-        return Requisition(**fields)
+        return spec.model(**fields)
     except ValidationError as e:
         # Named as the form names them, since that's who reads the 400
-        form_key = {into: key for key, (into, _) in FIELDS.items()}
+        form_key = {into: key for key, (into, _) in parsers.items()}
         raise Invalid(
             [f"{form_key.get(err['loc'][0], err['loc'][0])}: {err['msg'].lower()}" for err in e.errors()]
         ) from e
@@ -120,14 +133,17 @@ def file_refs(value: str) -> list[str]:
     return list(dict.fromkeys(drive or gcs for drive, gcs in FILE_REF.findall(value)))
 
 
-# The form's key: the clean field, and how to read it
-FIELDS = {
+# The form's key: the clean field, and how to read it. What every form has
+IDENTITY = {
     "response_number": ("response_number", response_number),
     "response_id": ("response_id", str),
     "form_id": ("form_id", str),
     "form_name": ("form_name", str),
     "submitter_email_address": ("submitted_by", email),
     "created_at": ("submitted_at", epoch_ms),
+}
+
+REQUISITION = IDENTITY | {
     "payable_to": ("payable_to", str),
     "total_amount": ("amount", amount),
     "date_disbursed": ("disbursed_on", day),
