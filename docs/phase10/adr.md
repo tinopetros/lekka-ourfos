@@ -12,6 +12,7 @@
 - Workflows can't call a subworkflow in another definition, and `call_service`, `handover`, `complete` and the retry predicates are about 150 lines each workflow would copy
 - `workflows/lib.workflows.yaml` holds them, and Terraform appends it to each workflow's own file. Both are maps of subworkflows, so the join is still one valid definition
 - A change to the plumbing redeploys every workflow, which is what we'd want
+- The catch: Workflows only ever sees the joined text. A subworkflow lib has can't be defined again in a workflow's own file, or the definition has the same key twice. And the console shows lib's subworkflows at the bottom of each workflow, as if written there
 
 ### 3. A submission is the document, and each run is one under it
 

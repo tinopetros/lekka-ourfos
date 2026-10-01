@@ -20,26 +20,21 @@ def run(id: str) -> store.Doc:
     return store.run(FORM, id, run_id())
 
 
-def requisition(id: str) -> Requisition:
-    return Requisition.model_validate(store.submission(FORM, id).get()["answers"])
-
-
 @router.post("/classify")
 async def classify(id: str, body: dict):
     code = body.get("simulate")
-    # Firestore's client blocks, and this route is async, so in a thread: the event loop serves every other request
-    r = await run_in_threadpool(requisition, id)
-    amount = r.amount
+    requisition = Requisition.model_validate((await run_in_threadpool(store.submission(FORM, id).get))["answers"])
+    amount = requisition.amount
     if code:
         # "stub", or a forced failure. In a thread, so a simulated hang can't block the event loop. No files fetched,
         # except for "files": fetched for real, then the canned answer, so a fixture covers the fetch without the model
         await run_in_threadpool(simulate, "classify", code)
         if code == "files":
-            await attachments.load(r)
+            await attachments.load(requisition)
         classification = stub(amount, code)
     else:
         # The agent fetches the files, in memory for this request only. The document keeps the refs it already had
-        classification = await expenser.classify(r)
+        classification = await expenser.classify(requisition)
 
     await run_in_threadpool(run(id).save, status="classified", classification=classification)
     log("classify", amount=amount, approve=classification["approve"], by="stub" if code else "expenser")
@@ -76,14 +71,14 @@ def suggest(id: str, body: dict):
     if sent := doc.get("emails", {}).get("suggestion"):
         return sent
     simulate("suggest", body.get("simulate"))
-    r = requisition(id)
+    requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     html, text = emails.suggestion(doc["classification"])
     sent = send(
         FORM,
         "suggestion",
-        r.submitted_by,
+        requisition.submitted_by,
         emails.LEKKAI,
-        emails.subject(FORM, r.payable_to, r.response_number, doc.get("test")),
+        emails.subject(FORM, requisition.payable_to, requisition.response_number, doc.get("test")),
         html,
         text,
         body["thread"],

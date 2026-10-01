@@ -121,9 +121,9 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 
 ## Bootstrapped, once
 
-- Dev: the three forms' add-ons get the dev trigger's URL, `?workflow=<form>`, and `Authorization: Bearer <trigger-token>`. Each add-on's own email notification, the one we replace, stays on until this is on dev, then goes off: before, nobody hears; after, everyone hears twice
-- Prod: the same on the prod forms when the tag goes out, notification off then, not before
-- The write-off form: made on dev and prod with the questions above, then its add-on as above
+- The three forms' add-ons get the trigger's URL, `?workflow=<form>`, and `Authorization: Bearer <trigger-token>`: on dev, then on prod once the tag is out. The write-off form is made on both first, with the questions above
+- Each add-on's own email notification, the one ours replaces, stays on through all of it. Two first emails for a while beats none
+- It goes off, form by form, only once our first email has been seen arriving for a real submission of that form
 
 ## Done when
 

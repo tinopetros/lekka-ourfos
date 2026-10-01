@@ -18,8 +18,7 @@ router = APIRouter(prefix="/forms/{form}/{id}")
 def run_id() -> str:
     """This run's execution id. Middleware in main.py sets it for each request from the X-Execution-Id header,
     which call_service always sends."""
-    run = execution_id.get()
-    if not run:
+    if not (run := execution_id.get()):
         raise HTTPException(400, "X-Execution-Id names the run")
     return run
 
