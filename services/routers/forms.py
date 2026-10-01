@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 
 import emails
 import store
-from common import RETRIED, execution_id, log, simulate,
+from common import RETRIED, execution_id, log, simulate
 from forms import FORMS
 from integrations.workspace import gmail
 from integrations.workspace.delegation import WorkspaceError
@@ -16,7 +16,10 @@ router = APIRouter(prefix="/forms/{form}/{id}")
 
 
 def run_id() -> str:
-    if not (run := execution_id.get()):
+    """This run's execution id. Middleware in main.py sets it for each request from the X-Execution-Id header,
+    which call_service always sends."""
+    run = execution_id.get()
+    if not run:
         raise HTTPException(400, "X-Execution-Id names the run")
     return run
 
@@ -120,7 +123,7 @@ def handover(form: str, id: str, body: dict):
 @router.post("/complete")
 def complete(form: str, id: str, body: dict):
     known(form)
-    ended = {k: body[k] for k in ("status", "reason", "mifos_transaction_id", "workflow") if body.get(k) is not None}
+    ended = {k: body[k] for k in ("status", "reason", "workflow") if body.get(k) is not None}
     store.run(form, id, run_id()).record(**ended, execution={"completed_at": store.NOW})
     return {"status": body["status"]}
 

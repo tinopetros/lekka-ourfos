@@ -19,7 +19,7 @@
 - Keyed by the form's `response_id`, so a second run of one submission, the add-on firing twice or a re-run, lands on the same document. Our own front end will bring ids of its own, as phase 4 said
 - What was submitted, and the thread, are the submission's. What a run did is the run's. The submission mirrors its latest run's status, for lists
 - One collection per form: their answers have nothing in common but who sent them, and each will be listed on its own
-- No rewrite of old documents: they're keyed by execution id and have no `runs`, so they're easy to find and delete. Prod's are tests
+- Prod's requisitions are rewritten into this shape once, carefully, as their own task after this is released. Dev's aren't: they're keyed by execution id and have no `runs`, so they're easy to find and delete
 - Not taken: **one `submissions` collection with a `form` field**, as ourfos-v2 did. One place to list everything, but every query filters by form, and each form's indexes share one collection
 
 ### 4. Strict only where a step reads the value

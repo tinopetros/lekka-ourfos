@@ -51,8 +51,7 @@ requisitions/{submission}/runs/{execution}     workflow, status, reason, classif
 
 ### From when
 
-- The new shape starts with the release that carries this phase, and the date goes here when it's out. Nothing is rewritten, on dev or prod
-- Old documents are the ones in `requisitions` keyed by an execution id, with no `runs`. Prod's are all tests. Deleted by hand, when we like
+- The new shape starts with the release that carries this phase, and the date goes here when it's out. Dev isn't rewritten. Prod's requisitions are, once, after the release
 
 ## Cleaning (ADR 4)
 
@@ -103,7 +102,6 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
   | write-off     | `lekkai@`, `directors@`                                   | `lekkai@`                     |
 
 - Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@` and the submitter, and its Reply-To is `lekkai@` only
-- Whether write-offs go to `loan-officers@` too: ADR 6
 
 ## Code
 
@@ -123,7 +121,7 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 
 ## Bootstrapped, once
 
-- Dev: the three forms' add-ons get the dev trigger's URL, `?workflow=<form>`, and `Authorization: Bearer <trigger-token>`. Their notification stays on until this is on dev, then goes off
+- Dev: the three forms' add-ons get the dev trigger's URL, `?workflow=<form>`, and `Authorization: Bearer <trigger-token>`. Each add-on's own email notification, the one we replace, stays on until this is on dev, then goes off: before, nobody hears; after, everyone hears twice
 - Prod: the same on the prod forms when the tag goes out, notification off then, not before
 - The write-off form: made on dev and prod with the questions above, then its add-on as above
 
@@ -137,4 +135,4 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 ## Not in this phase
 
 - What each new form's workflow does next: an approval by a director, a write-off in Mifos, a vehicle log that's two taps
-- Moving old documents into the new shape
+- Rewriting prod's requisitions into the new shape: once, carefully, after this is released
