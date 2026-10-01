@@ -24,10 +24,8 @@ def message(
     m = EmailMessage()
     m["From"] = Address(sender_name, addr_spec=subject())
     m["To"] = ", ".join(to)
-    # Where a reply goes, when not to lekkai@ alone: a loan request's to who decides it
     if reply_to:
         m["Reply-To"] = ", ".join(reply_to)
-    # One line, whatever the form's values held: a header can't carry a line break
     m["Subject"] = " ".join(subject_line.split())
     if in_reply_to:
         m["In-Reply-To"] = m["References"] = in_reply_to

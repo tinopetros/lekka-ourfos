@@ -23,12 +23,12 @@ requisition ──────────┴────▶ expense ─▶ rece
 
 ## Names
 
-| Form | `?workflow=` | Collection | Workflow | Sender name |
-|---|---|---|---|---|
-| Requisition Approval Request Form | `requisition` | `requisitions` | `expense` | the form's |
-| Vehicle Log Form | `vehicle_log` | `vehicle_logs` | `intake` | the form's |
-| Loan Approval Request Form | `loan_approval` | `loan_approvals` | `intake` | the form's |
-| Write-off Request Form | `write_off` | `write_offs` | `intake` | the form's |
+| Form                              | `?workflow=`    | Collection       | Workflow  | Sender name |
+| --------------------------------- | --------------- | ---------------- | --------- | ----------- |
+| Requisition Approval Request Form | `requisition`   | `requisitions`   | `expense` | the form's  |
+| Vehicle Log Form                  | `vehicle_log`   | `vehicle_logs`   | `intake`  | the form's  |
+| Loan Approval Request Form        | `loan_approval` | `loan_approvals` | `intake`  | the form's  |
+| Write-off Request Form            | `write_off`     | `write_offs`     | `intake`  | the form's  |
 
 - `?workflow=` stays what the form's webhook sends, so no prod form is edited for the rename. It names the form now, and the trigger picks its workflow. Misnamed, and left so
 - Runs are named for what they do: `intake`, `expense`, later `approve`, `reverse`
@@ -95,12 +95,12 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 - The handover names the form's thing and who takes it: **Lekkai failed to process this {requisition, vehicle log, loan approval request, write-off request}: {an accountant, someone, a director, a director} needs to take it from here.**
 - A form's name, list and Reply-To are Terraform's, one map for every form, `FORMS` for the services (it replaces `FORM_NAME` and `NOTIFY_TO`):
 
-  | Form | Prod | Dev |
-  |---|---|---|
-  | requisition | `lekkai@`, `directors@`, `consultant-zsaruchera@` | `lekkai@` |
-  | vehicle log | `lekkai@`, `directors@` | `lekkai@` |
+  | Form          | Prod                                                      | Dev                           |
+  | ------------- | --------------------------------------------------------- | ----------------------------- |
+  | requisition   | `lekkai@`, `directors@`, `consultant-zsaruchera@`         | `lekkai@`                     |
+  | vehicle log   | `lekkai@`, `directors@`                                   | `lekkai@`                     |
   | loan approval | `lekkai@`, `directors@`; Reply-To `directors@`, `lekkai@` | `lekkai@`; Reply-To `lekkai@` |
-  | write-off | `lekkai@`, `directors@` | `lekkai@` |
+  | write-off     | `lekkai@`, `directors@`                                   | `lekkai@`                     |
 
 - Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@` and the submitter, and its Reply-To is `lekkai@` only
 - Whether write-offs go to `loan-officers@` too: ADR 6
@@ -137,5 +137,4 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 ## Not in this phase
 
 - What each new form's workflow does next: an approval by a director, a write-off in Mifos, a vehicle log that's two taps
-- Skipping `post` on a second run of the same requisition (phase 1 ADR 6). One Mifos post per submission comes with the real Mifos
 - Moving old documents into the new shape

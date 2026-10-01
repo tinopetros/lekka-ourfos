@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 
 import emails
 import store
-from common import RETRIED, execution_id, log, simulate
+from common import RETRIED, execution_id, log, simulate,
 from forms import FORMS
 from integrations.workspace import gmail
 from integrations.workspace.delegation import WorkspaceError
@@ -29,7 +29,6 @@ def known(form: str):
 @router.post("")
 def receive(form: str, id: str, body: dict):
     known(form)
-    # Cleaned by the trigger already. A failure here is ours, so a 500 that hands over
     submission = FORMS[form].model.model_validate(body["submission"])
     test = bool(body.get("test"))
     store.submission(form, id).save(
