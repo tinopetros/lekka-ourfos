@@ -97,6 +97,10 @@ handover:
 complete:
   params: [at, result]
   steps:
+    # Which workflow ran, for the run's document. An assign, since an expression can't hold a map literal
+    - name:
+        assign:
+          - result.workflow: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")}
     - write:
         try:
           try:
@@ -105,7 +109,7 @@ complete:
               at: ${at}
               method: POST
               path: /complete
-              body: '${map.merge(result, {"workflow": sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")})}'
+              body: ${result}
           retry:
             predicate: ${is_transient}
             max_retries: 2
