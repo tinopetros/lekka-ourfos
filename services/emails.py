@@ -93,12 +93,12 @@ def file_links(refs: list[str]) -> tuple[str, str]:
 
 
 # One look for every table, whichever email it's in: the form add-on's, light and roomy. Styles inline, since
-# Gmail drops <style>. The email's own font, inherited: a table doesn't always inherit it unasked. A value wraps
-# rather than stretch the table, so a long comment stays readable
+# Gmail drops <style>. The email's own font, inherited: a table doesn't always inherit it unasked. Both columns wrap
+# rather than stretch the table, so a long question or comment stays readable. The value gets the room, the label flexes
 TABLE = '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:inherit;font-size:inherit">'
 CELL = "border:1px solid #e3e3e3;background:#f9f9f9;padding:10px 20px"
-TH = f'<th style="{CELL};text-align:center">'
-TD = f'<td style="{CELL};max-width:400px;word-wrap:break-word">'
+TH = f'<th style="{CELL};text-align:center;max-width:280px;word-wrap:break-word">'
+TD = f'<td style="{CELL};min-width:200px;max-width:480px;word-wrap:break-word">'
 
 
 def table(rows: list[tuple[str, str, str]]) -> str:
