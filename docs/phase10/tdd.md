@@ -51,7 +51,7 @@ requisitions/{submission}/runs/{execution}     workflow, status, reason, classif
 
 ### From when
 
-- The new shape starts with the release that carries this phase, and the date goes here when it's out. Dev isn't rewritten. Prod's requisitions are, once, after the release
+- The new shape started with 0.15.0, on 2026-10-01. Prod's 13 requisitions were rewritten into it that day, after a Firestore export to `gs://ourfos-prod-ourfos-sources/firestore-backups/before-reshape-2026-10-01`, with the script on PR #17. Dev's were too, as a trial
 
 ## Cleaning (ADR 4)
 
@@ -101,7 +101,7 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
   | loan approval | `lekkai@`, `directors@`; Reply-To `directors@`, `lekkai@` | `lekkai@`; Reply-To `lekkai@` |
   | write-off     | `lekkai@`, `directors@`                                   | `lekkai@`                     |
 
-- Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@` and the submitter, and its Reply-To is `lekkai@` only
+- Plus the submitter, our domain only, as phase 9. A test run goes to `lekkai@`, and the submitter if `test_to` lists them (release 1 ADR 3), and its Reply-To is `lekkai@` only
 
 ## Code
 
@@ -135,4 +135,3 @@ What Leon's two emails already set out, as questions. Mifos isn't real yet, so t
 ## Not in this phase
 
 - What each new form's workflow does next: an approval by a director, a write-off in Mifos, a vehicle log that's two taps
-- Rewriting prod's requisitions into the new shape: once, carefully, after this is released

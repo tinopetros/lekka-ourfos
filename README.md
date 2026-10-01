@@ -63,7 +63,7 @@ The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigge
 
 Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to the form's `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. A loan request's replies go to `directors@` and `lekkai@`. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](docs/phase9/tdd.md).
 
-`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@` and whoever submitted, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](docs/release1/adr.md).
+`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@`, and whoever submitted if `test_to` lists them, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](docs/release1/adr.md).
 
 `make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](docs/phase7/tdd.md).
 
@@ -77,6 +77,7 @@ A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans 
 
 - [ ] **Catch a reused requisition.** Flag a Drive file, or a hash of its contents, already attached to an earlier requisition, before the model sees it. The model doesn't catch an old signed requisition on a new claim ([phase 6 ADR 4](docs/phase6/adr.md)). In the attachments bucket, the hash is already in each object's name
 - [ ] **Reverse a requisition.** Asked for by whoever submitted it, or by an accountant, and approved before anything is reversed. Someone once filed a second wifi requisition in error, and said so in its comment
+- [ ] **Fixtures expire on dev.** Every smoke leaves a dozen submissions and their runs. A 7-day Firestore TTL on dev only, on an `expire_at` set only on fixture runs (their submission ids start `fixture-`), and a second policy on `runs`, since deleting a document leaves its subcollections. Not on prod until we know the feature
 - [ ] **Hot to cold storage.** Attachments are read once, when classified. Try Autoclass on the attachments bucket before writing any lifecycle rules
 - [ ] **Alert when nobody was told.** Any failed execution (the handover email failing) and any trigger 5xx should email someone right away. Every one counts, not a rate. Handovers aren't alerts: they already emailed someone
 - [ ] **Harden: alert when it goes quiet.** If the form's add-on stops calling the webhook, or the trigger refuses everything, no run starts, so nothing fails and nobody hears. ourfos-v2 died that way, of an expired custom domain, unnoticed. A Cloud Monitoring alert on prod, within the free tier: no trigger request in N days, or any trigger 401 or 5xx. Our own front end will contain more of this, but not all of it

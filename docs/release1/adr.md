@@ -18,10 +18,11 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Each file's time is logged, so the next change is measured
 - **Revisit** with the front end: copy each Drive file into the bucket once, on receipt, so classify only ever reads GCS
 
-### 3. A test run tells only lekkai@ and its submitter
+### 3. A test run tells only lekkai@, and its submitter if listed
 
 - `?test=true` beside `?workflow=`, on dev and prod alike. The run is real: cleaned, classified by the model, stored. Only who hears changes
-- Its emails go to `lekkai@` and the submitter, never the project's list, and their subjects start `[TEST]`, so a forwarded one can't pass for real
+- Its emails go to `lekkai@`, never the project's list, and their subjects start `[TEST]`, so a forwarded one can't pass for real
+- The submitter too, only if `test_to` in `terraform/env/<env>.tfvars` lists them: `tpetros@` for now. Everyone else tests on dev, not with the flag
 - The document keeps `test: true`, so anything that lists requisitions can leave them out by default
 - `true` or `false` only: anything else is a 400, as the cleaner guesses nothing
 - The token still guards the trigger, so only whoever holds it can make a run a test

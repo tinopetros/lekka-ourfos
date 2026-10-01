@@ -54,13 +54,19 @@ def reply_to(form: str, test=False) -> list[str]:
 
 
 def recipients(form: str, submitter: str | None, test=False) -> tuple[list[str], int]:
-    """The form's list, or lekkai@ alone for a test, and the submitter, once each, in our domain only. And how
-    many were dropped (docs/release1/adr.md 3)."""
+    """The form's list and the submitter, once each, in our domain only. And how many were dropped. A test goes to
+    lekkai@, and to its submitter only if TEST_TO lists them (docs/release1/adr.md 3)."""
     listed = [sender()] if test else config()[form]["notify_to"]
+    if test and (submitter or "").strip().lower() not in test_to():
+        submitter = None
     wanted = [a.strip().lower() for a in listed] + [(submitter or "").strip().lower()]
     domain = "@" + sender().rsplit("@", 1)[1]
     to = list(dict.fromkeys(a for a in wanted if a.endswith(domain) and a.count("@") == 1))
     return to, len({a for a in wanted if a} - set(to))
+
+
+def test_to() -> set[str]:
+    return {a.strip().lower() for a in os.environ.get("TEST_TO", "").split(",") if a.strip()}
 
 
 def money(amount: float) -> str:
@@ -87,18 +93,22 @@ def file_links(refs: list[str]) -> tuple[str, str]:
 
 
 # One look for every table, whichever email it's in: the form add-on's, light and roomy. Styles inline, since
-# Gmail drops <style>. The email's own font, inherited: a table doesn't always inherit it unasked. A value wraps
-# rather than stretch the table, so a long comment stays readable
+# Gmail drops <style>. The email's own font, inherited: a table doesn't always inherit it unasked. Text wraps rather
+# than stretch the table, a long link too, so it reads on a phone as on a laptop
 TABLE = '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:inherit;font-size:inherit">'
-CELL = "border:1px solid #e3e3e3;background:#f9f9f9;padding:10px 20px"
+CELL = "border:1px solid #e3e3e3;background:#f9f9f9;padding:10px 14px;overflow-wrap:anywhere;word-wrap:break-word"
 TH = f'<th style="{CELL};text-align:center">'
-TD = f'<td style="{CELL};max-width:400px;word-wrap:break-word">'
+TD = f'<td style="{CELL};max-width:480px">'
+# A form's answers: as wide as the screen up to a point, the answer getting more of it than the question. Fixed, so
+# the widths hold whatever's in the cells
+ANSWERS = TABLE.replace('font-size:inherit"', 'font-size:inherit;width:100%;max-width:880px;table-layout:fixed"')
+QUESTION = f'<th style="{CELL};text-align:center;width:38%">'
 
 
 def table(rows: list[tuple[str, str, str]]) -> str:
     """Label, HTML value (already escaped), as the form's add-on lays out its answers."""
-    cells = "".join(f"<tr>{TH}{escape(label)}</th>{TD}{value}</td></tr>" for label, value, _ in rows)
-    return f"{TABLE}{cells}</table>"
+    cells = "".join(f"<tr>{QUESTION}{escape(label)}</th>{TD}{value}</td></tr>" for label, value, _ in rows)
+    return f"{ANSWERS}{cells}</table>"
 
 
 def acknowledgement(form: str, s: Submission) -> tuple[str, str]:
