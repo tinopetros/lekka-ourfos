@@ -128,7 +128,7 @@ wait:
 correct-start: check-env
 	@python3 -c 'import json, sys; print(json.dumps(json.load(open(sys.argv[1])) | {"id": sys.argv[2]}))' \
 		workflows/fixtures/requisition/corrections/$(FIXTURE).json $(ID) \
-		| gcloud workflows execute correction --location $(REGION) --project $(PROJECT) --data "$$(cat)" \
+		| gcloud workflows execute correction --location $(REGION) --project $(PROJECT) --data "$$(cat)" --verbosity error \
 			--format 'value(name)' | awk -F/ '{print $$NF}'
 
 correct:
