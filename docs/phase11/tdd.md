@@ -35,19 +35,20 @@ expense ─▶ … ─▶ suggest ─▶ post ─▶ read back ─▶ verify ─
 
 ## Mifos's settings (ADR 2)
 
-| Env var           | Dev                        | Prod                    | From                         |
-| ----------------- | -------------------------- | ----------------------- | ---------------------------- |
-| `MIFOS_BASE_URL`  | the Mifos server's API URL | the same                | `terraform/env/<env>.tfvars` |
-| `MIFOS_TENANT_ID` | `demo`                     | `default`               | tfvars                       |
-| `MIFOS_OFFICE_ID` | `1`                        | `1`                     | tfvars                       |
-| `MIFOS_CURRENCY`  | `USD`                      | `USD`                   | tfvars                       |
-| `MIFOS_USERNAME`  | a `demo` tenant user       | a `default` tenant user | secret `mifos-username`      |
-| `MIFOS_PASSWORD`  | its password               | its password            | secret `mifos-password`      |
+| Env var            | Dev                        | Prod                    | From                         |
+| ------------------ | -------------------------- | ----------------------- | ---------------------------- |
+| `MIFOS_BASE_URL`   | the Mifos server's API URL | the same                | `terraform/env/<env>.tfvars` |
+| `MIFOS_TENANT_ID`  | `demo`                     | `default`               | tfvars                       |
+| `MIFOS_OFFICE_ID`  | `1`                        | `1`                     | tfvars                       |
+| `MIFOS_CURRENCY`   | `USD`                      | `USD`                   | tfvars                       |
+| `MIFOS_VERIFY_SSL` | `false`, for now (ADR 7)   | `true`                  | tfvars                       |
+| `MIFOS_USERNAME`   | a `demo` tenant user       | a `default` tenant user | secret `mifos-username`      |
+| `MIFOS_PASSWORD`   | its password               | its password            | secret `mifos-password`      |
 
 - The secrets are per project, made by hand like `trigger-token`, so neither reaches Terraform's state (infra bootstrap 13)
 - `default` is production Mifos. Dev can't reach it three ways over (ADR 3):
   - dev's secret is a `demo` user, which `default` doesn't know
-  - `variables.tf` refuses `mifos_tenant_id = "default"` for any project but `ourfos-prod`
+  - `variables.tf` refuses `mifos.tenant_id = "default"` for any project but `ourfos-prod`
   - `mifos.py` refuses it too, before it sends anything, unless `GOOGLE_CLOUD_PROJECT` is `ourfos-prod`
 - `demo`'s chart is `default`'s: all 52 of `accounts.csv`'s accounts have the same GL id, code and name there (checked 2026-10-06). So expenser's lines post to `demo` as they would to the books
 
