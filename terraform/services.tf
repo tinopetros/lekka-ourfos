@@ -50,6 +50,7 @@ resource "google_cloud_run_v2_service" "services" {
           MIFOS_TENANT_ID           = var.mifos.tenant_id
           MIFOS_OFFICE_ID           = tostring(var.mifos.office_id)
           MIFOS_CURRENCY            = var.mifos.currency
+          MIFOS_VERIFY_SSL          = tostring(var.mifos.verify_ssl)
         }
         content {
           name  = env.key

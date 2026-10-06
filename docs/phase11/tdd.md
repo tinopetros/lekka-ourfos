@@ -33,7 +33,3 @@
 
 - One fixture, `happy`, posts to `demo` for real on every dev build
 - Every other fixture that reaches `post` keeps the stub
-
-## Open
-
-- Mifos's certificate: self-signed, expired, on a bare IP. Prod can't verify it

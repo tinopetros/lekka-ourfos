@@ -12,6 +12,7 @@ reply_to = {
   loan_approval = ["lekkai@lekkacredit.com"]
 }
 mifos = {
-  base_url  = "https://13.214.217.53/fineract-provider/api/v1"
-  tenant_id = "demo"
+  base_url   = "https://13.214.217.53/fineract-provider/api/v1"
+  tenant_id  = "demo"
+  verify_ssl = false
 }
