@@ -144,7 +144,7 @@ def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     rows = [
         submitter_row(r),
         ("Payable To", escape(r.payable_to), r.payable_to),
-        ("Total Amount", money(r.amount), money(r.amount)),
+        ("Total Amount", f"${money(r.amount)}", f"${money(r.amount)}"),
     ]
     if r.disbursed_on:
         rows.append(("Date Disbursed", day(r.disbursed_on), day(r.disbursed_on)))

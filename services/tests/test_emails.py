@@ -103,7 +103,7 @@ def test_an_acknowledgement_is_the_forms_answers():
     assert f"{emails.QUESTION}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
     assert "Invoice(s)" not in html
-    assert "Total Amount: 60" in text
+    assert "Total Amount: $60" in text
     assert "Receipt(s): File 1 https://drive.google.com/open?id=B2, File 2" in text
 
 
@@ -226,10 +226,27 @@ def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():
     html, text = emails.acknowledgement("vehicle_log", submission("vehicle_log"))
     assert "<strong>Vehicle Log Form has a new entry from lekkai@lekkacredit.com:</strong>" in html
     labels = [line.split(":")[0] for line in text.splitlines()[2:]]
-    assert labels[:3] == ["Email address", "Trip Name / Purpose", "Vehicle"]
-    assert labels[-2:] == ["Vehicle Images", "Destination"]
+    assert labels[:4] == ["Email address", "Trip Name / Purpose", "Destination", "Vehicle"]
+    assert labels[-1] == "Vehicle Images"
     assert "Issues Description" not in labels
     assert '<a href="https://drive.google.com/open?id=1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g">File 1</a>' in html
+
+
+def test_a_loan_reads_as_the_add_ons_did():
+    """#613's order: the case, then the recommendation, and the folder last."""
+    _, text = emails.acknowledgement("loan_approval", submission("loan_approval"))
+    labels = [line.split(":")[0] for line in text.splitlines()[2:]]
+    assert labels[:4] == [
+        "Email address",
+        "Applicant First Name",
+        "Applicant Last Name",
+        "Character - What's your assessment of the client's character?",
+    ]
+    assert labels[-3:] == [
+        'What is your personal recommendation e.g. "Approve/Disapprove"',
+        "Overall assessment (anything else that you would you like the approvers to know?)",
+        "Link to Applicant Client Folder (see example below)",
+    ]
 
 
 def test_a_lone_link_is_linked_and_a_line_break_kept():

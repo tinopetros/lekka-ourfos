@@ -27,7 +27,7 @@ All from `lekkai@`, HTML with a plain-text alternative, built in `services/email
 What the form add-on sends today, from its "All Answers":
 
 - **Requisition Approval Request Form has a new entry from {submitted_by}:**, in bold like the reply's suggestion
-- A two-column table: Email address, Payable To, Total Amount, Date Disbursed, Comment, then a row per file field with files: Signed Requisition Form, Receipt(s), Invoice(s). A field left empty has no row, as today. Every table in every email looks the same
+- A two-column table: Email address, Payable To, Total Amount (with its $, as the add-on's), Date Disbursed, Comment, then a row per file field with files: Signed Requisition Form, Receipt(s), Invoice(s). A field left empty has no row, as today. Every table in every email looks the same
 - "Sep 18, 2026" for dates. The amount as the form had it: 60, or 1,234.50
 - Files as "File 1", "File 2", each a link to Drive (`drive.google.com/open?id=…`). A `gs://` file is named without a link until the front end can show it (ADR 4)
 - Sender's name: the form's
