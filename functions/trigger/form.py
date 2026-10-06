@@ -22,6 +22,8 @@ FILE_REF = re.compile(
 CURRENCY = re.compile(r"^(US\$|USD|ZWL|ZIG|\$)", re.IGNORECASE)
 # Commas only as thousands separators, so 1.200,00 is refused rather than read as 1.2
 AMOUNT = re.compile(r"^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$")
+# The add-on sends a paragraph's line breaks as <BR/>. A line break is what was typed
+BR = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
 
 class Invalid(Exception):
@@ -48,7 +50,7 @@ def clean(raw: dict, form: str = "requisition") -> Submission:
         if not isinstance(value, str | int | float):
             errors.append(f"{key}: not text")
             return None
-        return str(value).strip() or None
+        return BR.sub("\n", str(value)).strip() or None
 
     def parse(key: str, to, into: str):
         value = text(key)
