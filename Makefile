@@ -19,6 +19,7 @@ TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-1
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
 SERVICES_BUILD := .build/services
+WHEELS := .build/wheels
 REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
 # make evals: which cases (comma separated eval_ids, all when empty), and how many times over
@@ -63,9 +64,16 @@ help:
 check-env:
 	@case " $(VALID_ENVS) " in *" $(ENV) "*) ;; *) echo "ENV must be one of: $(VALID_ENVS)" >&2; exit 1 ;; esac
 
-# File targets, so a later CI step without uv reuses what an earlier one made
+# File targets, so a later CI step without uv reuses what an earlier one made. The connector is left out: the image
+# installs its wheel
 %/requirements.txt: %/uv.lock %/pyproject.toml
-	cd $* && uv export --frozen --no-hashes --no-dev -q -o requirements.txt
+	cd $* && uv export --frozen --no-hashes --no-dev --no-emit-package mifos-connector -q -o requirements.txt
+
+# The connector is private, so its locked commit is built into a wheel here, where git can reach it, and never in
+# the image (docs/phase11/adr.md 1). In Cloud Build, git swaps a token in for ssh
+$(WHEELS): services/uv.lock
+	rm -rf $@ && cd services && uvx -q --from pip pip wheel -q --no-deps -w ../$@ \
+		"$$(uv export --frozen --no-hashes --no-dev -q --only-emit-package mifos-connector | grep '^mifos-connector @')"
 
 # Fixed mtimes so the zip, and so the function, only changes when the code does
 # The models come from services/, so the trigger and the service share one shape
@@ -74,11 +82,12 @@ $(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/tr
 	cp $^ .build/trigger/
 	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *
 
-package: $(REQUIREMENTS) $(TRIGGER_ZIP)
+package: $(REQUIREMENTS) $(TRIGGER_ZIP) $(WHEELS)
 
-# services/ with expenser beside it, as the image sees them. Never a local .env or venv
-stage: services/requirements.txt
+# services/ with expenser and the connector's wheel beside it, as the image sees them. Never a local .env or venv
+stage: services/requirements.txt $(WHEELS)
 	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
+	cp -R $(WHEELS) $(SERVICES_BUILD)/wheels
 	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
 		-C services . | tar -xf - -C $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ --exclude .adk --exclude expenser/evals -C agents expenser | tar -xf - -C $(SERVICES_BUILD)

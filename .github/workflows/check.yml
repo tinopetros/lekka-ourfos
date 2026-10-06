@@ -1,6 +1,6 @@
 name: check
 
-# `make check` on every pull request, and on main for direct pushes. No GCP credentials needed
+# `make check` on every pull request, and on main for direct pushes. No GCP credentials needed, only the connector's token
 
 on:
   pull_request:
@@ -15,6 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Its token is for this repo only, and would be sent to the connector's too
+          persist-credentials: false
+      # The connector is private: a read-only token for it, in place of ssh (docs/phase11/adr.md 1)
+      - run: git config --global url."https://x-access-token:${MIFOS_CONNECTOR_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+        env:
+          MIFOS_CONNECTOR_TOKEN: ${{ secrets.MIFOS_CONNECTOR_TOKEN }}
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.4
