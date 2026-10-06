@@ -28,6 +28,10 @@ FIXTURES = Path(__file__).parents[3] / "workflows/fixtures"
 REQUISITIONS = FIXTURES / "requisition"
 
 
+def test_a_reference_number_is_kept_as_written():
+    assert clean(FORM | {"reference_number": " REQ-0482 "}).reference_number == "REQ-0482"
+
+
 def invalid(**changes) -> list[str]:
     with pytest.raises(Invalid) as e:
         clean(FORM | changes)
@@ -43,6 +47,8 @@ def test_clean():
     assert r.disbursed_on == date(2026, 4, 10)
     assert r.submitted_at == datetime(2026, 4, 10, 13, 45, 12, tzinfo=UTC)
     assert r.comment is None
+    # Until the form asks for it
+    assert r.reference_number is None
     assert r.files.signed_requisition_form == ["1SadMsMDjnTLSW-9JsqkQIKc4WYndlqwz"]
     assert r.files.receipts == []
 

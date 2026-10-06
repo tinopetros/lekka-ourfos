@@ -37,6 +37,7 @@
 ### 6. No posted email until Mifos
 
 - The post is a stub, so a confirmation would confirm nothing. Two emails a requisition for now; three with Mifos, the last replacing the suggestion as the word that counts (phase 1 ADR 2)
+- **Closed** by [phase 11 ADR 3](../phase11/adr.md)
 
 ### 7. One send per kind, not exactly once
 

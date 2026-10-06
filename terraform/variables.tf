@@ -45,3 +45,21 @@ variable "simulate" {
   type        = bool
   default     = false
 }
+
+variable "mifos" {
+  description = "Where we post, not who as: the user is a pair of secrets made by hand (docs/phase11/tdd.md, step 2)"
+  type = object({
+    base_url  = string
+    tenant_id = string
+    office_id = optional(number, 1)
+    currency  = optional(string, "USD")
+    # Off until the server has a certificate we can check (docs/phase11/adr.md 5)
+    verify_ssl = optional(bool, true)
+  })
+
+  # default is the books (docs/phase11/adr.md 4)
+  validation {
+    condition     = var.mifos.tenant_id != "default" || var.project_id == "ourfos-prod"
+    error_message = "Only ourfos-prod posts to the default tenant."
+  }
+}

@@ -105,6 +105,12 @@ def test_an_acknowledgement_is_the_forms_answers():
     assert "Invoice(s)" not in html
     assert "Total Amount: $60" in text
     assert "Receipt(s): File 1 https://drive.google.com/open?id=B2, File 2" in text
+    assert "Reference Number" not in text
+
+
+def test_a_reference_number_is_shown_when_the_form_has_one():
+    _, text = emails.acknowledgement(R, REQUISITION.model_copy(update={"reference_number": "REQ-0482"}))
+    assert "Reference Number: REQ-0482" in text
 
 
 def test_the_forms_values_are_escaped():

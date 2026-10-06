@@ -14,6 +14,7 @@
     "response_date": "Apr 10, 2026, 3:45:12 PM",
     "response_id": "fixture-response",
     "simulate": {
-        "classify": "files"
+        "classify": "files",
+        "mifos_post": "stub"
     }
 }

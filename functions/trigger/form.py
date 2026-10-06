@@ -146,6 +146,7 @@ IDENTITY = {
 }
 
 REQUISITION = IDENTITY | {
+    "reference_number": ("reference_number", str),
     "payable_to": ("payable_to", str),
     "total_amount": ("amount", amount),
     "date_disbursed": ("disbursed_on", day),

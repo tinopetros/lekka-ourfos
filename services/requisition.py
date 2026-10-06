@@ -18,6 +18,8 @@ class Files(BaseModel):
 
 
 class Requisition(Submission):
+    # What the requisition's paper says, and Mifos's reference. Until the form asks, Mifos gets the response number
+    reference_number: str | None = None
     payable_to: str = Field(min_length=1)
     amount: float = Field(gt=0)
     disbursed_on: date | None = None

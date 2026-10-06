@@ -1708,6 +1708,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mifos-connector"
+version = "0.0.0"
+source = { git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.0.0#7a750b23cc628605fa54b7f879bd2e55dcd7746d" }
+dependencies = [
+    { name = "httpx" },
+    { name = "typing-extensions" },
+]
+
+[[package]]
 name = "mmh3"
 version = "5.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2197,6 +2206,7 @@ dependencies = [
     { name = "google-adk", extra = ["gcp"] },
     { name = "google-auth", extra = ["requests"] },
     { name = "google-cloud-firestore" },
+    { name = "mifos-connector" },
     { name = "pillow" },
     { name = "uvicorn" },
 ]
@@ -2213,6 +2223,7 @@ requires-dist = [
     { name = "google-adk", extras = ["gcp"], specifier = "==2.10.0" },
     { name = "google-auth", extras = ["requests"] },
     { name = "google-cloud-firestore", specifier = ">=2.32.0" },
+    { name = "mifos-connector", git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.0.0" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "uvicorn", specifier = ">=0.53.0" },
 ]

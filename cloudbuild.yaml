@@ -16,6 +16,12 @@ options:
 # A ceiling, not a duration. A build killed mid-apply leaves the state locked
 timeout: 1800s
 
+# A read-only token for tinopetros/mifos-connector-py, made by hand (infra's bootstrap 12)
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/mifos-connector-token/versions/latest
+      env: MIFOS_CONNECTOR_TOKEN
+
 steps:
   # A tag can point at any commit. Refuse one that did not pass the dev trigger.
   # $$ is a literal $ to the shell; a bare $NAME is a Cloud Build substitution
@@ -32,10 +38,17 @@ steps:
         [ -n "$$ok" ] || { echo "No successful lekka-ourfos-dev build of ${COMMIT_SHA}; merge it to main first."; exit 1; }
         echo "lekka-ourfos-dev passed on ${COMMIT_SHA}: build $$ok"
 
+  # The only step with the connector's token: git swaps it in for ssh to build the wheel (docs/phase11/tdd.md, step 1)
   - id: package
     name: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
     entrypoint: bash
-    args: [-c, "apt-get -qq update && apt-get -qq install -y make zip >/dev/null && make package"]
+    secretEnv: [MIFOS_CONNECTOR_TOKEN]
+    args:
+      - -c
+      - |
+        apt-get -qq update && apt-get -qq install -y make zip git >/dev/null
+        git config --global url."https://x-access-token:$$MIFOS_CONNECTOR_TOKEN@github.com/".insteadOf "ssh://git@github.com/"
+        make package
 
   - id: build
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim

@@ -46,10 +46,30 @@ resource "google_cloud_run_v2_service" "services" {
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
           FORMS                     = jsonencode(local.forms)
           TEST_TO                   = join(",", var.test_to)
+          MIFOS_BASE_URL            = var.mifos.base_url
+          MIFOS_TENANT_ID           = var.mifos.tenant_id
+          MIFOS_OFFICE_ID           = tostring(var.mifos.office_id)
+          MIFOS_CURRENCY            = var.mifos.currency
+          MIFOS_VERIFY_SSL          = tostring(var.mifos.verify_ssl)
         }
         content {
           name  = env.key
           value = env.value
+        }
+      }
+
+      # Made by hand, values and all, so neither reaches Terraform's state (infra's bootstrap 13). Read when an
+      # instance starts
+      dynamic "env" {
+        for_each = { MIFOS_USERNAME = "mifos-username", MIFOS_PASSWORD = "mifos-password" }
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = "latest"
+            }
+          }
         }
       }
     }
