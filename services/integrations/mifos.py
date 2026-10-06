@@ -83,13 +83,18 @@ def failed(e: MifosError, reference: str) -> HTTPException:
 
 
 def read_back(mifos_transaction_id: str, debit: list, credit: list, code=None) -> dict:
-    """The lines Mifos has for the transaction, and what differs from what we posted, if anything."""
+    """What Mifos has for the transaction, and what differs from what we posted, if anything."""
     if code or mifos_transaction_id.startswith(STUB):
-        # The stub echoes what we posted. "mismatch" drops one
+        # The stub echoes what we posted, with no date or office's name. "mismatch" drops a line
         simulate("mifos_read", code)
         lines = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
         if code == "mismatch":
             lines = lines[:-1]
+        booked = {
+            "date": None,
+            "office": {"id": int(os.environ.get("MIFOS_OFFICE_ID", "1")), "name": None},
+            "currency": os.environ.get("MIFOS_CURRENCY", "USD"),
+        }
     else:
         try:
             entries = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
@@ -107,9 +112,20 @@ def read_back(mifos_transaction_id: str, debit: list, credit: list, code=None) -
             }
             for e in entries
         ]
+        # The same on every line of one transaction, so kept once
+        first = entries[0] if entries else {}
+        booked = {
+            "date": date(*first["transactionDate"]).isoformat() if first.get("transactionDate") else None,
+            "office": {"id": first.get("officeId"), "name": first.get("officeName")},
+            "currency": (first.get("currency") or {}).get("code"),
+        }
     log("mifos read back", mifos_transaction_id=mifos_transaction_id, lines=len(lines))
     wanted = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
-    return {"mifos_transaction_id": mifos_transaction_id, "lines": lines, "mismatch": mismatch(wanted, lines)}
+    return {
+        "mifos_transaction_id": mifos_transaction_id,
+        "posted": {"transaction_id": mifos_transaction_id, **booked, "lines": lines},
+        "mismatch": mismatch(wanted, lines),
+    }
 
 
 def line(d: dict, side: str) -> dict:

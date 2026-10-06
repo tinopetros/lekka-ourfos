@@ -113,7 +113,9 @@ def post(id: str, body: dict):
         classification["debit"],
         classification["credit"],
         requisition.disbursed_on or datetime.now(HARARE).date(),
-        emails.subject(FORM, requisition.payable_to, requisition.response_number),
+        # Labelled on the entry, so a person in Mifos can find the requisition and the run
+        f"{emails.subject(FORM, requisition.payable_to, requisition.response_number)}. "
+        f"Response number: {requisition.response_number}. Workflow run: {this.ref.id}",
         "stub" if code == "unrecorded" else code,
     )
     this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
@@ -126,7 +128,7 @@ def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None,
     this = run(id)
     classification = this.get()["classification"]
     entry = mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
-    this.record(posted=entry["lines"])
+    this.record(posted=entry["posted"])
     return entry
 
 
@@ -140,7 +142,7 @@ def confirm(id: str, body: dict):
     simulate("confirm", body.get("simulate"))
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     if transaction := body.get("mifos_transaction_id"):
-        html, text = emails.confirmation(doc["posted"], transaction, this.ref.id)
+        html, text = emails.confirmation(doc["posted"]["lines"], transaction)
     else:
         html, text = emails.not_posted(doc["classification"])
     sent = send(

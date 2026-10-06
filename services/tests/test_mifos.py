@@ -63,6 +63,10 @@ def entry(gl, side, amount):
         "glAccountName": names[gl][1],
         "entryType": {"value": side},
         "amount": amount,
+        "transactionDate": [2026, 10, 5],
+        "officeId": 1,
+        "officeName": "Head Office",
+        "currency": {"code": "USD", "displaySymbol": "$"},
     }
 
 
@@ -128,7 +132,13 @@ def test_a_read_back_is_what_mifos_has(journal):
     mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject")
     entry = mifos.read_back("L42", DEBIT, CREDIT)
     assert entry["mismatch"] is None
-    assert [(x["name"], x["type"], x["amount"]) for x in entry["lines"]] == [
+    assert {k: v for k, v in entry["posted"].items() if k != "lines"} == {
+        "transaction_id": "L42",
+        "date": "2026-10-05",
+        "office": {"id": 1, "name": "Head Office"},
+        "currency": "USD",
+    }
+    assert [(x["name"], x["type"], x["amount"]) for x in entry["posted"]["lines"]] == [
         ("Advertising and Promotions", "DEBIT", 60),
         ("Cash at Vault", "CREDIT", 60),
     ]
@@ -172,7 +182,9 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
     assert requisitions.post("r", {}) == {"mifos_transaction_id": "L42"}
     assert len(journal.created) == 1
     assert journal.created[0]["transactionDate"] == "2026-10-05"
-    assert journal.created[0]["comments"] == "Requisition Approval Request Form - City parking - #7"
+    assert journal.created[0]["comments"] == (
+        "Requisition Approval Request Form - City parking - #7. Response number: 7. Workflow run: run-1"
+    )
 
 
 def test_a_test_run_never_posts(docs, journal, sent):
@@ -180,7 +192,7 @@ def test_a_test_run_never_posts(docs, journal, sent):
     assert requisitions.post("r", {}) == {"skipped": "test"}
     assert journal.created == []
     requisitions.confirm("r", {"mifos_transaction_id": None, "thread": {"thread_id": "t1"}})
-    assert "Not posted: this was a test run." in sent[0][1]
+    assert "Lekkai's action: NOT POSTED" in sent[0][1] and emails.DISCLAIMER in sent[0][1]
 
 
 def test_the_last_email_is_what_mifos_has_and_its_id(docs, journal, sent):
@@ -190,8 +202,8 @@ def test_the_last_email_is_what_mifos_has_and_its_id(docs, journal, sent):
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     assert [kind for kind, _ in sent] == ["confirmation"]
     html = sent[0][1]
-    assert "Posted to Mifos as transaction L42." in html
-    assert "Cash at Vault" in html and "Total" in html and "run-1" in html
+    assert "Lekkai's action: POSTED" in html and "Mifos transaction ID: L42" in html
+    assert "Cash at Vault" in html and emails.DISCLAIMER in html
 
 
 def test_a_ledger_totals_each_side():

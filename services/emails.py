@@ -205,30 +205,26 @@ def ledger(lines: list[dict]) -> tuple[str, list[str]]:
     return grid(head, rows), [" | ".join(head)] + [" | ".join(row) for row in rows]
 
 
-def confirmation(lines: list[dict], transaction: str, reference: str) -> tuple[str, str]:
-    """The last word: what Mifos has, from its read-back, not what we sent (docs/phase11/adr.md 3)."""
-    heading = f"Posted to Mifos as transaction {transaction}."
+def action(heading: str, note: str, lines: list[dict]) -> tuple[str, str]:
+    """Lekkai's action, a line about it, the lines, and that Lekkai may be wrong."""
     table_html, table_text = ledger(lines)
-    note = f"Its reference in Mifos is {reference}."
-    html = [
-        f"<strong>{escape(heading)}</strong>",
-        table_html,
-        f"<p>{escape(note)}</p>",
-        f"<p><em>{DISCLAIMER}</em></p>",
-    ]
-    return "\n".join(html), "\n".join([heading, "", *table_text, "", note, "", DISCLAIMER])
+    html = [f"<strong>{heading}</strong>", f"<p>{escape(note)}</p>", table_html, f"<p><em>{DISCLAIMER}</em></p>"]
+    return "\n".join(html), "\n".join([heading, "", note, "", *table_text, "", DISCLAIMER])
+
+
+def confirmation(lines: list[dict], transaction: str) -> tuple[str, str]:
+    """The last word: what Mifos has, from its read-back, not what we sent (docs/phase11/adr.md 3)."""
+    return action("Lekkai's action: POSTED", f"Mifos transaction ID: {transaction}", lines)
 
 
 def not_posted(c: dict) -> tuple[str, str]:
     """A test run's last email: nothing went to Mifos, and what would have."""
-    heading = "Not posted: this was a test run."
     lines = [{**d, "type": "DEBIT"} for d in c.get("debit", [])] + [
         {**d, "type": "CREDIT"} for d in c.get("credit", [])
     ]
-    table_html, table_text = ledger(lines)
-    note = "These are the lines it would have posted."
-    html = [f"<strong>{heading}</strong>", f"<p>{note}</p>", table_html, f"<p><em>{DISCLAIMER}</em></p>"]
-    return "\n".join(html), "\n".join([heading, "", note, "", *table_text, "", DISCLAIMER])
+    return action(
+        "Lekkai's action: NOT POSTED", "This was a test run. These are the lines it would have posted.", lines
+    )
 
 
 def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:

@@ -19,8 +19,8 @@
    - dated the day it was disbursed, or today
    - never twice: a run that has posted returns its transaction
    - never on a test run
-5. **Read back.** What Mifos has, compared with what we posted, line by line (ADR 2)
-6. **The last email.** A reply in the thread: Mifos's lines and the transaction id (ADR 3)
+5. **Read back.** What Mifos has, compared with what we posted, line by line (ADR 2). The run keeps it as `posted`: the transaction id, the date it's booked on, the office, the currency, and its lines
+6. **The last email.** A reply in the thread: **Lekkai's action: POSTED**, the Mifos transaction ID, Mifos's lines, and that Lekkai may make mistakes (ADR 3). A test run's says **NOT POSTED**
 7. **Prod.** Its tfvars and secrets, planned, not released
 
 ## Settings
