@@ -37,7 +37,7 @@
 
 ## Smoke
 
-Each run its own submission, so the corrections after know which to correct. Checked through each run's result: the deployer doesn't read Firestore
+Each run its own submission, so the corrections after know which to correct. Each run's result, then what they wrote, read from dev's Firestore by `scripts/smoke_checks.py` (the deployer reads dev's database: infra #19)
 
 - `happy`: posted to `demo`, as before
 - `mifos-off`: `?mifos=false`, done, `skipped: mifos`: nothing posted and no third email
@@ -48,6 +48,7 @@ Each run its own submission, so the corrections after know which to correct. Che
   - `correct-unposted` on `mifos-off`: refused
   - `correct-timeout` on `google-doc`, the mirror times out: handed over
 - The sync: with no mark, `skipped: not preloaded`. With one, the mark after is never under the mark before
+- In Firestore: `happy`'s entry is Lekkai's, `Subject:`, with Mifos's dates and ids; it reads posted, reversed, posted; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`; the mark is the sync's
 
 ## By hand, once
 
@@ -85,7 +86,9 @@ done
 
 - Fineract sorts `/journalentries` by `id`, both ways, but its `totalFilteredRecords` says 1 whatever the count: the sync pages until a short page
 - `demo` has 431 manual transactions in 2026, 862 lines, read in 6 seconds: the preload is one call, no cursor
-- The deployer doesn't read Firestore (infra #16 dropped its grant), so smoke checks each run's result. A correction on `happy` that's done is itself the proof `happy` left a live entry
+- The deployer didn't read Firestore (infra #16 dropped its grant). Smoke checked each run's result first, then infra #19 let it read dev's, so smoke checks what was written too
+- Those checks found a refused correction left its requisition's status `received`: a correction's run now has no status until it posts or ends
+- A test run before the record was faked wrote `L42` to dev's Firestore through a laptop's credentials. Tests now can't reach Firestore at all (`tests/conftest.py`)
 - Correction fixtures are under `requisition/corrections/`: a folder of `fixtures/` is a form, to the trigger's tests
 - This branch on dev, without the Scheduler job: smoke passed, and `smoke-happy-1791320954561042000` reads posted, reversed, posted, each entry with Mifos's ids. Then the preload, by hand: 428 added, the 3 the correction had recorded skipped, and a nightly sync after it, 0 added, the mark unmoved
 - Dev's record also holds the stub's entries, `stub-txn-…`, from fixtures. Prod never simulates, so never has them

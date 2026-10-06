@@ -164,7 +164,7 @@ smoke: check-env
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)?workflow=requisition"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@stamp=$$(python3 -c 'import time; print(time.time_ns())'); \
+	@rm -rf .build/smoke && mkdir -p .build/smoke; stamp=$$(python3 -c 'import time; print(time.time_ns())'); echo $$stamp > .build/smoke/stamp; \
 	for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done requisition/mifos-off:skipped \
 		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over requisition/invalid:handed_over \
 		vehicle_log/happy:done vehicle_log/invalid:handed_over loan_approval/happy:done loan_approval/invalid:handed_over \
@@ -179,7 +179,7 @@ smoke: check-env
 				result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture SUBMISSION=smoke-$$fixture-$$stamp \
 					$$([ $$fixture = mifos-off ] && echo MIFOS=false)) 2>/dev/null); \
 			fi; \
-			echo "$$path: $$result"; \
+			echo "$$path: $$result"; echo "$$result" > .build/smoke/$$form-$$fixture.json; \
 			case $$want in \
 				posted) echo "$$result" | grep '"status":"done"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' && break ;; \
 				corrected) echo "$$result" | grep '"status":"done"' | grep '"reversal":"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' && break ;; \
@@ -189,9 +189,10 @@ smoke: check-env
 			[ $$form = correction ] && exit 1; [ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
-	@result=$$($(MAKE) -s sync 2>/dev/null | tail -1); echo "sync: $$result"; \
+	@result=$$($(MAKE) -s sync 2>/dev/null | tail -1); echo "sync: $$result"; echo "$$result" > .build/smoke/sync.json; \
 		echo "$$result" | python3 -c 'import json, sys; r = json.loads(sys.stdin.read().split(None, 1)[1]); \
 			assert r.get("skipped") == "not preloaded" or r["last_entry_id"] >= r["was"], r'
+	@python3 scripts/smoke_checks.py $(PROJECT) $$(cat .build/smoke/stamp) .build/smoke
 
 # Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for
 # expenser.evals' custom metrics

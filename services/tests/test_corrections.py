@@ -226,3 +226,10 @@ def test_corrected_lines_must_make_an_entry(docs, ask, says):
     with pytest.raises(HTTPException) as e:
         corrections.start("r", ask)
     assert e.value.status_code == 422 and says in e.value.detail
+
+
+def test_a_refused_correction_leaves_no_status(docs):
+    docs[("requisition", "r")]["live_entry"] = None
+    with pytest.raises(HTTPException):
+        corrections.start("r", ASK)
+    assert "status" not in docs[("requisition", "r", "run-1")]

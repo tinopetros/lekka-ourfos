@@ -36,11 +36,11 @@ def start(id: str, body: dict):
     this = run(id)
     # Only ever set on dev: the prod workflow drops it
     simulated = {"simulate": body["simulate"]} if body.get("simulate") else {}
-    # The run first, so a claim always names a run that says how it ended
+    # The run first, so a claim always names a run that says how it ended. No status until it posts or ends: a
+    # status is the submission's too, and a correction that's refused changes nothing
     this.save(
         **simulated,
         workflow=body.get("workflow"),
-        status="received",
         execution={"started_at": store.NOW, "revision": body.get("revision")},
         request={
             "reason": reason,
