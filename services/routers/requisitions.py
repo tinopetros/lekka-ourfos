@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
 
 import emails
+import journal
 import store
 from classify import attachments, expenser
 from common import log, simulate
@@ -113,15 +114,16 @@ def post(id: str, body: dict):
     # The requisition's own reference, the response number until the form asks for one. Mifos has a field for it,
     # so the comments say what else finds it: the subject, the response number and the run
     reference = requisition.reference_number or str(requisition.response_number)
+    on = requisition.disbursed_on or datetime.now(HARARE).date()
+    said = comments(requisition, this.ref.id)
     posted = mifos.post(
-        reference,
-        classification["debit"],
-        classification["credit"],
-        requisition.disbursed_on or datetime.now(HARARE).date(),
-        comments(requisition, this.ref.id),
-        "stub" if code == "unrecorded" else code,
+        reference, classification["debit"], classification["credit"], on, said, "stub" if code == "unrecorded" else code
     )
-    this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
+    transaction = posted["mifos_transaction_id"]
+    this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=transaction)
+    journal.posted(
+        FORM, id, this.ref.id, transaction, classification["debit"], classification["credit"], on, reference, said
+    )
     return posted
 
 
@@ -140,6 +142,7 @@ def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None,
     classification = this.get()["classification"]
     entry = mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
     this.record(posted=entry["posted"])
+    journal.read_back(entry["entry"])
     return entry
 
 

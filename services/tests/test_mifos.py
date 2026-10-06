@@ -14,6 +14,7 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 from test_forms import Doc
 
 import emails
+import journal as journal_entries
 import store
 from common import execution_id
 from integrations import mifos
@@ -168,6 +169,7 @@ def docs(monkeypatch):
     docs = {("requisition", "r"): {"answers": REQUISITION}}
     monkeypatch.setattr(store, "submission", lambda form, id: Doc(docs, (form, id)))
     monkeypatch.setattr(store, "run", lambda form, id, run: Doc(docs, (form, id, run)))
+    monkeypatch.setattr(journal_entries, "entry", lambda txn: Doc(docs, ("journal_entries", txn)))
     execution_id.set("run-1")
     docs[("requisition", "r", "run-1")] = {"classification": {"approve": True, "debit": DEBIT, "credit": CREDIT}}
     return docs
@@ -195,6 +197,25 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
     assert journal.created[0]["comments"] == (
         "Subject: Requisition Approval Request Form - City parking - #7. Response number: 7. Workflow run: run-1"
     )
+
+
+def test_a_post_is_recorded_as_lekkais_and_live(docs, journal, sent):
+    requisitions.post("r", {})
+    recorded = docs[("journal_entries", "L42")]
+    assert {k: recorded[k] for k in ("source", "form", "submission", "run", "status", "transaction_date")} == {
+        "source": "lekkai",
+        "form": "requisition",
+        "submission": "r",
+        "run": "run-1",
+        "status": "live",
+        "transaction_date": "2026-10-05",
+    }
+    assert [(x["type"], x["glId"]) for x in recorded["lines"]] == [("DEBIT", 66), ("CREDIT", 109)]
+    assert docs[("requisition", "r")]["live_entry"] == "L42"
+    assert docs[("requisition", "r")]["journal_entries"] == ["L42"]
+    requisitions.read_back("r", "L42", None)
+    assert docs[("journal_entries", "L42")]["created_on"] == "2026-10-06"
+    assert docs[("journal_entries", "L42")]["entry_ids"] == [966, 1009]
 
 
 def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(docs, journal, sent):
