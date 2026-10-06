@@ -3,7 +3,7 @@
 ## Goal
 
 - An approved requisition is posted to Mifos as a journal entry. The last email shows what Mifos has, and its transaction id
-- Dev first, posting to Mifos's `demo` tenant. Prod is wired for `default`, the books, but not released
+- Dev first, posting to Mifos's `demo` tenant. Prod is wired for `default`, but not released until there is a reversal / remediation plan
 
 ## Steps
 
