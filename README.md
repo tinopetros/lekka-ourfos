@@ -24,8 +24,9 @@ Google Form ─▶ trigger ─▶ Workflows execution ─▶ one thread of email
                  │            ├─ classify    (expense on: expenser, an ADK agent, in the services)
                  │            ├─ check       (deterministic, in the workflow)
                  │            ├─ suggest     (a reply: Lekkai's suggestion)
-                 │            ├─ post        (Mifos, and read it back)
-                 │            └─ confirm     (a reply: posted, once Mifos is real)
+                 │            ├─ post        (Mifos: demo on dev, the books on prod; never a test run)
+                 │            ├─ read back   (what Mifos has, line by line against what we posted)
+                 │            └─ confirm     (a reply: Mifos's lines and its transaction id)
                  ▼
              Firestore
 ```
@@ -83,4 +84,4 @@ A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans 
 - [ ] **Harden: alert when it goes quiet.** If the form's add-on stops calling the webhook, or the trigger refuses everything, no run starts, so nothing fails and nobody hears. ourfos-v2 died that way, of an expired custom domain, unnoticed. A Cloud Monitoring alert on prod, within the free tier: no trigger request in N days, or any trigger 401 or 5xx. Our own front end will contain more of this, but not all of it
 - [ ] **Drop `raw` once our own front end posts requisitions.** The form's payload rides beside the clean requisition while the cleaner is new ([phase 5 ADR 2](docs/phase5/adr.md)), and it's what an unreadable form's handover shows ([phase 9 ADR 5](docs/phase9/adr.md)). A front end that validates before it posts needs neither
 - [ ] **One bootstrap for a fresh project.** Each phase adds its own "Bootstrapped, once" steps on top of the last. At the end, fold them into one set of instructions that takes a fresh project, after infra has run, to deployable, and test it on one
-- [ ] **A post that timed out but landed.** The handover says to check the reference before booking it again, but a person may skip that and book it twice. With the real Mifos, look the reference up before handing over (phase 4's `post-timeout`). And when a post lands after the run ended, email the thread that it landed, with its transaction id
+- [ ] **A post that timed out but landed.** The handover says to check the reference before booking it again, but a person may skip that and book it twice. Look the reference up before handing over (phase 4's `post-timeout`): Fineract's journal entries can't be filtered by reference, so it's a date-range scan. And when a post lands after the run ended, email the thread that it landed, with its transaction id
