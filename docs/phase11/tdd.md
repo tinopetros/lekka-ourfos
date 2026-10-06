@@ -49,7 +49,7 @@ expense ─▶ … ─▶ suggest ─▶ post ─▶ read back ─▶ verify ─
   - dev's secret is a `demo` user, which `default` doesn't know
   - `variables.tf` refuses `mifos_tenant_id = "default"` for any project but `ourfos-prod`
   - `mifos.py` refuses it too, before it sends anything, unless `GOOGLE_CLOUD_PROJECT` is `ourfos-prod`
-- `demo`'s chart is `default`'s: all 161 of `accounts.csv`'s rows have the same GL id, code and name there (checked 2026-10-06). So expenser's lines post to `demo` as they would to the books
+- `demo`'s chart is `default`'s: all 52 of `accounts.csv`'s accounts have the same GL id, code and name there (checked 2026-10-06). So expenser's lines post to `demo` as they would to the books
 
 ## Post
 
