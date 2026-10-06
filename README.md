@@ -24,8 +24,9 @@ Google Form ─▶ trigger ─▶ Workflows execution ─▶ one thread of email
                  │            ├─ classify    (expense on: expenser, an ADK agent, in the services)
                  │            ├─ check       (deterministic, in the workflow)
                  │            ├─ suggest     (a reply: Lekkai's suggestion)
-                 │            ├─ post        (Mifos, and read it back)
-                 │            └─ confirm     (a reply: posted, once Mifos is real)
+                 │            ├─ post        (Mifos: demo on dev, the books on prod; never a test run)
+                 │            ├─ read back   (what Mifos has, line by line against what we posted)
+                 │            └─ confirm     (a reply: Mifos's lines and its transaction id)
                  ▼
              Firestore
 ```
