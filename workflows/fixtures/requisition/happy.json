@@ -12,5 +12,6 @@
     "form_name": "Requisition Approval Request Form",
     "response_number": "-482",
     "response_date": "Apr 10, 2026, 3:45:12 PM",
-    "response_id": "fixture-response"
+    "response_id": "fixture-response",
+    "reference_number": "REQ-FIXTURE-482"
 }

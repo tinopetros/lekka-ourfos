@@ -143,6 +143,7 @@ def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
 def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     rows = [
         submitter_row(r),
+        *([("Reference Number", escape(r.reference_number), r.reference_number)] if r.reference_number else []),
         ("Payable To", escape(r.payable_to), r.payable_to),
         ("Total Amount", f"${money(r.amount)}", f"${money(r.amount)}"),
     ]

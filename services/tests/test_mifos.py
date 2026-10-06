@@ -182,9 +182,18 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
     assert requisitions.post("r", {}) == {"mifos_transaction_id": "L42"}
     assert len(journal.created) == 1
     assert journal.created[0]["transactionDate"] == "2026-10-05"
+    assert journal.created[0]["referenceNumber"] == "7"
     assert journal.created[0]["comments"] == (
-        "Requisition Approval Request Form - City parking - #7. Response number: 7. Workflow run: run-1"
+        "Reference number: 7. Requisition Approval Request Form - City parking - #7. Response number: 7. "
+        "Workflow run: run-1"
     )
+
+
+def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(docs, journal, sent):
+    docs[("requisition", "r")]["answers"] = REQUISITION | {"reference_number": "REQ-0482"}
+    requisitions.post("r", {})
+    assert journal.created[0]["referenceNumber"] == "REQ-0482"
+    assert journal.created[0]["comments"].startswith("Reference number: REQ-0482. ")
 
 
 def test_a_test_run_never_posts(docs, journal, sent):

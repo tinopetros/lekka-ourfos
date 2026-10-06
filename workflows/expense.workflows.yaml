@@ -151,7 +151,7 @@ process:
                 call: post
                 args:
                   at: ${at}
-                  reference: ${execution_id}
+                  run: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
                 result: posted
             # A test run: nothing posted, so nothing to read back
@@ -266,7 +266,7 @@ check:
 # Only a connection that never got there is retried. A timeout may have landed, so never retry it blind, nor a 504:
 # the service's word for a Mifos that didn't confirm. A test run comes back {skipped: "test"}
 post:
-  params: [at, reference, code: null]
+  params: [at, run, code: null]
   steps:
     - send:
         try:
@@ -291,7 +291,7 @@ post:
                   - condition: ${"TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) == 504}
                     raise:
                       tags: [PostUncertain]
-                      message: ${"Mifos did not confirm the post and the entry may have landed. Check reference " + reference + " before booking it again"}
+                      message: ${"Mifos did not confirm the post and the entry may have landed. Check Mifos for an entry whose comments name workflow run " + run + " before booking it again"}
             - rethrow:
                 raise: ${e}
     - posted:

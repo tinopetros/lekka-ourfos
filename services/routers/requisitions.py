@@ -107,13 +107,15 @@ def post(id: str, body: dict):
         return {"skipped": "test"}
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     classification = doc["classification"]
-    # The run's id is the reference Mifos keeps, as it was before a submission had runs
+    # The requisition's own reference, the response number until the form asks for one. First in the comments too,
+    # then what else finds it: the subject, the response number and the run
+    reference = requisition.reference_number or str(requisition.response_number)
     posted = mifos.post(
-        this.ref.id,
+        reference,
         classification["debit"],
         classification["credit"],
         requisition.disbursed_on or datetime.now(HARARE).date(),
-        # Labelled on the entry, so a person in Mifos can find the requisition and the run
+        f"Reference number: {reference}. "
         f"{emails.subject(FORM, requisition.payable_to, requisition.response_number)}. "
         f"Response number: {requisition.response_number}. Workflow run: {this.ref.id}",
         "stub" if code == "unrecorded" else code,
