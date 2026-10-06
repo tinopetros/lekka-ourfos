@@ -2,7 +2,7 @@
 
 The three that are only received and acknowledged keep their answers as text, strict only where the subject needs
 them (docs/phase10/adr.md 4). Their keys are the webhook's own, and their labels the form's questions, in the
-response sheet's order. Copied into the trigger's zip, so it only imports pydantic.
+form's order: the add-on's emails listed them so. Not the response sheet's, where a question added later is last. Copied into the trigger's zip, so it only imports pydantic.
 """
 
 from dataclasses import dataclass, field
@@ -43,6 +43,7 @@ def text_form(name: str, labels: dict[str, str], required: tuple[str, ...], file
 
 VEHICLE_LOG = {
     "trip_name_purpose": "Trip Name / Purpose",
+    "destination": "Destination",
     "vehicle": "Vehicle",
     "drivers": "Driver(s)",
     "purpose_category": "Purpose Category",
@@ -62,29 +63,28 @@ VEHICLE_LOG = {
     "issues_description": "Issues Description",
     "comment": "Comment",
     "vehicle_images": "Vehicle Images",
-    "destination": "Destination",
 }
 
 LOAN_APPROVAL = {
     "applicant_first_name": "Applicant First Name",
     "applicant_last_name": "Applicant Last Name",
     "applicant_other_names": "Applicant Other Names",
-    "client_folder": "Link to Applicant Client Folder",
-    "submitter_recommendation": 'What is your personal recommendation e.g. "Approve/Disapprove"',
-    "overall_assessment": "Overall assessment (anything else that you would you like the approvers to know?)",
     "character_assessment": "Character - What's your assessment of the client's character?",
     "purpose": "What is the purpose of the facility?",
-    "has_security_vetted": "Has the security been vetted and meet the requirements as per the assessment guidelines?",
+    "loan_amount_and_tenure": "Loan amount and tenure?",
+    "monthly_repayment": "What would be the monthly repayment?",
     "applicant_ability": (
         "What is the client's ability to service the loan? Include cover ratio, salary, profit details etc."
     ),
-    "loan_amount_and_tenure": "Loan amount and tenure?",
-    "monthly_repayment": "What would be the monthly repayment?",
-    "refferer": "Who referred the client",
     "applicant_borrowing_status": (
         "What is the client's current borrowing status? e.g. Do they have other loans with us or other "
         "institutions? What are the details of these loans i.e. tenor, amount, disbursement date, etc"
     ),
+    "has_security_vetted": "Has the security been vetted and meet the requirements as per the assessment guidelines?",
+    "refferer": "Who referred the client",
+    "submitter_recommendation": 'What is your personal recommendation e.g. "Approve/Disapprove"',
+    "overall_assessment": "Overall assessment (anything else that you would you like the approvers to know?)",
+    "client_folder": "Link to Applicant Client Folder",
 }
 
 WRITE_OFF = {

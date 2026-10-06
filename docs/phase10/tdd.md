@@ -64,18 +64,18 @@ requisitions/{submission}/runs/{execution}     workflow, status, reason, classif
 
 ## The forms
 
-The webhook's keys, the answers table's labels and their order, which is the response sheet's.
+The webhook's keys, the answers table's labels and their order, which is the form's, as the add-on's emails list them. Not the response sheet's: a question added later is its last column, wherever it sits on the form
 
 ### Vehicle log
 
 - Subject: `Vehicle Log Form - {trip_name_purpose} - #{response_number}`, as the add-on's. Needs `trip_name_purpose`
-- `trip_name_purpose` Trip Name / Purpose, `vehicle` Vehicle, `drivers` Driver(s), `purpose_category` Purpose Category, `trip_start_date` Trip Start Date, `trip_start_time` Trip Start Time, `trip_end_date` Trip End Date, `trip_end_time` Trip End Time, `odometer_start_reading` Odometer Start Reading, `odometer_end_reading` Odometer End Reading, `total_distance` Total Distance, `fuel_reading_start` Fuel Reading (Start), `fuel_reading_end` Fuel Reading (End), `was_refueled` Was the vehicle refueled at any point during this trip?, `was_fixed` Was the vehicle fixed / checked / maintained during this trip?, `was_fixed_description` Fix / Check / Maintenance Description, `issues` Issues, `issues_description` Issues Description, `comment` Comment, `vehicle_images` Vehicle Images (files), `destination` Destination
+- `trip_name_purpose` Trip Name / Purpose, `destination` Destination, `vehicle` Vehicle, `drivers` Driver(s), `purpose_category` Purpose Category, `trip_start_date` Trip Start Date, `trip_start_time` Trip Start Time, `trip_end_date` Trip End Date, `trip_end_time` Trip End Time, `odometer_start_reading` Odometer Start Reading, `odometer_end_reading` Odometer End Reading, `total_distance` Total Distance, `fuel_reading_start` Fuel Reading (Start), `fuel_reading_end` Fuel Reading (End), `was_refueled` Was the vehicle refueled at any point during this trip?, `was_fixed` Was the vehicle fixed / checked / maintained during this trip?, `was_fixed_description` Fix / Check / Maintenance Description, `issues` Issues, `issues_description` Issues Description, `comment` Comment, `vehicle_images` Vehicle Images (files)
 - 87 responses, and five questions almost always "No" or empty. It shrinks with our own front end, not now
 
 ### Loan approval request
 
 - Subject: `Loan Approval Request Form - {applicant_first_name} {applicant_last_name} - #{response_number}`, as the add-on's. Needs both names
-- `applicant_first_name` Applicant First Name, `applicant_last_name` Applicant Last Name, `applicant_other_names` Applicant Other Names, `client_folder` Link to Applicant Client Folder, `submitter_recommendation` What is your personal recommendation e.g. "Approve/Disapprove", `overall_assessment` Overall assessment, `character_assessment` Character, `purpose` What is the purpose of the facility?, `has_security_vetted` Has the security been vetted…?, `applicant_ability` What is the client's ability to service the loan?, `loan_amount_and_tenure` Loan amount and tenure?, `monthly_repayment` What would be the monthly repayment?, `refferer` Who referred the client, `applicant_borrowing_status` What is the client's current borrowing status?
+- `applicant_first_name` Applicant First Name, `applicant_last_name` Applicant Last Name, `applicant_other_names` Applicant Other Names, `character_assessment` Character, `purpose` What is the purpose of the facility?, `loan_amount_and_tenure` Loan amount and tenure?, `monthly_repayment` What would be the monthly repayment?, `applicant_ability` What is the client's ability to service the loan?, `applicant_borrowing_status` What is the client's current borrowing status?, `has_security_vetted` Has the security been vetted…?, `refferer` Who referred the client, `submitter_recommendation` What is your personal recommendation e.g. "Approve/Disapprove", `overall_assessment` Overall assessment, `client_folder` Link to Applicant Client Folder
 - Labels are the form's questions in full, as the add-on shows them
 - Reply-To `directors@` and `lekkai@`, as the add-on's is `directors@`: a reply to a loan request goes to who decides it, and `lekkai@` keeps every thread
 
