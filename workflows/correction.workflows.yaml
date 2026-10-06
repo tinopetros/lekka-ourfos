@@ -1,0 +1,185 @@
+# A posted requisition, corrected: its live entry's mirror, then the corrected lines, each read back, and a reply in
+# its thread (docs/phase12/tdd.md, step 4). A run of its own on the submission. Its plumbing is lib.workflows.yaml's.
+#
+# Started through the Workflows API, with: id, the requisition's submission; reason; requested_by; and optionally
+# lines {debit, credit}, none for a reversal only, and transaction_id, which must be the live entry
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - simulate: {}
+          - at: '${"/forms/requisition/" + args.id}'
+    - allow_simulate:
+        switch:
+          # Dev only. In prod a fixture's simulate is ignored, so the run is a real one
+          - condition: ${sys.get_env("SIMULATE") == "on"}
+            assign:
+              - simulate: ${default(map.get(args, "simulate"), simulate)}
+    - log_start:
+        call: sys.log
+        args:
+          severity: INFO
+          json: { message: "correction started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', at: '${at}' }
+    - run:
+        try:
+          call: process
+          args:
+            at: ${at}
+            args: ${args}
+            simulate: ${simulate}
+          result: result
+        except:
+          as: e
+          steps:
+            - failed:
+                call: complete
+                args:
+                  at: ${at}
+                  result: { status: "failed", reason: '${default(map.get(e, "message"), json.encode_to_string(e))}' }
+            - fail:
+                raise: ${e}
+    - complete:
+        call: complete
+        args:
+          at: ${at}
+          result: ${result}
+    - done:
+        return: ${result}
+
+# Done, refused or handed over. Only a failed handover raises
+process:
+  params: [at, args, simulate]
+  steps:
+    - init:
+        assign:
+          - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
+          - claimed: { thread: null, submission: null, test: false }
+          - mifos_transaction_id: null
+    - run:
+        try:
+          steps:
+            # Nothing to correct, or nothing to correct it with: refused, with no email. The asker hears from the run
+            - start:
+                try:
+                  try:
+                    call: call_service
+                    args:
+                      at: ${at}
+                      method: POST
+                      path: /correction
+                      body:
+                        reason: ${map.get(args, "reason")}
+                        requested_by: ${map.get(args, "requested_by")}
+                        lines: ${map.get(args, "lines")}
+                        transaction_id: ${map.get(args, "transaction_id")}
+                        simulate: ${simulate}
+                        workflow: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")}
+                        revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
+                    result: claimed
+                  retry:
+                    predicate: ${is_retryable_read}
+                    max_retries: 3
+                    backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+                except:
+                  as: e
+                  steps:
+                    - refused:
+                        switch:
+                          - condition: ${default(map.get(e, "code"), 0) in [404, 409, 422]}
+                            return: { status: "refused", reason: '${default(map.get(e, "message"), json.encode_to_string(e))}' }
+                    - rethrow:
+                        raise: ${e}
+            - reverse:
+                call: post
+                args:
+                  at: ${at}
+                  run: ${execution_id}
+                  code: ${map.get(simulate, "mifos_post")}
+                  path: /correction/reverse
+                result: reversal
+            - read_back_reversal:
+                call: read_back
+                args:
+                  at: ${at}
+                  transaction: ${reversal.mifos_transaction_id}
+                  code: ${map.get(simulate, "mifos_read")}
+            - repost:
+                switch:
+                  - condition: ${not claimed.repost}
+                    next: confirm
+            - post:
+                call: post
+                args:
+                  at: ${at}
+                  run: ${execution_id}
+                  code: ${map.get(simulate, "mifos_post")}
+                  path: /correction/post
+                result: posted
+            - transaction:
+                assign:
+                  - mifos_transaction_id: ${posted.mifos_transaction_id}
+            - read_back_post:
+                call: read_back
+                args:
+                  at: ${at}
+                  transaction: ${mifos_transaction_id}
+                  code: ${map.get(simulate, "mifos_read")}
+            - confirm:
+                try:
+                  call: call_service
+                  args:
+                    at: ${at}
+                    method: POST
+                    path: /correction/confirm
+                    body:
+                      thread: ${claimed.thread}
+                      simulate: ${map.get(simulate, "confirm")}
+                retry:
+                  predicate: ${is_transient}
+                  max_retries: 3
+                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+            - done:
+                return: { status: "done", reversal: "${reversal.mifos_transaction_id}", mifos_transaction_id: '${mifos_transaction_id}' }
+        except:
+          as: e
+          steps:
+            - handover:
+                call: handover
+                args:
+                  at: ${at}
+                  e: ${e}
+                  thread: ${claimed.thread}
+                  submission: ${claimed.submission}
+                  raw: null
+                  test: ${claimed.test}
+                  code: ${map.get(simulate, "handover")}
+                result: reason
+            - handed_over:
+                return: { status: "handed_over", reason: "${reason}" }
+
+# What Mifos has, line by line against what we posted. A mismatch hands over, naming the transaction
+read_back:
+  params: [at, transaction, code: null]
+  steps:
+    - read:
+        try:
+          call: call_service
+          args:
+            at: ${at}
+            method: GET
+            path: ${"/correction/read-back/" + transaction}
+            query:
+              simulate: ${default(code, "")}
+          result: entry
+        retry:
+          predicate: ${is_retryable_read}
+          max_retries: 3
+          backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+    - verify:
+        switch:
+          - condition: ${entry.mismatch != null}
+            raise:
+              tags: [Unconfirmed]
+              message: ${"Posted as " + transaction + " but Mifos has it differently, " + entry.mismatch + ". Please check it by hand"}

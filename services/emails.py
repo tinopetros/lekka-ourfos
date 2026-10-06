@@ -206,16 +206,39 @@ def ledger(lines: list[dict]) -> tuple[str, list[str]]:
     return grid(head, rows), [" | ".join(head)] + [" | ".join(row) for row in rows]
 
 
-def action(heading: str, note: str, lines: list[dict]) -> tuple[str, str]:
-    """Lekkai's action, a line about it, the lines, and that Lekkai may be wrong."""
-    table_html, table_text = ledger(lines)
-    html = [f"<strong>{heading}</strong>", f"<p>{escape(note)}</p>", table_html, f"<p><em>{DISCLAIMER}</em></p>"]
-    return "\n".join(html), "\n".join([heading, "", note, "", *table_text, "", DISCLAIMER])
+def action(heading: str, note: str, lines: list[dict], disclaimer: bool = True) -> tuple[str, str]:
+    """Lekkai's action, a line about it, the lines if any, and that Lekkai may be wrong, when it chose them."""
+    html, text = [f"<strong>{heading}</strong>", f"<p>{escape(note)}</p>"], [heading, "", note]
+    if lines:
+        table_html, table_text = ledger(lines)
+        html.append(table_html)
+        text += ["", *table_text]
+    if disclaimer:
+        html.append(f"<p><em>{DISCLAIMER}</em></p>")
+        text += ["", DISCLAIMER]
+    return "\n".join(html), "\n".join(text)
 
 
 def confirmation(lines: list[dict], transaction: str) -> tuple[str, str]:
     """The last word: what Mifos has, from its read-back, not what we sent (docs/phase11/adr.md 3)."""
     return action("Lekkai's action: POSTED", f"Mifos transaction ID: {transaction}", lines)
+
+
+def corrected(lines: list[dict], transaction: str, reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
+    """A correction's reply: only the new entry, as Mifos has it. The lines are a person's, so no disclaimer."""
+    note = (
+        f"Mifos transaction ID: {transaction}. It replaces {reversed_}, now reversed. "
+        f"Reason: {reason}. Requested by: {requested_by}."
+    )
+    return action("Lekkai's action: CORRECTED", note, lines, disclaimer=False)
+
+
+def reversed_only(reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
+    """A correction with no lines: the entry is reversed, and nothing takes its place."""
+    note = (
+        f"Mifos transaction {reversed_} is reversed, nothing re-posted. Reason: {reason}. Requested by: {requested_by}."
+    )
+    return action("Lekkai's action: REVERSED", note, [], disclaimer=False)
 
 
 def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:

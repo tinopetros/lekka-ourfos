@@ -93,6 +93,19 @@ def read(mifos_transaction_id: str) -> dict:
     return entry(mifos_transaction_id, lines)
 
 
+def manual_entries(params: dict) -> list:
+    """A page of Mifos's manual journal entries, its lines that is: never the loans' and savings' own (docs/phase12/adr.md 6)."""
+    try:
+        return client().journal_entries.list({**params, "manualEntriesOnly": True})["pageItems"]
+    except MifosError as e:
+        raise unread(e) from e
+
+
+def ours() -> str:
+    """Our Mifos user, whose entries the step that posts records (docs/phase12/adr.md 6)."""
+    return os.environ["MIFOS_USERNAME"]
+
+
 def unread(e: MifosError) -> HTTPException:
     # A read, so the workflow may retry it
     status = e.status_code if isinstance(e, MifosApiError) else 503
