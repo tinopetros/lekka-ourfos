@@ -8,6 +8,10 @@
 ## Steps
 
 1. **The dependency.** [`mifos-connector`](https://github.com/tinopetros/mifos-connector-py) installs from its release tag, on my machine and in the image
+   - It's private, so whatever installs it needs read access: my SSH key here, and one fine-grained PAT, read-only on that repo, with no expiry
+   - Actions, for `make check`: the PAT as the `MIFOS_CONNECTOR_TOKEN` repo secret
+   - Cloud Build: the PAT as `mifos-connector-token` in `ourfos-prod`'s Secret Manager, for `package` only. It builds the connector's wheel, and the image installs that: no token in the Docker build or the image
+   - Made by hand: infra's README, bootstrap 12
 2. **Settings and secrets.** The URL, tenant and office are tfvars. The username and password are Secret Manager, one pair per project, made by hand
 3. **Connect.** Dev's service reads one GL account from `demo`: it reaches Mifos, and logs in
 4. **Post.** The classified lines as one journal entry:
@@ -32,5 +36,4 @@
 
 ## Open
 
-- How Actions and Cloud Build get read access to the private connector
 - Mifos's certificate: self-signed, expired, on a bare IP. Prod can't verify it
