@@ -89,4 +89,4 @@ done
 - Correction fixtures are under `requisition/corrections/`: a folder of `fixtures/` is a form, to the trigger's tests
 - This branch on dev, without the Scheduler job: smoke passed, and `smoke-happy-1791320954561042000` reads posted, reversed, posted, each entry with Mifos's ids. Then the preload, by hand: 428 added, the 3 the correction had recorded skipped, and a nightly sync after it, 0 added, the mark unmoved
 - Dev's record also holds the stub's entries, `stub-txn-…`, from fixtures. Prod never simulates, so never has them
-- 9 of Lekkai's posts in `demo` name no run: phase 11's, from before its run documents were kept. `lekkai`, with no run
+- 9 of Lekkai's posts in `demo` match no run in dev's Firestore, so they're `lekkai` with no run. Why those runs are missing isn't checked yet
