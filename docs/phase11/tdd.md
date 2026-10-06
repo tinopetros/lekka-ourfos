@@ -56,32 +56,33 @@ expense ─▶ … ─▶ suggest ─▶ post ─▶ read back ─▶ verify ─
 
 `POST /journalentries`, as the stub's arguments:
 
-| Field               | Value                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `officeId`          | `MIFOS_OFFICE_ID`                                                                         |
-| `currencyCode`      | `MIFOS_CURRENCY`                                                                          |
-| `transactionDate`   | the requisition's `disbursed_on`, or the day it's posted (Africa/Harare) when it has none |
-| `referenceNumber`   | the run's id, as today: what a handover tells a person to look up                         |
-| `comments`          | the email's subject, `Requisition Approval Request Form - {payable_to} - #{n}`            |
-| `debits`, `credits` | `{glAccountId: glId, amount}` per classified line                                         |
+| Field               | Value                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `officeId`          | `MIFOS_OFFICE_ID`                                                                     |
+| `currencyCode`      | `MIFOS_CURRENCY`                                                                      |
+| `transactionDate`   | the requisition's `disbursed_on`, or the day it's posted, in Harare, when it has none |
+| `referenceNumber`   | the run's id, as today: what a handover tells a person to look up                     |
+| `comments`          | the email's subject, `Requisition Approval Request Form - {payable_to} - #{n}`        |
+| `debits`, `credits` | `{glAccountId: glId, amount}` per classified line                                     |
 
-- Returns `{transactionId}`: the run keeps it as `mifos_transaction_id`, status `posted`, as today
-- **Never retried blind** (phase 1). One client per instance with a 30s timeout, under the workflow's own:
+- Returns `{transactionId}`: the run keeps it as `mifos_transaction_id`, status `posted`, as today. A run that already has one returns it and posts nothing
+- **Never retried blind** (phase 1). One client per instance, with a 15s timeout under `call_service`'s 20s, so a slow Mifos is ours to call uncertain:
 
   | Mifos                        | The service answers  | The workflow                                             |
   | ---------------------------- | -------------------- | -------------------------------------------------------- |
   | a 4xx, e.g. a closed account | 422, Mifos's message | hands over: nothing was posted                           |
-  | a 5xx, or never reached      | 503                  | hands over: nothing was posted, try again                |
-  | timed out                    | 504                  | hands over as `PostUncertain`: check the reference first |
+  | never reached                | 503                  | hands over: nothing was posted                           |
+  | a 5xx, or timed out          | 504                  | hands over as `PostUncertain`: check the reference first |
 
-  A 503 from `/post` isn't retried by the workflow: Mifos may have answered 5xx after writing
+  Only what certainly didn't land says so. A 5xx may have come after the write
 
 - A **test run never posts** (closes release 1 ADR 3's revisit). `post` returns `{"skipped": "test"}`, read back and verify are skipped, and the last email says it wasn't posted
 
 ## Read back and verify (ADR 4)
 
 - `GET /journalentries?transactionId=`: what Mifos has, not what we sent
-- `verify` compares line by line, not by count: each `glId`, side and amount we posted is there once, and nothing else is. A mismatch hands over as `Unconfirmed`, naming the transaction
+- The service compares line by line, not by count: each `glId`, side and amount we posted is there once, and nothing else is. It answers what differs as `mismatch`, and `verify` hands that over as `Unconfirmed`, naming the transaction
+- A stub's transaction, `stub-txn-…`, is read back from the stub, so a stubbed post never reads Mifos
 - The read-back is kept on the run as `posted`, the lines the last email shows
 
 ## The last email (ADR 5)
@@ -90,17 +91,16 @@ Closes phase 9 ADR 6, and phase 1 ADR 2: once a post is confirmed, the confirmat
 
 - A reply in the thread, from Lekkai: **Posted to Mifos as transaction {id}.**
 - The table: Account, GL Code, Debit, Credit, from the read-back, with a total row. Same table style as the suggestion's
-- The date it's booked on, and the reference
+- The reference, the run's id
 - A test run: **Not posted: this was a test run.**, and the suggestion's lines, so the email still shows what would have been
 - `emails.confirmation` on the run, so a retried `confirm` doesn't send twice (phase 9 ADR 7)
 - Sender's name: Lekkai
 
 ## Fixtures and smoke
 
-- `simulate.mifos_post: "stub"` keeps the canned answer, on dev only, like every simulate. The failure fixtures, `post-503`, `post-timeout`, `post-unrecorded` and `read-back-mismatch`, stay stubbed
+- Any `simulate.mifos_post`, `"stub"` among them, keeps the canned answer, on dev only, like every simulate. So the failure fixtures, `post-503`, `post-timeout`, `post-unrecorded` and `read-back-mismatch`, never reach Mifos
 - `happy` posts to `demo` for real, on every dev build: an entry a merge. `happy-gcs` and `google-doc` stub their post
 - `done` returns the `mifos_transaction_id`, and smoke's `happy` checks it isn't `stub-txn-…`
-- `make reverse ID=<transactionId>`, dev only: reverses a `demo` post by hand with the connector's `journal_entries.reverse`
 
 ## Bootstrapped, once
 

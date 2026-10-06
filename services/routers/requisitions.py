@@ -1,5 +1,7 @@
-"""What only a requisition's workflow, expense, does: classify, suggest, post and confirm. Receiving,
+"""What only a requisition's workflow, expense, does: classify, suggest, post, read back and confirm. Receiving,
 acknowledging and handing over are every form's (routers/forms.py)."""
+
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query
 from fastapi.concurrency import run_in_threadpool
@@ -13,6 +15,8 @@ from requisition import Requisition
 from routers.forms import email, run_id, send
 
 FORM = "requisition"
+# A post with no date disbursed is booked on the day it's posted, ours: UTC+2, with no daylight saving
+HARARE = timezone(timedelta(hours=2))
 router = APIRouter(prefix=f"/forms/{FORM}/{{id}}")
 
 
@@ -90,13 +94,27 @@ def suggest(id: str, body: dict):
 
 @router.post("/post")
 def post(id: str, body: dict):
-    # "unrecorded" posts, then fails the write that follows
+    # "unrecorded" posts, to the stub, then fails the write that follows
     code = body.get("simulate")
     this = run(id)
-    classification = this.get()["classification"]
+    doc = this.get()
+    # Never twice: a retried post finds the first's transaction
+    if posted := doc.get("mifos_transaction_id"):
+        return {"mifos_transaction_id": posted}
+    # A test run never posts, on dev or prod (docs/release1/adr.md 3)
+    if doc.get("test"):
+        log("not posted: a test run")
+        return {"skipped": "test"}
+    requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
+    classification = doc["classification"]
     # The run's id is the reference Mifos keeps, as it was before a submission had runs
     posted = mifos.post(
-        this.ref.id, classification["debit"], classification["credit"], None if code == "unrecorded" else code
+        this.ref.id,
+        classification["debit"],
+        classification["credit"],
+        requisition.disbursed_on or datetime.now(HARARE).date(),
+        emails.subject(FORM, requisition.payable_to, requisition.response_number),
+        "stub" if code == "unrecorded" else code,
     )
     this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
     return posted
@@ -104,14 +122,37 @@ def post(id: str, body: dict):
 
 @router.get("/read-back/{mifos_transaction_id}")
 def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None, alias="simulate")):
-    # The stub echoes what we posted. Real Mifos will answer from the ledger
-    classification = run(id).get()["classification"]
-    return mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
+    # What Mifos has, kept for the last email, and what differs from what we posted
+    this = run(id)
+    classification = this.get()["classification"]
+    entry = mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
+    this.record(posted=entry["lines"])
+    return entry
 
 
 @router.post("/confirm")
 def confirm(id: str, body: dict):
-    # Mifos is a stub: an email confirming a post that didn't happen would be a lie (phase 9 ADR 6)
+    """The last email: what Mifos has and its transaction id, or, for a test run, that nothing was posted."""
+    this = run(id)
+    doc = this.get()
+    if sent := doc.get("emails", {}).get("confirmation"):
+        return sent
     simulate("confirm", body.get("simulate"))
-    log("confirm: no email while Mifos is a stub", mifos_transaction_id=body["mifos_transaction_id"])
-    return {"sent": False}
+    requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
+    if transaction := body.get("mifos_transaction_id"):
+        html, text = emails.confirmation(doc["posted"], transaction, this.ref.id)
+    else:
+        html, text = emails.not_posted(doc["classification"])
+    sent = send(
+        FORM,
+        "confirmation",
+        requisition.submitted_by,
+        emails.LEKKAI,
+        emails.subject(FORM, requisition.payable_to, requisition.response_number, doc.get("test")),
+        html,
+        text,
+        body["thread"],
+        doc.get("test"),
+    )
+    this.record(emails={"confirmation": email(sent)})
+    return sent

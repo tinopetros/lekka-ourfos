@@ -46,7 +46,7 @@ help:
 	@echo "                         wait, show its logs. TEST=1: a test run. SUBMISSION: run on that submission again"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy, happy-gcs and google-doc done, jailbreak,"
+	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, jailbreak,"
 	@echo "                         400 and invalid handed_over, and every other form's happy done and invalid handed_over (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
@@ -134,13 +134,14 @@ doc:
 		print(json.dumps(ref.get().to_dict(), indent=2, default=str)); \
 		[print(f"runs/{run.id}", json.dumps(run.to_dict(), indent=2, default=str)) for run in ref.collection("runs").stream()]' $(FORM) $(ID)
 
-# Up to three tries each: after a first deploy, IAM takes a minute to catch up
+# Up to three tries each: after a first deploy, IAM takes a minute to catch up. happy posts to Mifos's demo tenant,
+# for real: done, with a transaction that isn't the stub's
 smoke: check-env
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)?workflow=requisition"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@for case in requisition/happy:done requisition/happy-gcs:done requisition/google-doc:done \
+	@for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done \
 		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over requisition/invalid:handed_over \
 		vehicle_log/happy:done vehicle_log/invalid:handed_over loan_approval/happy:done loan_approval/invalid:handed_over \
 		write_off/happy:done write_off/invalid:handed_over; do \
@@ -148,7 +149,10 @@ smoke: check-env
 		for try in 1 2 3; do \
 			result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture) 2>/dev/null); \
 			echo "$$path: $$result"; \
-			echo "$$result" | grep -q "\"status\":\"$$want\"" && break; \
+			case $$want in \
+				posted) echo "$$result" | grep '"status":"done"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' && break ;; \
+				*) echo "$$result" | grep -q "\"status\":\"$$want\"" && break ;; \
+			esac; \
 			[ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done

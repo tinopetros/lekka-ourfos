@@ -168,14 +168,7 @@ def suggestion(c: dict) -> tuple[str, str]:
     if lines:
         head = ["Account", "GL Code", "GL ID", "Account Type", "Debit", "Credit"]
         rows = [[d["name"], d["glCode"], str(d["glId"]), d["accountType"], dr, cr] for d, dr, cr in lines]
-        html.append(
-            TABLE
-            + "<tr>"
-            + "".join(f"{TH}{h}</th>" for h in head)
-            + "</tr>"
-            + "".join("<tr>" + "".join(f"{TD}{escape(v)}</td>" for v in row) + "</tr>" for row in rows)
-            + "</table>"
-        )
+        html.append(grid(head, rows))
         text += [""] + [" | ".join(head)] + [" | ".join(row) for row in rows]
     if c.get("comments"):
         html.append("<ul>" + "".join(f"<li>{escape(x)}</li>" for x in c["comments"]) + "</ul>")
@@ -186,6 +179,56 @@ def suggestion(c: dict) -> tuple[str, str]:
     html.append(f"<p><em>{DISCLAIMER}</em></p>")
     text += ["", DISCLAIMER]
     return "\n".join(html), "\n".join(text)
+
+
+def grid(head: list[str], rows: list[list[str]]) -> str:
+    """A table with a heading row, every value escaped here."""
+    return (
+        TABLE
+        + "<tr>"
+        + "".join(f"{TH}{h}</th>" for h in head)
+        + "</tr>"
+        + "".join("<tr>" + "".join(f"{TD}{escape(v)}</td>" for v in row) + "</tr>" for row in rows)
+        + "</table>"
+    )
+
+
+def ledger(lines: list[dict]) -> tuple[str, list[str]]:
+    """Account, GL Code, Debit, Credit, and their totals: as Mifos shows a journal entry."""
+    head = ["Account", "GL Code", "Debit", "Credit"]
+    debits = sum(x["amount"] for x in lines if x["type"] == "DEBIT")
+    credits = sum(x["amount"] for x in lines if x["type"] == "CREDIT")
+    rows = [
+        [x["name"], x["glCode"], *((money(x["amount"]), "") if x["type"] == "DEBIT" else ("", money(x["amount"])))]
+        for x in lines
+    ] + [["Total", "", money(debits), money(credits)]]
+    return grid(head, rows), [" | ".join(head)] + [" | ".join(row) for row in rows]
+
+
+def confirmation(lines: list[dict], transaction: str, reference: str) -> tuple[str, str]:
+    """The last word: what Mifos has, from its read-back, not what we sent (docs/phase11/adr.md 5)."""
+    heading = f"Posted to Mifos as transaction {transaction}."
+    table_html, table_text = ledger(lines)
+    note = f"Its reference in Mifos is {reference}."
+    html = [
+        f"<strong>{escape(heading)}</strong>",
+        table_html,
+        f"<p>{escape(note)}</p>",
+        f"<p><em>{DISCLAIMER}</em></p>",
+    ]
+    return "\n".join(html), "\n".join([heading, "", *table_text, "", note, "", DISCLAIMER])
+
+
+def not_posted(c: dict) -> tuple[str, str]:
+    """A test run's last email: nothing went to Mifos, and what would have."""
+    heading = "Not posted: this was a test run."
+    lines = [{**d, "type": "DEBIT"} for d in c.get("debit", [])] + [
+        {**d, "type": "CREDIT"} for d in c.get("credit", [])
+    ]
+    table_html, table_text = ledger(lines)
+    note = "These are the lines it would have posted."
+    html = [f"<strong>{heading}</strong>", f"<p>{note}</p>", table_html, f"<p><em>{DISCLAIMER}</em></p>"]
+    return "\n".join(html), "\n".join([heading, "", note, "", *table_text, "", DISCLAIMER])
 
 
 def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:
