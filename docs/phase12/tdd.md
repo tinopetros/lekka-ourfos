@@ -37,15 +37,17 @@
 
 ## Smoke
 
-- `happy`: comments start `Subject: `, `posted` has `transaction_date` and `created_on`, its journal entry is `lekkai` and the submission's `live_entry`
-- `mifos-off`: `?mifos=false`, done with nothing posted and no third email
-- Corrections, on `happy`'s and `happy-gcs`'s submissions:
-  - `correct`: to `demo`, for real. Done, `live_entry` moved, the original `reversed`
-  - `reverse-only`, stub: done, nothing re-posted
-  - `correct-stale`, a wrong transaction id: refused
-  - `correct-unposted`, on a test run's submission: refused
-  - `correct-timeout`, the mirror times out: handed over
-- Sync: with no mark, done with nothing synced and no mark written. With one, done, and the mark never down
+Each run its own submission, so the corrections after know which to correct. Checked through each run's result: the deployer doesn't read Firestore
+
+- `happy`: posted to `demo`, as before
+- `mifos-off`: `?mifos=false`, done, `skipped: mifos`: nothing posted and no third email
+- Corrections:
+  - `correct-stale` on `happy`, a wrong transaction id: refused
+  - `correct` on `happy`, to `demo` for real: done, with a reversal and a new transaction. Only possible if `happy` left a live entry
+  - `reverse-only` on `happy-gcs`, stub: done, nothing re-posted
+  - `correct-unposted` on `mifos-off`: refused
+  - `correct-timeout` on `google-doc`, the mirror times out: handed over
+- The sync: with no mark, `skipped: not preloaded`. With one, the mark after is never under the mark before
 
 ## By hand, once
 

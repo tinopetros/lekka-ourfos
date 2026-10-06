@@ -51,8 +51,8 @@ def journal_entries(since: str | None = None) -> dict:
     found = {txn: mifos.read(txn) for txn in lines.keys() - held(lines)}
     added = write(found, {})
     raise_mark(highest, added)
-    log(f"{KIND} synced", added=added, last_entry_id=highest)
-    return {"added": added, "last_entry_id": highest}
+    log(f"{KIND} synced", added=added, last_entry_id=highest, was=last)
+    return {"added": added, "last_entry_id": highest, "was": last}
 
 
 def preload(since: date) -> dict:

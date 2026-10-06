@@ -63,3 +63,11 @@ variable "mifos" {
     error_message = "Only ourfos-prod posts to the default tenant."
   }
 }
+
+variable "syncs" {
+  description = "What's synced from Mifos each night, and when, in Harare's time (docs/phase12/tdd.md, step 7)"
+  type        = map(object({ schedule = string }))
+  default = {
+    journal_entries = { schedule = "0 23 * * *" }
+  }
+}

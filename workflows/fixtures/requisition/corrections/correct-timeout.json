@@ -1,0 +1,5 @@
+{
+    "reason": "Smoke: a mirror that never hears back",
+    "requested_by": "lekkai@lekkacredit.com",
+    "simulate": { "mifos_post": "timeout" }
+}
