@@ -37,3 +37,10 @@
 - Kept, for now: splitting means a second Cloud Run, its own account and a hop the workflow calls, while only one route posts
 - What it costs: anything that can run as `ourfos-services@` can post to Mifos. The Mifos user can only make journal entries, which caps it
 - **Revisit** before prod is released: if the split is cheap by then, it goes first
+
+### 7. Dev doesn't check Mifos's certificate, yet. Prod must
+
+- The server answers on a bare IP with a self-signed certificate for `Lekka Credit`, no IP in it, expired since May 2023. Nothing can verify it, so the connector's tests run with `verify_ssl` off
+- Dev does the same against `demo`: its user can only reach the throwaway tenant
+- Prod checks it, and Terraform refuses `default` without the check. So prod fails closed until the server has a name and a real certificate, rather than sending the books' password to whoever answers on that IP
+- Not taken: **pinning the certificate's fingerprint.** It would work despite the expiry, but needs the connector to take a custom transport, and a server fixed once beats a pin kept forever
