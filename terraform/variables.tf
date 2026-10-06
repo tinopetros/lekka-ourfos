@@ -45,3 +45,13 @@ variable "simulate" {
   type        = bool
   default     = false
 }
+
+variable "mifos" {
+  description = "Where we post, not who as: the user is a pair of secrets made by hand (docs/phase11/tdd.md, step 2)"
+  type = object({
+    base_url  = string
+    tenant_id = string
+    office_id = optional(number, 1)
+    currency  = optional(string, "USD")
+  })
+}
