@@ -84,7 +84,7 @@ LOAN_APPROVAL = {
     "refferer": "Who referred the client",
     "submitter_recommendation": 'What is your personal recommendation e.g. "Approve/Disapprove"',
     "overall_assessment": "Overall assessment (anything else that you would you like the approvers to know?)",
-    "client_folder": "Link to Applicant Client Folder (see example below)",
+    "client_folder": "Link to Applicant Client Folder",
 }
 
 WRITE_OFF = {

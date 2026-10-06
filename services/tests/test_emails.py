@@ -245,7 +245,7 @@ def test_a_loan_reads_as_the_add_ons_did():
     assert labels[-3:] == [
         'What is your personal recommendation e.g. "Approve/Disapprove"',
         "Overall assessment (anything else that you would you like the approvers to know?)",
-        "Link to Applicant Client Folder (see example below)",
+        "Link to Applicant Client Folder",
     ]
 
 
