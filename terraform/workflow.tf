@@ -22,7 +22,7 @@ resource "google_workflows_workflow" "this" {
 resource "google_cloud_scheduler_job" "sync" {
   for_each  = var.syncs
   name      = "sync-${replace(each.key, "_", "-")}"
-  region    = var.region
+  region    = var.scheduler_region
   schedule  = each.value.schedule
   time_zone = "Africa/Harare"
 

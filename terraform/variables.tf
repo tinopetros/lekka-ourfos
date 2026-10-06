@@ -71,3 +71,9 @@ variable "syncs" {
     journal_entries = { schedule = "0 23 * * *" }
   }
 }
+
+variable "scheduler_region" {
+  description = "Cloud Scheduler has no africa-south1. A job holds only its schedule and one call (docs/phase12/adr.md 10)"
+  type        = string
+  default     = "europe-west1"
+}

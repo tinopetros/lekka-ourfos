@@ -50,3 +50,9 @@
 - It already starts workflows, and the deployer already acts as it
 - Not taken: **an account of its own**. An infra change and a grant, for the same role
 - The cost: whatever runs as it can start any of our workflows, as the trigger already can
+
+### 10. Scheduler's jobs are in europe-west1
+
+- Cloud Scheduler isn't offered in africa-south1, nor anywhere in Africa
+- A job holds only its schedule and the call that starts the workflow, which still runs in africa-south1. No data is in it
+- Its time zone is still Africa/Harare
