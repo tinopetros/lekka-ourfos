@@ -218,16 +218,6 @@ def confirmation(lines: list[dict], transaction: str) -> tuple[str, str]:
     return action("Lekkai's action: POSTED", f"Mifos transaction ID: {transaction}", lines)
 
 
-def not_posted(c: dict) -> tuple[str, str]:
-    """A test run's last email: nothing went to Mifos, and what would have."""
-    lines = [{**d, "type": "DEBIT"} for d in c.get("debit", [])] + [
-        {**d, "type": "CREDIT"} for d in c.get("credit", [])
-    ]
-    return action(
-        "Lekkai's action: NOT POSTED", "This was a test run. These are the lines it would have posted.", lines
-    )
-
-
 def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:
     """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
     spec = FORMS[form]

@@ -44,8 +44,11 @@ def receive(form: str, id: str, body: dict):
     )
     # Only ever set on dev: the prod workflow drops it
     simulate = {"simulate": body["simulate"]} if body.get("simulate") else {}
+    # Only kept when the trigger turned posting off (docs/phase12/adr.md 8)
+    off = {"mifos": False} if body.get("mifos") is False else {}
     store.run(form, id, run_id()).save(
         **simulate,
+        **off,
         workflow=body.get("workflow"),
         test=test,
         status="received",

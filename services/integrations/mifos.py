@@ -4,6 +4,7 @@ Dev posts to the demo tenant, prod to default: the books. A fixture's simulate, 
 """
 
 import os
+import uuid
 from datetime import date
 from functools import cache
 
@@ -51,7 +52,8 @@ def post(reference: str, debit: list, credit: list, on: date, comments: str, cod
     log("mifos post", reference=reference, debit=debit, credit=credit, on=on, stub=bool(code))
     if code:
         simulate("mifos_post", code)
-        return {"mifos_transaction_id": f"{STUB}{reference}"}
+        # Its own each time: a correction posts twice under one reference
+        return {"mifos_transaction_id": f"{STUB}{uuid.uuid4().hex[:13]}"}
     try:
         posted = client().journal_entries.create(
             {
@@ -82,49 +84,79 @@ def failed(e: MifosError, reference: str) -> HTTPException:
     return HTTPException(504, f"Mifos didn't confirm the post: {e}")
 
 
+def read(mifos_transaction_id: str) -> dict:
+    """One transaction as Mifos has it, in our record's shape (docs/phase12/tdd.md, step 2)."""
+    try:
+        lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
+    except MifosError as e:
+        raise unread(e) from e
+    return entry(mifos_transaction_id, lines)
+
+
+def unread(e: MifosError) -> HTTPException:
+    # A read, so the workflow may retry it
+    status = e.status_code if isinstance(e, MifosApiError) else 503
+    return HTTPException(503 if status >= 500 else 500, f"mifos read: {e}")
+
+
+def entry(mifos_transaction_id: str, lines: list) -> dict:
+    """Mifos's lines of one transaction, as one entry. What's on every line is kept once, from the first."""
+    first = lines[0] if lines else {}
+    return {
+        "transaction_id": mifos_transaction_id,
+        "transaction_date": day(first.get("transactionDate")),
+        "created_on": day(first.get("createdDate")),
+        "office": {"id": first.get("officeId"), "name": first.get("officeName")},
+        "currency": (first.get("currency") or {}).get("code"),
+        "reference_number": first.get("referenceNumber"),
+        "comments": first.get("comments"),
+        "created_by": first.get("createdByUserName"),
+        "lines": [
+            {
+                "glId": x["glAccountId"],
+                "glCode": x["glAccountCode"],
+                "name": x["glAccountName"],
+                "type": x["entryType"]["value"].upper(),
+                "amount": x["amount"],
+            }
+            for x in lines
+        ],
+        "entry_ids": [x["id"] for x in lines if "id" in x],
+    }
+
+
+def day(value) -> str | None:
+    """Fineract's [2026, 10, 5], as 2026-10-05."""
+    return date(*value).isoformat() if value else None
+
+
+# What a run keeps of its entry: what its emails show (docs/phase11/tdd.md, step 5)
+POSTED = ("transaction_id", "transaction_date", "created_on", "office", "currency", "lines")
+
+
 def read_back(mifos_transaction_id: str, debit: list, credit: list, code=None) -> dict:
     """What Mifos has for the transaction, and what differs from what we posted, if anything."""
+    wanted = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
     if code or mifos_transaction_id.startswith(STUB):
-        # The stub echoes what we posted, with no date or office's name. "mismatch" drops a line
+        # The stub echoes what we posted, with no dates or office's name. "mismatch" drops a line
         simulate("mifos_read", code)
-        lines = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
-        if code == "mismatch":
-            lines = lines[:-1]
-        booked = {
-            "date": None,
+        found = {
+            "transaction_id": mifos_transaction_id,
+            "transaction_date": None,
+            "created_on": None,
             "office": {"id": int(os.environ.get("MIFOS_OFFICE_ID", "1")), "name": None},
             "currency": os.environ.get("MIFOS_CURRENCY", "USD"),
+            "lines": wanted[:-1] if code == "mismatch" else wanted,
+            "entry_ids": [],
         }
     else:
-        try:
-            entries = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
-        except MifosError as e:
-            # A read, so the workflow may retry it
-            status = e.status_code if isinstance(e, MifosApiError) else 503
-            raise HTTPException(503 if status >= 500 else 500, f"mifos read back: {e}") from e
-        lines = [
-            {
-                "glId": e["glAccountId"],
-                "glCode": e["glAccountCode"],
-                "name": e["glAccountName"],
-                "type": e["entryType"]["value"].upper(),
-                "amount": e["amount"],
-            }
-            for e in entries
-        ]
-        # The same on every line of one transaction, so kept once
-        first = entries[0] if entries else {}
-        booked = {
-            "date": date(*first["transactionDate"]).isoformat() if first.get("transactionDate") else None,
-            "office": {"id": first.get("officeId"), "name": first.get("officeName")},
-            "currency": (first.get("currency") or {}).get("code"),
-        }
-    log("mifos read back", mifos_transaction_id=mifos_transaction_id, lines=len(lines))
-    wanted = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
+        found = read(mifos_transaction_id)
+    log("mifos read back", mifos_transaction_id=mifos_transaction_id, lines=len(found["lines"]))
     return {
         "mifos_transaction_id": mifos_transaction_id,
-        "posted": {"transaction_id": mifos_transaction_id, **booked, "lines": lines},
-        "mismatch": mismatch(wanted, lines),
+        "entry": found,
+        "posted": {k: found[k] for k in POSTED},
+        "mismatch": mismatch(wanted, found["lines"]),
     }
 
 

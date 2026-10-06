@@ -44,6 +44,11 @@ def trigger(request):
         test = flag(request.args.get("test"))
     except ValueError:
         return {"error": "?test= must be true or false"}, 400
+    # Posting to Mifos, on unless turned off, so prod can be released before posting is (docs/phase12/adr.md 8)
+    try:
+        mifos = flag(request.args.get("mifos"), default=True)
+    except ValueError:
+        return {"error": "?mifos= must be true or false"}, 400
     raw = request.get_json(silent=True)
     if not isinstance(raw, dict):
         return {"error": "body must be a JSON object"}, 400
@@ -59,7 +64,15 @@ def trigger(request):
         id = {"id": response_id} if isinstance(response_id, str) and ID.match(response_id) else {}
         execution_id = start(
             workflow,
-            {"form": name, **id, "invalid": "; ".join(e.errors), "raw": raw, "simulate": simulate, "test": test},
+            {
+                "form": name,
+                **id,
+                "invalid": "; ".join(e.errors),
+                "raw": raw,
+                "simulate": simulate,
+                "test": test,
+                "mifos": mifos,
+            },
         )
         # The problems, never the values
         log(
@@ -75,9 +88,24 @@ def trigger(request):
     id = submission.response_id
     execution_id = start(
         workflow,
-        {"form": name, "id": id, "submission": submission.to_json(), "raw": raw, "simulate": simulate, "test": test},
+        {
+            "form": name,
+            "id": id,
+            "submission": submission.to_json(),
+            "raw": raw,
+            "simulate": simulate,
+            "test": test,
+            "mifos": mifos,
+        },
     )
-    log("started", form=name, execution_id=execution_id, response_number=submission.response_number, test=test)
+    log(
+        "started",
+        form=name,
+        execution_id=execution_id,
+        response_number=submission.response_number,
+        test=test,
+        mifos=mifos,
+    )
     return {"execution_id": execution_id, "id": id}, 202
 
 

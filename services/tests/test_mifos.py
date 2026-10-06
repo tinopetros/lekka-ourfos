@@ -58,6 +58,12 @@ class Journal:
 def entry(gl, side, amount):
     names = {66: ("5020", "Advertising and Promotions"), 109: ("10000000", "Cash at Vault")}
     return {
+        "id": 900 + gl,
+        "transactionId": "L42",
+        "createdDate": [2026, 10, 6],
+        "createdByUserName": "lekkai@lekkacredit.com",
+        "referenceNumber": "7",
+        "comments": "Subject: s",
         "glAccountId": gl,
         "glAccountCode": names[gl][0],
         "glAccountName": names[gl][1],
@@ -96,10 +102,10 @@ def test_a_post_is_a_journal_entry_with_our_reference(journal):
     ]
 
 
-def test_a_simulated_post_never_reaches_mifos(journal):
-    assert mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub") == {
-        "mifos_transaction_id": "stub-txn-run-1"
-    }
+def test_a_simulated_post_never_reaches_mifos_and_is_its_own_each_time(journal):
+    first = mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub")["mifos_transaction_id"]
+    second = mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub")["mifos_transaction_id"]
+    assert first.startswith(mifos.STUB) and first != second
     assert journal.created == []
 
 
@@ -134,10 +140,13 @@ def test_a_read_back_is_what_mifos_has(journal):
     assert entry["mismatch"] is None
     assert {k: v for k, v in entry["posted"].items() if k != "lines"} == {
         "transaction_id": "L42",
-        "date": "2026-10-05",
+        "transaction_date": "2026-10-05",
+        "created_on": "2026-10-06",
         "office": {"id": 1, "name": "Head Office"},
         "currency": "USD",
     }
+    assert entry["entry"]["entry_ids"] == [966, 1009]
+    assert entry["entry"]["created_by"] == "lekkai@lekkacredit.com"
     assert [(x["name"], x["type"], x["amount"]) for x in entry["posted"]["lines"]] == [
         ("Advertising and Promotions", "DEBIT", 60),
         ("Cash at Vault", "CREDIT", 60),
@@ -184,8 +193,7 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
     assert journal.created[0]["transactionDate"] == "2026-10-05"
     assert journal.created[0]["referenceNumber"] == "7"
     assert journal.created[0]["comments"] == (
-        "Reference number: 7. Requisition Approval Request Form - City parking - #7. Response number: 7. "
-        "Workflow run: run-1"
+        "Subject: Requisition Approval Request Form - City parking - #7. Response number: 7. Workflow run: run-1"
     )
 
 
@@ -193,15 +201,14 @@ def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(doc
     docs[("requisition", "r")]["answers"] = REQUISITION | {"reference_number": "REQ-0482"}
     requisitions.post("r", {})
     assert journal.created[0]["referenceNumber"] == "REQ-0482"
-    assert journal.created[0]["comments"].startswith("Reference number: REQ-0482. ")
+    assert "REQ-0482" not in journal.created[0]["comments"]
 
 
-def test_a_test_run_never_posts(docs, journal, sent):
-    docs[("requisition", "r", "run-1")]["test"] = True
-    assert requisitions.post("r", {}) == {"skipped": "test"}
+@pytest.mark.parametrize("field, value, skipped", [("test", True, "test"), ("mifos", False, "mifos")])
+def test_a_test_run_or_mifos_off_never_posts(docs, journal, field, value, skipped):
+    docs[("requisition", "r", "run-1")][field] = value
+    assert requisitions.post("r", {}) == {"skipped": skipped}
     assert journal.created == []
-    requisitions.confirm("r", {"mifos_transaction_id": None, "thread": {"thread_id": "t1"}})
-    assert "Lekkai's action: NOT POSTED" in sent[0][1] and emails.DISCLAIMER in sent[0][1]
 
 
 def test_the_last_email_is_what_mifos_has_and_its_id(docs, journal, sent):

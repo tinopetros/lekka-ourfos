@@ -61,6 +61,12 @@ def test_receive_keeps_the_submission_and_starts_the_run(docs):
     assert docs[("vehicle_log", "r")]["raw"] == {"x": "y"}
     assert docs[("vehicle_log", "r", "run-1")]["status"] == "received"
     assert docs[("vehicle_log", "r", "run-1")]["workflow"] == "intake"
+    assert "mifos" not in docs[("vehicle_log", "r", "run-1")]
+
+
+def test_a_run_keeps_mifos_only_when_its_off(docs):
+    forms.receive("vehicle_log", "r", {"submission": SUBMISSION, "mifos": False})
+    assert docs[("vehicle_log", "r", "run-1")]["mifos"] is False
 
 
 def test_a_second_run_finds_the_thread_and_sends_no_first_email(docs, sent):

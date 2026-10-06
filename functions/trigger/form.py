@@ -81,10 +81,10 @@ def clean(raw: dict, form: str = "requisition") -> Submission:
         ) from e
 
 
-def flag(value: str | None) -> bool:
-    """A query flag: absent is false, and only true or false otherwise, in any case."""
+def flag(value: str | None, default: bool = False) -> bool:
+    """A query flag: absent is its default, and only true or false otherwise, in any case."""
     if value is None:
-        return False
+        return default
     if value.lower() not in ("true", "false"):
         raise ValueError(f"not true or false: {value!r}")
     return value.lower() == "true"

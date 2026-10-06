@@ -101,27 +101,36 @@ def post(id: str, body: dict):
     # Never twice: a retried post finds the first's transaction
     if posted := doc.get("mifos_transaction_id"):
         return {"mifos_transaction_id": posted}
-    # A test run never posts, on dev or prod (docs/release1/adr.md 3)
+    # A test run never posts, on dev or prod (docs/release1/adr.md 3), nor one with Mifos off (docs/phase12/adr.md 8)
     if doc.get("test"):
         log("not posted: a test run")
         return {"skipped": "test"}
+    if doc.get("mifos") is False:
+        log("not posted: mifos off")
+        return {"skipped": "mifos"}
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     classification = doc["classification"]
-    # The requisition's own reference, the response number until the form asks for one. First in the comments too,
-    # then what else finds it: the subject, the response number and the run
+    # The requisition's own reference, the response number until the form asks for one. Mifos has a field for it,
+    # so the comments say what else finds it: the subject, the response number and the run
     reference = requisition.reference_number or str(requisition.response_number)
     posted = mifos.post(
         reference,
         classification["debit"],
         classification["credit"],
         requisition.disbursed_on or datetime.now(HARARE).date(),
-        f"Reference number: {reference}. "
-        f"{emails.subject(FORM, requisition.payable_to, requisition.response_number)}. "
-        f"Response number: {requisition.response_number}. Workflow run: {this.ref.id}",
+        comments(requisition, this.ref.id),
         "stub" if code == "unrecorded" else code,
     )
     this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=posted["mifos_transaction_id"])
     return posted
+
+
+def comments(requisition: Requisition, run: str, *before: str) -> str:
+    """What finds an entry in Mifos, after whatever a correction says first."""
+    subject = emails.subject(FORM, requisition.payable_to, requisition.response_number)
+    return " ".join(
+        [*before, f"Subject: {subject}.", f"Response number: {requisition.response_number}.", f"Workflow run: {run}"]
+    )
 
 
 @router.get("/read-back/{mifos_transaction_id}")
@@ -136,17 +145,14 @@ def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None,
 
 @router.post("/confirm")
 def confirm(id: str, body: dict):
-    """The last email: what Mifos has and its transaction id, or, for a test run, that nothing was posted."""
+    """The last email: what Mifos has and its transaction id. Only after a post: a run that didn't post sends none"""
     this = run(id)
     doc = this.get()
     if sent := doc.get("emails", {}).get("confirmation"):
         return sent
     simulate("confirm", body.get("simulate"))
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
-    if transaction := body.get("mifos_transaction_id"):
-        html, text = emails.confirmation(doc["posted"]["lines"], transaction)
-    else:
-        html, text = emails.not_posted(doc["classification"])
+    html, text = emails.confirmation(doc["posted"]["lines"], body["mifos_transaction_id"])
     sent = send(
         FORM,
         "confirmation",

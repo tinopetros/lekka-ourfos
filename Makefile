@@ -42,8 +42,8 @@ SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
-	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
-	@echo "                         wait, show its logs. TEST=1: a test run. SUBMISSION: run on that submission again"
+	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [MIFOS=false] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
+	@echo "                         wait, show its logs. TEST=1: a test run. MIFOS=false: posting off. SUBMISSION: run on that submission again"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, jailbreak,"
@@ -112,7 +112,7 @@ start:
 		d["response_id"] = sys.argv[3] or f"fixture-{sys.argv[2]}-{time.time_ns()}"; print(json.dumps(d))' \
 		workflows/fixtures/$(FORM)/$(FIXTURE).json $(FIXTURE) "$(SUBMISSION)" \
 		| curl -s -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @- "$(TRIGGER_URL)?workflow=$(FORM)$(if $(TEST),&test=true)" \
+		--data @- "$(TRIGGER_URL)?workflow=$(FORM)$(if $(TEST),&test=true)$(if $(MIFOS),&mifos=$(MIFOS))" \
 		| python3 -c 'import sys, json; r = json.load(sys.stdin); print("submission", r.get("id", "(the run\x27s own)"), file=sys.stderr); print(r["execution_id"])'
 
 wait:
