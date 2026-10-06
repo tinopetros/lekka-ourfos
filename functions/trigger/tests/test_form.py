@@ -208,6 +208,15 @@ def test_a_text_form_keeps_its_answers_as_text():
     assert v.submitted_by == "lekkai@lekkacredit.com"
 
 
+def test_the_add_ons_line_breaks_are_line_breaks():
+    # As #630's overall assessment came
+    a = clean(
+        happy("loan_approval") | {"overall_assessment": "• 17 loans.<BR/>• 2.8× cover.<br>• Approve<BR/>"},
+        "loan_approval",
+    )
+    assert a.overall_assessment == "• 17 loans.\n• 2.8× cover.\n• Approve"
+
+
 def test_a_text_form_keeps_what_it_doesnt_know_out():
     w = clean(happy("write_off") | {"something_new": "x"}, "write_off")
     assert "something_new" not in w.to_json()

@@ -57,7 +57,7 @@ requisitions/{submission}/runs/{execution}     workflow, status, reason, classif
 
 - Strict only where a step reads the value. The requisition cleaner doesn't change
 - For the other three, strict: `response_number`, `response_id`, the submitter's address, `created_at`, and whatever the subject needs. Anything wrong there is a 400, handed over, as in phase 9
-- Every other answer is text, trimmed, empty dropped. `$4000 over 6 months` stays `$4000 over 6 months`
+- Every other answer is text, trimmed, empty dropped. `$4000 over 6 months` stays `$4000 over 6 months`. The add-on sends a paragraph's line breaks as `<BR/>`: they're line breaks again, on every form
 - File uploads are Drive ids, as the requisition's: the vehicle's images, the write-off's documents. The loan's client folder is a link, kept as text
 - Keys are the webhook's own, `refferer` and all. A key the form sends that we don't know is kept in `raw`, not in `answers`
 - A field gets a real type when a step reads it, or when our own front end collects it typed
