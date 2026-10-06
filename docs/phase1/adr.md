@@ -13,6 +13,7 @@ What we chose in phase 1 and, mostly, what we knowingly left temporary. When a l
 
 - Mifos posting will take a while to get right, so notify sends the classification on its own, to be useful before anything is posted
 - **Revisit when** posting to Mifos is real and trusted: notify becomes the final confirmation only
+- **Closed** by [phase 11 ADR 5](../phase11/adr.md)
 
 ### 3. Classify lives in `ourfos-services`
 
