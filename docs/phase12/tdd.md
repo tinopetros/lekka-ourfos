@@ -58,7 +58,7 @@ Each run its own submission, so the corrections after know which to correct. Che
 ## Bootstrapped, once
 
 - Infra enables `cloudscheduler.googleapis.com` (its PR)
-- The deployer manages Scheduler's jobs, in both projects:
+- The deployer manages Scheduler's jobs, in both projects. Run on Oct 6:
 
 ```bash
 SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
