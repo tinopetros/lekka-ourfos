@@ -89,7 +89,7 @@ def read(mifos_transaction_id: str) -> dict:
     try:
         lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
     except MifosError as e:
-        raise unread(e) from e
+        raise read_failed(e) from e
     return entry(mifos_transaction_id, lines)
 
 
@@ -98,7 +98,7 @@ def manual_entries(params: dict) -> list:
     try:
         return client().journal_entries.list({**params, "manualEntriesOnly": True})["pageItems"]
     except MifosError as e:
-        raise unread(e) from e
+        raise read_failed(e) from e
 
 
 def ours() -> str:
@@ -106,7 +106,7 @@ def ours() -> str:
     return os.environ["MIFOS_USERNAME"]
 
 
-def unread(e: MifosError) -> HTTPException:
+def read_failed(e: MifosError) -> HTTPException:
     # A read, so the workflow may retry it
     status = e.status_code if isinstance(e, MifosApiError) else 503
     return HTTPException(503 if status >= 500 else 500, f"mifos read: {e}")
