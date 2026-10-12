@@ -14,8 +14,9 @@
    - `?mifos=false` on the trigger, kept on the run. Like a test run, it posts nothing and sends no third email
 2. **`journal_entries/{transaction_id}`**, one per Mifos transaction
    - `transaction_date`, `created_on`, `office`, `currency`, `reference_number`, `comments`, `created_by`, `lines`, `entry_ids`
-   - `source`: `lekkai` with its `form`, `submission` and `run`, or `mifos`
-   - `status`: `live` or `reversed`, and `reverses` / `reversed_by`
+   - `source`: `ourfos`, made through ourfos, or `mifos`, made in Mifos's own screens and brought in by the sync
+   - `by`, on ours: `lekkai` for the expense workflow's posts, or who asked for a correction. A workflow's also have `form`, `submission` and `run`. Mifos's say who in `created_by`
+   - Three fields for reversals: `status`, `live` or `reversed`; `reverses`, on a mirror, naming what it reverses; `reversed_by`, on a reversed entry, naming its mirror
    - Written in the step that posts. The read-back adds what only Mifos knows: `created_on`, `entry_ids`
 3. **On the requisition's submission**: `live_entry`, and `journal_entries`, every post and reversal's transaction id in order
 4. **The `correction` workflow**, its runs on the submission like the run that posted (`workflow: correction`)
@@ -30,7 +31,7 @@
    - Always manual entries only (`manualEntriesOnly=true`)
    - Each night: newest id first, back to the mark in `syncs/journal_entries` and 10 entries under it, since an entry mid-save can show after a higher id. Skips our Mifos user's, and transactions we hold
    - No mark: does nothing, and logs `journal_entries not preloaded`
-   - `from=2026-01-01`: the preload. Everything from that transaction date, ours too: a transaction a run posted is `lekkai`, with its run
+   - `from=2026-01-01`: the preload. Everything from that transaction date, ours too: a transaction a run posted is `ourfos`, by `lekkai`, with its run
    - The mark only ever goes up, written in a transaction once the sync is done
 7. **The schedule**: Cloud Scheduler starts the `sync` workflow, one job per entry in Terraform's `syncs`. `journal_entries`: `0 23 * * *`, `Africa/Harare`
 
@@ -47,7 +48,7 @@ Each run its own submission, so the corrections after know which to correct. Eac
   - `correct-unposted` on `mifos-off`: refused
   - `correct-timeout` on `google-doc`, the mirror times out: handed over
 - The sync: with no mark, `skipped: not preloaded`. With one, the mark after is never under the mark before
-- In Firestore: `happy`'s entry is Lekkai's, `Subject:`, with Mifos's dates and ids; it reads posted, reversed, posted; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`; the mark is the sync's
+- In Firestore: `happy`'s entry is ours by `lekkai`, `Subject:`, with Mifos's dates and ids; it reads posted, reversed, posted, the correction's entries by who asked; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`; the mark is the sync's
 
 ## By hand, once
 
@@ -89,4 +90,4 @@ done
 - Correction fixtures are under `requisition/corrections/`: a folder of `fixtures/` is a form, to the trigger's tests
 - This branch on dev, without the Scheduler job: smoke passed, and `smoke-happy-1791320954561042000` reads posted, reversed, posted, each entry with Mifos's ids. Then the preload, by hand: 428 added, the 3 the correction had recorded skipped, and a nightly sync after it, 0 added, the mark unmoved
 - Dev's record also holds the stub's entries, `stub-txn-…`, from fixtures. Prod never simulates, so never has them
-- 9 of Lekkai's posts in `demo` match no run in dev's Firestore, so they're `lekkai` with no run. Why those runs are missing isn't checked yet
+- 9 of Lekkai's posts in `demo` match no run in dev's Firestore, so they're `ourfos`, by `lekkai`, with no run. Why those runs are missing isn't checked yet

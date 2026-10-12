@@ -123,9 +123,12 @@ def write(found: dict, runs: dict) -> int:
 def recorded(txn: str, entry: dict, runs: dict) -> dict:
     if txn in runs:
         form, submission, run = runs[txn]
-        source = {"source": "lekkai", "form": form, "submission": submission, "run": run}
+        source = {"source": "ourfos", "by": "lekkai", "form": form, "submission": submission, "run": run}
+    elif entry.get("created_by") == mifos.ours():
+        source = {"source": "ourfos", "by": "lekkai"}
     else:
-        source = {"source": "lekkai" if entry.get("created_by") == mifos.ours() else "mifos"}
+        # Who in Mifos is created_by
+        source = {"source": "mifos"}
     return entry | source | {"status": "live", "recorded_at": store.NOW}
 
 

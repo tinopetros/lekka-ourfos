@@ -145,6 +145,7 @@ def test_a_correction_reverses_the_live_entry_on_its_date_then_posts_the_new_lin
     assert requisition["journal_entries"] == ["L1", "T1", "T2"]
     assert {"status": "reversed", "reversed_by": "T1"}.items() <= docs[("journal_entries", "L1")].items()
     assert docs[("journal_entries", "T1")]["reverses"] == "L1"
+    assert docs[("journal_entries", "T1")]["by"] == docs[("journal_entries", "T2")]["by"] == ASK["requested_by"]
     assert docs[("journal_entries", "T2")]["status"] == "live"
     assert docs[("journal_entries", "T2")]["created_on"] == "2026-10-06"
 

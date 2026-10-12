@@ -90,7 +90,12 @@ def expense_run(fixture: str) -> dict:
 # happy: posted, its entry ours and live, and the run keeps Mifos's dates. The correction has since moved it on
 happy = result("requisition-happy")["mifos_transaction_id"]
 posted = entry(happy)
-check("happy's entry is Lekkai's, with its run", posted.get("source") == "lekkai" and bool(posted.get("run")), posted)
+check(
+    "happy's entry is ours, by Lekkai, with its run",
+    posted.get("source") == "ourfos" and posted.get("by") == "lekkai" and bool(posted.get("run")),
+    posted,
+)
+
 check("happy's comments start Subject:", (posted.get("comments") or "").startswith("Subject: "), posted.get("comments"))
 check("happy's entry has Mifos's dates", bool(posted.get("transaction_date") and posted.get("created_on")), posted)
 check("happy's entry has Mifos's ids", len(posted.get("entry_ids") or []) >= 2, posted.get("entry_ids"))
@@ -116,6 +121,11 @@ check(
     entry(happy),
 )
 check("the mirror reverses the original", entry(reversal).get("reverses") == happy, entry(reversal))
+check(
+    "the correction's entries are by who asked",
+    entry(reversal).get("by") == entry(new).get("by") == "lekkai@lekkacredit.com",
+    entry(new),
+)
 mirror = {(x["type"], x["glId"]) for x in entry(reversal).get("lines") or []}
 original = {("CREDIT" if x["type"] == "DEBIT" else "DEBIT", x["glId"]) for x in posted.get("lines") or []}
 check("the mirror swaps every line", bool(mirror) and mirror == original, (mirror, original))

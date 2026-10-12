@@ -112,7 +112,19 @@ def reverse(id: str, body: dict):
     posted = mifos.post(reference, credit, debit, on, what, code)
     transaction = posted["mifos_transaction_id"]
     this.record(reversal={"tried": True, "transaction_id": transaction, "debit": credit, "credit": debit})
-    journal.posted(FORM, id, this.ref.id, transaction, credit, debit, on, reference, what, reverses=doc["entry"])
+    journal.posted(
+        FORM,
+        id,
+        this.ref.id,
+        transaction,
+        credit,
+        debit,
+        on,
+        reference,
+        what,
+        reverses=doc["entry"],
+        by=doc["request"]["requested_by"],
+    )
     return posted
 
 
@@ -134,7 +146,18 @@ def post(id: str, body: dict):
     posted = mifos.post(reference, request["debit"], request["credit"], on, what, code)
     transaction = posted["mifos_transaction_id"]
     this.record(status="posted", mifos_transaction_id=transaction)
-    journal.posted(FORM, id, this.ref.id, transaction, request["debit"], request["credit"], on, reference, what)
+    journal.posted(
+        FORM,
+        id,
+        this.ref.id,
+        transaction,
+        request["debit"],
+        request["credit"],
+        on,
+        reference,
+        what,
+        by=request["requested_by"],
+    )
     return posted
 
 

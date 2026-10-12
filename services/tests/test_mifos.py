@@ -202,8 +202,9 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
 def test_a_post_is_recorded_as_lekkais_and_live(docs, journal, sent):
     requisitions.post("r", {})
     recorded = docs[("journal_entries", "L42")]
-    assert {k: recorded[k] for k in ("source", "form", "submission", "run", "status", "transaction_date")} == {
-        "source": "lekkai",
+    assert {k: recorded[k] for k in ("source", "by", "form", "submission", "run", "status", "transaction_date")} == {
+        "source": "ourfos",
+        "by": "lekkai",
         "form": "requisition",
         "submission": "r",
         "run": "run-1",

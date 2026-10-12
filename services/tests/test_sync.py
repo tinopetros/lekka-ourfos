@@ -91,17 +91,24 @@ def test_the_preload_takes_everything_since_its_date_ours_too(world):
     assert world["mark"] == 1302
 
 
-def test_a_preloaded_entry_is_lekkais_with_its_run_when_a_run_posted_it(monkeypatch):
+def test_a_preloaded_entry_is_ours_with_its_run_when_a_run_posted_it(monkeypatch):
     monkeypatch.setenv("MIFOS_USERNAME", OURS)
     runs = {"L3": ("requisition", "r", "run-1")}
     assert sync.recorded("L3", {"created_by": OURS}, runs) | {"recorded_at": None} == {
         "created_by": OURS,
-        "source": "lekkai",
+        "source": "ourfos",
+        "by": "lekkai",
         "form": "requisition",
         "submission": "r",
         "run": "run-1",
         "status": "live",
         "recorded_at": None,
     }
-    assert sync.recorded("L9", {"created_by": OURS}, runs)["source"] == "lekkai"
+    assert sync.recorded("L9", {"created_by": OURS}, runs) | {"recorded_at": None} == {
+        "created_by": OURS,
+        "source": "ourfos",
+        "by": "lekkai",
+        "status": "live",
+        "recorded_at": None,
+    }
     assert sync.recorded("P1", {"created_by": "ZSaruchera"}, runs)["source"] == "mifos"
