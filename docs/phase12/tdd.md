@@ -22,9 +22,9 @@
 4. **The `correction` workflow**, its runs on the submission like the run that posted (`workflow: correction`)
    - Takes: `lines` (`debit`, `credit`), optional; `reason`; `requested_by`; `transaction_id`, optional, and if given must be `live_entry`
    - Refuses a requisition that was never posted, a stale transaction id, and unbalanced lines: the run ends `refused`, with no email
-   - Claim `live_entry` → post its mirror, on its date → read back → post the corrected lines, on the same date → read back → reply in the thread
+   - Check `live_entry` → mark it `reversing` → post its mirror, on its date → read back → post the corrected lines, on the same date → read back → reply in the thread
    - No lines: a reversal only
-   - As post: never twice, never retried blind after a timeout. A claim whose mirror may have landed is never claimed again
+   - As post: never twice, never retried blind after a timeout. An entry whose mirror may have landed is refused until a person has checked Mifos (ADR 4)
    - Started through the Workflows API, as smoke does. A front end's route, behind its sign-in, comes later
 5. **The correction's email**: a reply in the requisition's thread, to the same people. **CORRECTED**, the new entry's lines and the reason, or **REVERSED**, nothing re-posted, and the reason
 6. **`/sync/journal_entries`**

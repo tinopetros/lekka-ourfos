@@ -18,11 +18,12 @@
 - Its runs are on the submission, beside the run that posted (phase 10 ADR 1)
 - A reversal with no requisition, later, gets its own workflow, its runs on the journal entry
 
-### 4. The live entry is kept on the requisition
+### 4. The live entry is kept on the requisition, and a mirror that may have landed blocks it
 
-- One place to look, claimed in one transaction, so two corrections can't both reverse it
-- A claim stands until its run ends without having tried the mirror. One that tried and didn't hear back stands for good: a person checks Mifos
-- A front end's transaction id only confirms it
+- One place to look for what a correction reverses. A front end's transaction id only confirms it
+- Before posting a mirror, the run writes `reversing` on the original. If the post timed out, it may have landed, so that entry is refused to every correction, this run's too, until a person has checked Mifos and either recorded the mirror or cleared it. A post that certainly didn't land clears it
+- Not taken: **a claim on the requisition, in a transaction**, with rules for whichever run held it. It also stopped two corrections started at once, which is unlikely with one accountant starting them by hand
+- The cost: two corrections started within a second of each other could both pass the first check, and the second would be refused only at its mirror
 
 ### 5. Links are never inferred
 

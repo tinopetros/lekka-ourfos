@@ -1,5 +1,5 @@
-"""What the correction workflow does to a posted requisition: claim its live entry, post that entry's mirror, then the
-corrected lines, read each back, and reply in its thread (docs/phase12/tdd.md, step 4).
+"""What the correction workflow does to a posted requisition: post its live entry's mirror, then the corrected lines,
+read each back, and reply in its thread (docs/phase12/tdd.md, step 4).
 
 A run of its own on the submission, beside the run that posted (docs/phase12/adr.md 3). Each step is safe to retry:
 what it did is on the run, and a retried post finds it.
@@ -27,7 +27,7 @@ def run(id: str) -> store.Doc:
 
 @router.post("")
 def start(id: str, body: dict):
-    """The run, what it was asked, and the entry it claims. Refused, 409 or 422, when there's nothing to do."""
+    """The run, what it was asked, and the entry it corrects. Refused, 409 or 422, when there's nothing to do."""
     reason, requested_by = (body.get("reason") or "").strip(), (body.get("requested_by") or "").strip()
     if not reason or not requested_by:
         raise HTTPException(422, "A correction needs a reason and who asked for it")
@@ -36,8 +36,8 @@ def start(id: str, body: dict):
     this = run(id)
     # Only ever set on dev: the prod workflow drops it
     simulated = {"simulate": body["simulate"]} if body.get("simulate") else {}
-    # The run first, so a claim always names a run that says how it ended. No status until it posts or ends: a
-    # status is the submission's too, and a correction that's refused changes nothing
+    # No status until it posts or ends: a status is the submission's too, and a correction that's refused changes
+    # nothing
     this.save(
         **simulated,
         workflow=body.get("workflow"),
@@ -50,9 +50,9 @@ def start(id: str, body: dict):
             "credit": credit,
         },
     )
-    entry = store.claim(FORM, id, this.ref.id, body.get("transaction_id"))
+    entry = correctable(submission, body.get("transaction_id"))
     this.save(entry=entry)
-    log("correction claimed", entry=entry, lines=len(debit) + len(credit))
+    log("correction started", entry=entry, lines=len(debit) + len(credit))
     # What a handover needs, so the workflow can say what failed in the thread
     return {
         "entry": entry,
@@ -61,6 +61,28 @@ def start(id: str, body: dict):
         "test": bool(submission.get("test")),
         "repost": bool(debit),
     }
+
+
+def correctable(submission: dict, given: str | None) -> str:
+    """The requisition's live entry, or why it can't be corrected (docs/phase12/adr.md 4)."""
+    live = submission.get("live_entry")
+    if not live:
+        raise HTTPException(409, "Nothing posted to correct")
+    if given and given != live:
+        raise HTTPException(409, f"Transaction {given} isn't this requisition's live entry, {live} is")
+    unsure(journal.entry(live).get(), live)
+    return live
+
+
+def unsure(original: dict, transaction: str):
+    """Refuses an entry whose mirror a run posted without hearing back: it may have landed, and a second would reverse
+    it twice. It stays so until a person has checked Mifos."""
+    if (run := original.get("reversing")) and not original.get("reversed_by"):
+        raise HTTPException(
+            409,
+            f"Correction run {run} may have reversed {transaction} without hearing back. "
+            "Check Mifos before correcting it again",
+        )
 
 
 def balanced(lines) -> tuple[list, list]:
@@ -96,22 +118,33 @@ def said(id: str, this: store.Doc, doc: dict, what: str) -> str:
 
 @router.post("/reverse")
 def reverse(id: str, body: dict):
-    """The claimed entry's mirror, on its date, so the period it's in balances (docs/phase12/adr.md 2)."""
+    """The live entry's mirror, on its date, so the period it's in balances (docs/phase12/adr.md 2)."""
     code = body.get("simulate")
     this = run(id)
     doc = this.get()
     if done := (doc.get("reversal") or {}).get("transaction_id"):
         return {"mifos_transaction_id": done}
-    original = journal.entry(doc["entry"]).get()
+    entry = journal.entry(doc["entry"])
+    original = entry.get()
+    if original.get("reversed_by"):
+        raise HTTPException(409, f"{doc['entry']} is already reversed, by {original['reversed_by']}")
+    # Whoever set it, this run included, tried and didn't hear back
+    unsure(original, doc["entry"])
     debit, credit = journal.sides(original["lines"])
     on = date.fromisoformat(original["transaction_date"])
     reference = original.get("reference_number") or doc["entry"]
     what = said(id, this, doc, f"Reversal of transaction {doc['entry']}")
-    # Before posting, and raised if it can't be written: a mirror that may have landed is never tried again
-    this.save(reversal={"tried": True, "debit": credit, "credit": debit})
-    posted = mifos.post(reference, credit, debit, on, what, code)
+    # Before posting, and raised if it can't be written: a mirror that may have landed is never posted again
+    entry.save(reversing=this.ref.id)
+    try:
+        posted = mifos.post(reference, credit, debit, on, what, code)
+    except HTTPException as e:
+        # Certainly not posted, so nothing to check: the entry can be corrected again
+        if e.status_code in (422, 503):
+            entry.record(reversing=None)
+        raise
     transaction = posted["mifos_transaction_id"]
-    this.record(reversal={"tried": True, "transaction_id": transaction, "debit": credit, "credit": debit})
+    this.record(reversal={"transaction_id": transaction, "debit": credit, "credit": debit})
     journal.posted(
         FORM,
         id,

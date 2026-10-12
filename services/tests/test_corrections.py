@@ -80,15 +80,6 @@ def docs(monkeypatch):
     monkeypatch.setattr(store, "run", lambda form, id, run: Doc(docs, (form, id, run)))
     monkeypatch.setattr(journal, "entry", lambda txn: Doc(docs, ("journal_entries", txn)))
 
-    def claim(form, id, run, given):
-        doc = docs[(form, id)]
-        held = (doc.get("claim") or {}).get("run")
-        other = docs.get((form, id, held), {}) if held and held != run else None
-        entry = store.claimable(doc, other, run, given)
-        doc["claim"] = {"run": run, "entry": entry}
-        return entry
-
-    monkeypatch.setattr(store, "claim", claim)
     execution_id.set("run-1")
     return docs
 
@@ -180,37 +171,49 @@ def test_a_retried_step_never_posts_twice(docs, mifos_journal, sent):
     assert len(mifos_journal.created) == 2
 
 
-def test_a_mirror_that_may_have_landed_holds_the_claim_for_good(docs, mifos_journal, sent):
+def test_a_mirror_that_may_have_landed_blocks_the_entry_until_mifos_is_checked(docs, mifos_journal, sent):
     corrections.start("r", ASK)
     mifos_journal.fail = MifosNetworkError("timed out", httpx.ReadTimeout("slow"))
     with pytest.raises(HTTPException) as e:
         corrections.reverse("r", {})
     assert e.value.status_code == 504
-    docs[("requisition", "r", "run-1")]["status"] = "handed_over"
+    assert docs[("journal_entries", "L1")]["reversing"] == "run-1"
+    # Not even the same run tries again
+    mifos_journal.fail = None
+    with pytest.raises(HTTPException) as e:
+        corrections.reverse("r", {})
+    assert e.value.status_code == 409 and mifos_journal.created == []
     execution_id.set("run-2")
     with pytest.raises(HTTPException) as e:
         corrections.start("r", ASK)
     assert e.value.status_code == 409 and "Check Mifos" in e.value.detail
 
 
+def test_a_mirror_that_certainly_didnt_land_blocks_nothing(docs, mifos_journal, sent):
+    corrections.start("r", ASK)
+    mifos_journal.fail = MifosNetworkError("refused", httpx.ConnectError("refused"))
+    with pytest.raises(HTTPException) as e:
+        corrections.reverse("r", {})
+    assert e.value.status_code == 503
+    assert docs[("journal_entries", "L1")]["reversing"] is None
+    execution_id.set("run-2")
+    assert corrections.start("r", ASK)["entry"] == "L1"
+
+
 @pytest.mark.parametrize(
-    "doc, other, given, says",
+    "submission, original, given, says",
     [
-        ({}, None, None, "Nothing posted"),
-        ({"live_entry": "L1"}, None, "L0", "isn't this requisition's live entry"),
-        ({"live_entry": "L1", "claim": {"run": "a", "entry": "L1"}}, {"status": "received"}, None, "still correcting"),
+        ({}, {}, None, "Nothing posted"),
+        ({"live_entry": "L1"}, {}, "L0", "isn't this requisition's live entry"),
+        ({"live_entry": "L1"}, {"reversing": "a"}, None, "Check Mifos"),
     ],
 )
-def test_a_correction_is_refused_when_theres_nothing_to_claim(doc, other, given, says):
+def test_a_correction_is_refused_when_theres_nothing_to_correct(docs, submission, original, given, says):
+    docs[("requisition", "r")] = {"answers": REQUISITION} | submission
+    docs[("journal_entries", "L1")] |= original
     with pytest.raises(HTTPException) as e:
-        store.claimable(doc, other, "b", given)
+        corrections.start("r", ASK | ({"transaction_id": given} if given else {}))
     assert e.value.status_code == 409 and says in e.value.detail
-
-
-def test_a_claim_is_free_again_once_its_run_ended_without_trying():
-    doc = {"live_entry": "L1", "claim": {"run": "a", "entry": "L1"}}
-    assert store.claimable(doc, {"status": "handed_over"}, "b", "L1") == "L1"
-    assert store.claimable(doc, {"status": "received"}, "a", None) == "L1"
 
 
 @pytest.mark.parametrize(
