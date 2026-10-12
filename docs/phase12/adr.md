@@ -33,7 +33,7 @@
 
 - Entries are taken as immutable, so it never reconciles ours with Mifos's
 - Manual entries only. Fineract can't filter by created date, so it pages by entry id, newest first, back to a mark
-- 200 entries under the mark again each night: Mifos numbers an entry when it starts saving it, so a slow one can show after a higher id
+- 10 entries under the mark again each night, a buffer: Mifos numbers an entry when it starts saving it, so a slow one can show after a higher id
 - Our Mifos user's entries are skipped: the step that posts records them. So that user is Lekkai's alone, never a person's in Mifos's screens
 
 ### 7. The preload is the sync from 1 Jan 2026

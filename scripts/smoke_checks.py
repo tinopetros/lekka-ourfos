@@ -1,4 +1,4 @@
-"""What smoke's runs wrote, read back from dev's Firestore (docs/phase12/tdd.md, Smoke). Standard library and curl
+"""What smoke's runs wrote, read back from dev's Firestore. Standard library and curl
 only: the build's image has python3, curl and gcloud, nothing else.
 
     smoke_checks.py <project> <stamp> <results dir>

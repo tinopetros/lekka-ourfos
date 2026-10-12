@@ -85,7 +85,7 @@ def failed(e: MifosError, reference: str) -> HTTPException:
 
 
 def read(mifos_transaction_id: str) -> dict:
-    """One transaction as Mifos has it, in our record's shape (docs/phase12/tdd.md, step 2)."""
+    """One transaction as Mifos has it, in our record's shape"""
     try:
         lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
     except MifosError as e:
@@ -94,7 +94,7 @@ def read(mifos_transaction_id: str) -> dict:
 
 
 def manual_entries(params: dict) -> list:
-    """A page of Mifos's manual journal entries, its lines that is: never the loans' and savings' own (docs/phase12/adr.md 6)."""
+    """A page of Mifos's manual journal entries, its lines that is"""
     try:
         return client().journal_entries.list({**params, "manualEntriesOnly": True})["pageItems"]
     except MifosError as e:
@@ -102,7 +102,7 @@ def manual_entries(params: dict) -> list:
 
 
 def ours() -> str:
-    """Our Mifos user, whose entries the step that posts records (docs/phase12/adr.md 6)."""
+    """Our Mifos user, whose entries the step that posts records"""
     return os.environ["MIFOS_USERNAME"]
 
 
@@ -143,7 +143,7 @@ def day(value) -> str | None:
     return date(*value).isoformat() if value else None
 
 
-# What a run keeps of its entry: what its emails show (docs/phase11/tdd.md, step 5)
+# What a run keeps of its entry: what its emails show
 POSTED = ("transaction_id", "transaction_date", "created_on", "office", "currency", "lines")
 
 

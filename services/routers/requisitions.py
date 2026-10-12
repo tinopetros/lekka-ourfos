@@ -102,7 +102,7 @@ def post(id: str, body: dict):
     # Never twice: a retried post finds the first's transaction
     if posted := doc.get("mifos_transaction_id"):
         return {"mifos_transaction_id": posted}
-    # A test run never posts, on dev or prod (docs/release1/adr.md 3), nor one with Mifos off (docs/phase12/adr.md 8)
+    # A test run never posts, on dev or prod, nor one with Mifos off
     if doc.get("test"):
         log("not posted: a test run")
         return {"skipped": "test"}
@@ -111,8 +111,6 @@ def post(id: str, body: dict):
         return {"skipped": "mifos"}
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
     classification = doc["classification"]
-    # The requisition's own reference, the response number until the form asks for one. Mifos has a field for it,
-    # so the comments say what else finds it: the subject, the response number and the run
     reference = requisition.reference_number or str(requisition.response_number)
     on = requisition.disbursed_on or datetime.now(HARARE).date()
     said = comments(requisition, this.ref.id)

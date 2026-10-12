@@ -61,7 +61,7 @@ class Doc:
 
 
 def claim(form: str, id: str, run: str, given: str | None) -> str:
-    """The submission's live entry, for this run to correct, or why not (docs/phase12/adr.md 4). In one transaction,
+    """The submission's live entry, for this run to correct, or why not. In one transaction,
     so two corrections can't both reverse it. A retry of the same run gets the entry it already claimed."""
     parent = submission(form, id).ref
     try:

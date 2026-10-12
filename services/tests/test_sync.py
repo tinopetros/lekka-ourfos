@@ -73,10 +73,10 @@ def test_with_no_mark_nothing_is_read(world):
 
 
 def test_each_night_pages_back_past_the_mark_and_adds_only_peoples_new_entries(world):
-    world["docs"][("syncs", "journal_entries")] = {"last_entry_id": 1250}
+    world["docs"][("syncs", "journal_entries")] = {"last_entry_id": 1105}
     world["held"] = {"P2"}
-    assert sync.journal_entries() == {"added": 1, "last_entry_id": 1302, "was": 1250}
-    # 200 under the mark is 1050: P2 again, which we hold, and L3, which is ours. Never P1
+    assert sync.journal_entries() == {"added": 1, "last_entry_id": 1302, "was": 1105}
+    # 10 under the mark is 1095: P2 again, which we hold, and L3, which is ours. Never P1
     assert sorted(world["written"]) == ["P4"] and world["read"] == ["P4"]
     assert all(p["sortOrder"] == "DESC" for p in world["pages"]) and len(world["pages"]) == 3
     assert world["mark"] == 1302

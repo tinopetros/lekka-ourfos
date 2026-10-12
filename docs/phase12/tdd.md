@@ -28,12 +28,11 @@
 5. **The correction's email**: a reply in the requisition's thread, to the same people. **CORRECTED**, the new entry's lines and the reason, or **REVERSED**, nothing re-posted, and the reason
 6. **`/sync/journal_entries`**
    - Always manual entries only (`manualEntriesOnly=true`)
-   - Each night: newest id first, back to the mark in `syncs/journal_entries` and 200 entries under it, since an entry mid-save can show after a higher id. Skips our Mifos user's, and transactions we hold
+   - Each night: newest id first, back to the mark in `syncs/journal_entries` and 10 entries under it, since an entry mid-save can show after a higher id. Skips our Mifos user's, and transactions we hold
    - No mark: does nothing, and logs `journal_entries not preloaded`
    - `from=2026-01-01`: the preload. Everything from that transaction date, ours too: a transaction a run posted is `lekkai`, with its run
    - The mark only ever goes up, written in a transaction once the sync is done
 7. **The schedule**: Cloud Scheduler starts the `sync` workflow, one job per entry in Terraform's `syncs`. `journal_entries`: `0 23 * * *`, `Africa/Harare`
-8. **Prod**: planned, not released
 
 ## Smoke
 
@@ -73,8 +72,6 @@ done
 ## Before prod's release
 
 - Prod's add-on URL carries `&mifos=false` until posting is ready
-- Phase 11's: prod's requisition form asks for Reference Number, and `verify_ssl` once Mifos has a certificate
-- Alerts on ERROR logs: `mifos post uncertain`, `not recorded`, a sync that failed
 
 ## Later
 

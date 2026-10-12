@@ -17,8 +17,8 @@ from integrations import mifos
 
 KIND = "journal_entries"
 PAGE = 200
-# Mifos numbers an entry when it starts saving it, so a slow one can show after a higher id: read these again
-MARGIN = 200
+# Buffer just in case
+MARGIN = 10
 
 
 def mark() -> store.Doc:
@@ -33,7 +33,7 @@ def journal_entries(since: str | None = None) -> dict:
     except HTTPException as e:
         if e.status_code != 404:
             raise
-        # No mark: never a read of everything. The preload is by hand (docs/phase12/adr.md 7)
+        # No mark: never a read of everything. The preload is by hand.
         log(f"{KIND} not preloaded", "WARNING")
         return {"skipped": "not preloaded"}
     lines, highest, offset = {}, last, 0
