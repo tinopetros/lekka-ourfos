@@ -1,10 +1,10 @@
 """What smoke's runs wrote, read back from dev's Firestore. Standard library and curl
 only: the build's image has python3, curl and gcloud, nothing else.
 
-    smoke_checks.py <project> <stamp> <results dir>
+    smoke_checks.py <project> <results dir>
 
-Each run's result is in <results dir>/<form>-<fixture>.json, as `make wait` printed it. Every check runs, then any
-that failed are listed and it exits 1.
+Each run's result is in <results dir>/<form>-<fixture>.json, as `make wait` printed it, and the submission of the try
+that passed in <form>-<fixture>.id. Every check runs, then any that failed are listed and it exits 1.
 """
 
 import json
@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-project, stamp, results = sys.argv[1], sys.argv[2], Path(sys.argv[3])
+project, results = sys.argv[1], Path(sys.argv[2])
 TOKEN = subprocess.check_output(["gcloud", "auth", "print-access-token"], text=True).strip()
 BASE = f"https://firestore.googleapis.com/v1/projects/{project}/databases/ourfos/documents/"
 failed = []
@@ -59,8 +59,13 @@ def check(what: str, ok: bool, seen=None):
         failed.append(what)
 
 
+def submitted(fixture: str) -> str:
+    """The requisition fixture's submission, the try that passed."""
+    return (results / f"requisition-{fixture}.id").read_text().strip()
+
+
 def submission(fixture: str) -> dict:
-    return doc(f"requisitions/smoke-{fixture}-{stamp}") or {}
+    return doc(f"requisitions/{submitted(fixture)}") or {}
 
 
 def entry(transaction: str | None) -> dict:
@@ -77,7 +82,7 @@ def expense_run(fixture: str) -> dict:
             "30",
             "-H",
             f"Authorization: Bearer {TOKEN}",
-            f"{BASE}requisitions/smoke-{fixture}-{stamp}/runs",
+            f"{BASE}requisitions/{submitted(fixture)}/runs",
         ],
         capture_output=True,
         text=True,
@@ -99,7 +104,7 @@ check(
 check("happy's comments start Subject:", (posted.get("comments") or "").startswith("Subject: "), posted.get("comments"))
 check("happy's entry has Mifos's dates", bool(posted.get("transaction_date") and posted.get("created_on")), posted)
 check("happy's entry has Mifos's ids", len(posted.get("entry_ids") or []) >= 2, posted.get("entry_ids"))
-first = doc(f"requisitions/smoke-happy-{stamp}/runs/{posted.get('run')}") or {}
+first = doc(f"requisitions/{submitted('happy')}/runs/{posted.get('run')}") or {}
 dates = first.get("posted") or {}
 check(
     "happy's run keeps transaction_date and created_on",
