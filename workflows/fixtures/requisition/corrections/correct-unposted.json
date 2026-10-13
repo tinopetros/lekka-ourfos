@@ -1,0 +1,5 @@
+{
+    "reason": "Smoke: a requisition that never posted",
+    "requested_by": "lekkai@lekkacredit.com",
+    "simulate": { "mifos_post": "stub" }
+}

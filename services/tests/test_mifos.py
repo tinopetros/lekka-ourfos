@@ -1,7 +1,7 @@
 """Posting to Mifos, its failures and its read-back, with the connector faked; and the steps around it."""
 
 import os
-from datetime import date
+from datetime import date, datetime
 
 import httpx
 import pytest
@@ -14,6 +14,7 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 from test_forms import Doc
 
 import emails
+import journal as journal_entries
 import store
 from common import execution_id
 from integrations import mifos
@@ -58,6 +59,12 @@ class Journal:
 def entry(gl, side, amount):
     names = {66: ("5020", "Advertising and Promotions"), 109: ("10000000", "Cash at Vault")}
     return {
+        "id": 900 + gl,
+        "transactionId": "L42",
+        "createdDate": [2026, 10, 6],
+        "createdByUserName": "lekkai@lekkacredit.com",
+        "referenceNumber": "7",
+        "comments": "Subject: s",
         "glAccountId": gl,
         "glAccountCode": names[gl][0],
         "glAccountName": names[gl][1],
@@ -96,10 +103,10 @@ def test_a_post_is_a_journal_entry_with_our_reference(journal):
     ]
 
 
-def test_a_simulated_post_never_reaches_mifos(journal):
-    assert mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub") == {
-        "mifos_transaction_id": "stub-txn-run-1"
-    }
+def test_a_simulated_post_never_reaches_mifos_and_is_its_own_each_time(journal):
+    first = mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub")["mifos_transaction_id"]
+    second = mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject", "stub")["mifos_transaction_id"]
+    assert first.startswith(mifos.STUB) and first != second
     assert journal.created == []
 
 
@@ -128,37 +135,12 @@ def test_the_books_are_only_prods(monkeypatch):
     assert "ourfos-prod" in e.value.detail
 
 
-def test_a_read_back_is_what_mifos_has(journal):
-    mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject")
-    entry = mifos.read_back("L42", DEBIT, CREDIT)
-    assert entry["mismatch"] is None
-    assert {k: v for k, v in entry["posted"].items() if k != "lines"} == {
-        "transaction_id": "L42",
-        "date": "2026-10-05",
-        "office": {"id": 1, "name": "Head Office"},
-        "currency": "USD",
-    }
-    assert [(x["name"], x["type"], x["amount"]) for x in entry["posted"]["lines"]] == [
-        ("Advertising and Promotions", "DEBIT", 60),
-        ("Cash at Vault", "CREDIT", 60),
-    ]
-
-
-def test_verify_compares_each_line_not_the_count():
-    wanted = [mifos.line(DEBIT[0], "DEBIT"), mifos.line(CREDIT[0], "CREDIT")]
-    swapped = [mifos.line(DEBIT[0], "CREDIT"), mifos.line(CREDIT[0], "DEBIT")]
-    assert mifos.mismatch(wanted, swapped) == (
-        "missing debit 60.00 to GL 66, credit 60.00 to GL 109; not ours credit 60.00 to GL 66, debit 60.00 to GL 109"
-    )
-    assert mifos.mismatch(wanted, wanted[:1]) == "missing credit 60.00 to GL 109"
-    assert mifos.mismatch(wanted, [{**wanted[0], "amount": 60.001}, wanted[1]]) is None
-
-
 @pytest.fixture
 def docs(monkeypatch):
     docs = {("requisition", "r"): {"answers": REQUISITION}}
     monkeypatch.setattr(store, "submission", lambda form, id: Doc(docs, (form, id)))
     monkeypatch.setattr(store, "run", lambda form, id, run: Doc(docs, (form, id, run)))
+    monkeypatch.setattr(journal_entries, "entry", lambda txn: Doc(docs, ("journal_entries", txn)))
     execution_id.set("run-1")
     docs[("requisition", "r", "run-1")] = {"classification": {"approve": True, "debit": DEBIT, "credit": CREDIT}}
     return docs
@@ -184,29 +166,46 @@ def test_a_post_is_dated_the_day_it_was_disbursed_and_never_made_twice(docs, jou
     assert journal.created[0]["transactionDate"] == "2026-10-05"
     assert journal.created[0]["referenceNumber"] == "7"
     assert journal.created[0]["comments"] == (
-        "Reference number: 7. Requisition Approval Request Form - City parking - #7. Response number: 7. "
-        "Workflow run: run-1"
+        "Subject: Requisition Approval Request Form - City parking - #7. Response number: 7. Workflow run: run-1"
     )
+
+
+def test_a_post_is_recorded_as_lekkais_and_live(docs, journal, sent):
+    requisitions.post("r", {})
+    recorded = docs[("journal_entries", "L42")]
+    assert {k: recorded[k] for k in ("source", "by", "form", "submission", "run", "status", "transaction_date")} == {
+        "source": "ourfos",
+        "by": "lekkai",
+        "form": "requisition",
+        "submission": "r",
+        "run": "run-1",
+        "status": "live",
+        "transaction_date": "2026-10-05",
+    }
+    assert [(x["type"], x["glId"]) for x in recorded["lines"]] == [("DEBIT", 66), ("CREDIT", 109)]
+    assert docs[("requisition", "r")]["live_entry"] == "L42"
+    assert docs[("requisition", "r")]["journal_entries"] == ["L42"]
+    # What we sent, and the day we posted it: Mifos isn't read back
+    assert recorded["created_on"] == datetime.now(journal_entries.HARARE).date().isoformat()
+    assert docs[("requisition", "r", "run-1")]["posted"]["lines"] == recorded["lines"]
 
 
 def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(docs, journal, sent):
     docs[("requisition", "r")]["answers"] = REQUISITION | {"reference_number": "REQ-0482"}
     requisitions.post("r", {})
     assert journal.created[0]["referenceNumber"] == "REQ-0482"
-    assert journal.created[0]["comments"].startswith("Reference number: REQ-0482. ")
+    assert "REQ-0482" not in journal.created[0]["comments"]
 
 
-def test_a_test_run_never_posts(docs, journal, sent):
-    docs[("requisition", "r", "run-1")]["test"] = True
-    assert requisitions.post("r", {}) == {"skipped": "test"}
+@pytest.mark.parametrize("field, value, skipped", [("test", True, "test"), ("mifos", False, "mifos")])
+def test_a_test_run_or_mifos_off_never_posts(docs, journal, field, value, skipped):
+    docs[("requisition", "r", "run-1")][field] = value
+    assert requisitions.post("r", {}) == {"skipped": skipped}
     assert journal.created == []
-    requisitions.confirm("r", {"mifos_transaction_id": None, "thread": {"thread_id": "t1"}})
-    assert "Lekkai's action: NOT POSTED" in sent[0][1] and emails.DISCLAIMER in sent[0][1]
 
 
-def test_the_last_email_is_what_mifos_has_and_its_id(docs, journal, sent):
+def test_the_last_email_is_what_we_posted_and_its_id(docs, journal, sent):
     requisitions.post("r", {})
-    requisitions.read_back("r", "L42", None)
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     assert [kind for kind, _ in sent] == ["confirmation"]
@@ -225,12 +224,27 @@ def test_a_ledger_totals_each_side():
     ]
 
 
-def test_a_start_logs_whether_mifos_answers(monkeypatch, capsys):
+class Office:
+    """The connector's transport, for the one read a start makes: our office"""
+
+    def __init__(self, fail=None):
+        self.fail, self.asked = fail, []
+
+    def get(self, path):
+        self.asked.append(path)
+        if self.fail:
+            raise self.fail
+        return {"id": 1, "name": "Head Office"}
+
+
+def test_a_start_reads_our_office_and_logs_whether_mifos_answers(monkeypatch, capsys):
     monkeypatch.setenv("MIFOS_TENANT_ID", "demo")
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": Journal()})())
+    office = Office()
+    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": office})())
     mifos.connect()
-    journal = Journal(fail=MifosNetworkError("refused", httpx.ConnectError("refused")))
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": journal})())
+    assert office.asked == ["/offices/1"]
+    failing = Office(fail=MifosNetworkError("refused", httpx.ConnectError("refused")))
+    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": failing})())
     mifos.connect()
     out = capsys.readouterr().out
     assert '"mifos connected"' in out and "mifos not connected" in out

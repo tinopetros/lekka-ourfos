@@ -12,11 +12,13 @@
 
 - Phase 5 counted lines, all a stub could give. Now each account, side and amount we posted is checked against what Mifos has
 - A mismatch hands over, naming the transaction. Never a second post
+- **Closed** by phase 12 ADR 11: Mifos isn't read back, since its reads take minutes
 
 ### 3. The last email is Mifos's read-back
 
 - It says what the books hold, not what we sent
 - Closes phase 9 ADR 6 and phase 1 ADR 2: the confirmation is the word that counts
+- **Closed** by phase 12 ADR 11: the last email shows what we posted and Mifos's transaction id
 
 ### 4. Only prod posts to the books
 

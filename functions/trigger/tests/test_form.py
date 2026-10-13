@@ -261,6 +261,11 @@ def test_a_flag_is_true_or_false(value, want):
     assert flag(value) is want
 
 
+def test_an_absent_flag_is_its_default():
+    assert flag(None, default=True) is True
+    assert flag("false", default=True) is False
+
+
 @pytest.mark.parametrize("value", ["", "1", "yes", "truee"])
 def test_a_flag_is_never_guessed(value):
     with pytest.raises(ValueError):

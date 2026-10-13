@@ -1,0 +1,8 @@
+{
+    "reason": "Smoke: advertising, not system support",
+    "requested_by": "lekkai@lekkacredit.com",
+    "lines": {
+        "debit": [{ "name": "Advertising and Promotions", "glCode": "5020", "glId": 66, "amount": 60 }],
+        "credit": [{ "name": "Cash at Vault", "glCode": "10000000", "glId": 109, "amount": 60 }]
+    }
+}

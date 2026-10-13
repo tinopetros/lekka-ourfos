@@ -153,3 +153,37 @@ is_connection_failed:
   steps:
     - decide:
         return: ${"ConnectionFailedError" in default(map.get(e, "tags"), [])}
+
+# Only a connection that never got there is retried. A timeout may have landed, so never retry it blind, nor a 504:
+# the service's word for a Mifos that didn't confirm. Expense's and correction's: path is which post
+post:
+  params: [at, run, code: null, path: "/post"]
+  steps:
+    - send:
+        try:
+          try:
+            call: call_service
+            args:
+              at: ${at}
+              method: POST
+              path: ${path}
+              body:
+                simulate: ${code}
+            result: posted
+          retry:
+            predicate: ${is_connection_failed}
+            max_retries: 3
+            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+        except:
+          as: e
+          steps:
+            - uncertain:
+                switch:
+                  - condition: ${"TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) == 504}
+                    raise:
+                      tags: [PostUncertain]
+                      message: ${"Mifos did not confirm the post and the entry may have landed. Check Mifos for an entry whose comments name workflow run " + run + " before booking it again"}
+            - rethrow:
+                raise: ${e}
+    - posted:
+        return: ${posted}

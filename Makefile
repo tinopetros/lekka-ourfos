@@ -22,6 +22,7 @@ SERVICES_BUILD := .build/services
 WHEELS := .build/wheels
 REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
 TF_ARGS ?=
+comma := ,
 # make evals: which cases (comma separated eval_ids, all when empty), and how many times over
 CASE ?=
 RUNS ?= 1
@@ -37,17 +38,20 @@ TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --projec
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait logs doc smoke evals eval-cases eval-report check test lint lock-check \
+.PHONY: help check-env package build stage deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
 	@echo "make deploy              build the services image, then terraform apply"
-	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
-	@echo "                         wait, show its logs. TEST=1: a test run. SUBMISSION: run on that submission again"
+	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [MIFOS=false] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
+	@echo "                         wait, show its logs. TEST=1: a test run. MIFOS=false: posting off. SUBMISSION: run on that submission again"
+	@echo "make correct ID=<submission> [FIXTURE=correct]  run workflows/fixtures/requisition/corrections/<FIXTURE>.json on a requisition, and wait"
+	@echo "make sync [FROM=2026-01-01]  the nightly journal_entries sync, or with FROM the preload, and wait"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, jailbreak,"
-	@echo "                         400 and invalid handed_over, and every other form's happy done and invalid handed_over (what CI runs)"
+	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
+	@echo "                         not posted, jailbreak, 400 and invalid handed_over, every other form's happy done and invalid handed_over,"
+	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
@@ -112,12 +116,29 @@ start:
 		d["response_id"] = sys.argv[3] or f"fixture-{sys.argv[2]}-{time.time_ns()}"; print(json.dumps(d))' \
 		workflows/fixtures/$(FORM)/$(FIXTURE).json $(FIXTURE) "$(SUBMISSION)" \
 		| curl -s -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @- "$(TRIGGER_URL)?workflow=$(FORM)$(if $(TEST),&test=true)" \
+		--data @- "$(TRIGGER_URL)?workflow=$(FORM)$(if $(TEST),&test=true)$(if $(MIFOS),&mifos=$(MIFOS))" \
 		| python3 -c 'import sys, json; r = json.load(sys.stdin); print("submission", r.get("id", "(the run\x27s own)"), file=sys.stderr); print(r["execution_id"])'
 
 wait:
 	@gcloud workflows executions wait $(ID) --workflow $(WORKFLOW) --location $(REGION) --project $(PROJECT) \
 		--format 'value(state, result, error.payload)'
+
+# A correction on a requisition's submission, ID: a fixture's reason, requested_by, lines and simulate
+# (docs/phase12/tdd.md, step 4). Prints the execution, then waits for it
+correct-start: check-env
+	@python3 -c 'import json, sys; print(json.dumps(json.load(open(sys.argv[1])) | {"id": sys.argv[2]}))' \
+		workflows/fixtures/requisition/corrections/$(FIXTURE).json $(ID) \
+		| gcloud workflows execute correction --location $(REGION) --project $(PROJECT) --data "$$(cat)" --verbosity error \
+			--format 'value(name)' | awk -F/ '{print $$NF}'
+
+correct:
+	@id=$$($(MAKE) -s correct-start) && echo "execution $$id" && $(MAKE) -s wait WORKFLOW=correction ID=$$id
+
+# The nightly sync by hand, or with FROM, the preload (docs/phase12/tdd.md, step 6)
+sync: check-env
+	@id=$$(gcloud workflows execute sync --location $(REGION) --project $(PROJECT) \
+		--data '{"kind": "journal_entries"$(if $(FROM),$(comma) "from": "$(FROM)")}' --format 'value(name)' | awk -F/ '{print $$NF}') \
+		&& echo "execution $$id" && $(MAKE) -s wait WORKFLOW=sync ID=$$id
 
 # Starts a run, waits for it to finish, then shows its logs (which land a few seconds late)
 run:
@@ -135,27 +156,43 @@ doc:
 		[print(f"runs/{run.id}", json.dumps(run.to_dict(), indent=2, default=str)) for run in ref.collection("runs").stream()]' $(FORM) $(ID)
 
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up. happy posts to Mifos's demo tenant,
-# for real: done, with a transaction that isn't the stub's
+# for real: done, with a transaction that isn't the stub's. Each try its own submission, so a retry never runs on a
+# submission an earlier try posted. The one that passed is kept, so the corrections after know which to correct:
+# happy's for real, happy-gcs's and google-doc's on the stub, mifos-off's never posted. Corrections are never retried
+# (docs/phase12/tdd.md, Smoke)
 smoke: check-env
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)?workflow=requisition"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
-	@for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done \
+	@rm -rf .build/smoke && mkdir -p .build/smoke; stamp=$$(python3 -c 'import time; print(time.time_ns())'); \
+	for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done requisition/mifos-off:skipped \
 		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over requisition/invalid:handed_over \
 		vehicle_log/happy:done vehicle_log/invalid:handed_over loan_approval/happy:done loan_approval/invalid:handed_over \
-		write_off/happy:done write_off/invalid:handed_over; do \
-		path=$${case%%:*}; want=$${case#*:}; form=$${path%%/*}; fixture=$${path#*/}; \
+		write_off/happy:done write_off/invalid:handed_over \
+		correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:done \
+		correction/correct-unposted@mifos-off:refused correction/correct-timeout@google-doc:handed_over; do \
+		path=$${case%%:*}; want=$${case#*:}; form=$${path%%/*}; fixture=$${path#*/}; on=$${fixture#*@}; fixture=$${fixture%%@*}; \
 		for try in 1 2 3; do \
-			result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture) 2>/dev/null); \
-			echo "$$path: $$result"; \
+			sub=smoke-$$fixture-$$stamp-$$try; \
+			if [ $$form = correction ]; then \
+				sub=$$(cat .build/smoke/requisition-$$on.id); \
+				result=$$($(MAKE) -s wait WORKFLOW=correction ID=$$($(MAKE) -s correct-start FIXTURE=$$fixture ID=$$sub) 2>/dev/null); \
+			else \
+				result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture SUBMISSION=$$sub \
+					$$([ $$fixture = mifos-off ] && echo MIFOS=false)) 2>/dev/null); \
+			fi; \
+			echo "$$path: $$result"; echo "$$result" > .build/smoke/$$form-$$fixture.json; \
 			case $$want in \
-				posted) echo "$$result" | grep '"status":"done"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' && break ;; \
-				*) echo "$$result" | grep -q "\"status\":\"$$want\"" && break ;; \
-			esac; \
-			[ $$try = 3 ] && exit 1; sleep 30; \
+				posted) echo "$$result" | grep '"status":"done"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' ;; \
+				corrected) echo "$$result" | grep '"status":"done"' | grep '"reversal":"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' ;; \
+				skipped) echo "$$result" | grep '"status":"done"' | grep -q '"skipped":"mifos"' ;; \
+				*) echo "$$result" | grep -q "\"status\":\"$$want\"" ;; \
+			esac && { echo $$sub > .build/smoke/$$form-$$fixture.id; break; }; \
+			[ $$form = correction ] && exit 1; [ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
+	@python3 scripts/smoke_checks.py $(PROJECT) .build/smoke
 
 # Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for
 # expenser.evals' custom metrics

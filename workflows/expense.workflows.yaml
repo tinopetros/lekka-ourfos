@@ -13,6 +13,8 @@ main:
           - raw: ${default(map.get(args, "raw"), null)}
           # Tells only lekkai@ and the submitter (docs/release1/adr.md 3)
           - test: ${default(map.get(args, "test"), false)}
+          # Off: nothing goes to Mifos and there's no last email, as on a test run (docs/phase12/adr.md 8)
+          - mifos: ${default(map.get(args, "mifos"), true)}
           - simulate: {}
           # The submission's document: its response_id, or this run's own id when the form couldn't give one
           - at: '${"/forms/" + args.form + "/" + default(map.get(args, "id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID"))}'
@@ -37,6 +39,7 @@ main:
             invalid: ${invalid}
             raw: ${raw}
             test: ${test}
+            mifos: ${mifos}
             simulate: ${simulate}
           result: result
         except:
@@ -59,13 +62,13 @@ main:
 
 # Every step, and how it ends: done, rejected or handed over. Only a failed handover raises
 process:
-  params: [at, requisition, invalid, raw, test, simulate]
+  params: [at, requisition, invalid, raw, test, mifos, simulate]
   steps:
     - init:
         assign:
           - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
           - thread: null
-          # Stays null on a test run, which never posts
+          # Stays null on a test run, or with Mifos off: neither posts
           - mifos_transaction_id: null
     - run:
         try:
@@ -85,6 +88,7 @@ process:
                       submission: ${requisition}
                       raw: ${raw}
                       test: ${test}
+                      mifos: ${mifos}
                       simulate: ${simulate}
                       workflow: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")}
                       revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
@@ -154,35 +158,16 @@ process:
                   run: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
                 result: posted
-            # A test run: nothing posted, so nothing to read back
+            # A test run, or Mifos off: nothing posted, so nothing to confirm
             - posted:
                 switch:
                   - condition: ${map.get(posted, "skipped") != null}
-                    next: confirm
+                    return: { status: "done", skipped: "${posted.skipped}" }
+            # Mifos's transaction id is the proof: it isn't read back, since its reads take minutes
+            # (docs/phase12/adr.md 11)
             - transaction:
                 assign:
                   - mifos_transaction_id: ${posted.mifos_transaction_id}
-            - read_back:
-                try:
-                  call: call_service
-                  args:
-                    at: ${at}
-                    method: GET
-                    path: ${"/read-back/" + mifos_transaction_id}
-                    query:
-                      simulate: ${default(map.get(simulate, "mifos_read"), "")}
-                  result: entry
-                retry:
-                  predicate: ${is_retryable_read}
-                  max_retries: 3
-                  backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
-            # Line by line, by the service: each account, side and amount we posted, and nothing else
-            - verify:
-                switch:
-                  - condition: ${entry.mismatch != null}
-                    raise:
-                      tags: [Unconfirmed]
-                      message: ${"Posted as " + mifos_transaction_id + " but Mifos has it differently, " + entry.mismatch + ". Please check it by hand"}
             - confirm:
                 try:
                   call: call_service
@@ -262,37 +247,3 @@ check:
               message: ${"Debits (" + string(debits) + ") do not add up to the requisition's " + string(amount)}
     - ok:
         return: ok
-
-# Only a connection that never got there is retried. A timeout may have landed, so never retry it blind, nor a 504:
-# the service's word for a Mifos that didn't confirm. A test run comes back {skipped: "test"}
-post:
-  params: [at, run, code: null]
-  steps:
-    - send:
-        try:
-          try:
-            call: call_service
-            args:
-              at: ${at}
-              method: POST
-              path: /post
-              body:
-                simulate: ${code}
-            result: posted
-          retry:
-            predicate: ${is_connection_failed}
-            max_retries: 3
-            backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
-        except:
-          as: e
-          steps:
-            - uncertain:
-                switch:
-                  - condition: ${"TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) == 504}
-                    raise:
-                      tags: [PostUncertain]
-                      message: ${"Mifos did not confirm the post and the entry may have landed. Check Mifos for an entry whose comments name workflow run " + run + " before booking it again"}
-            - rethrow:
-                raise: ${e}
-    - posted:
-        return: ${posted}

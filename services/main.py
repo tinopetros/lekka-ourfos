@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 
 from common import execution_id
 from integrations import mifos
-from routers import forms, requisitions
+from routers import corrections, forms, requisitions, syncs
 
 
 @asynccontextmanager
@@ -17,7 +17,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ourfos-services", lifespan=lifespan)
 app.include_router(requisitions.router)
+app.include_router(corrections.router)
 app.include_router(forms.router)
+app.include_router(syncs.router)
 
 
 @app.middleware("http")

@@ -67,11 +67,12 @@ def _save_status(transaction, ref, parent, fields):
     if (ref.get(transaction=transaction).to_dict() or {}).get("status") in ENDED:
         fields = {k: v for k, v in fields.items() if k != "status"}
     transaction.set(ref, fields, merge=True)
-    if "status" in fields:
+    # A refused correction changed nothing, so the submission's status stands
+    if fields.get("status") not in (None, "refused"):
         transaction.set(parent, {"status": fields["status"], "run": ref.id, "updated_at": NOW}, merge=True)
 
 
-ENDED = {"done", "rejected", "handed_over", "failed"}
+ENDED = {"done", "rejected", "handed_over", "failed", "refused"}
 
 
 def _status(e: exceptions.GoogleAPICallError) -> HTTPException:
