@@ -12,6 +12,14 @@ from api import auth, reads
 from api.main import app
 
 AUDIENCE = "/projects/1/locations/africa-south1/services/ourfos-api"
+
+
+@pytest.fixture(autouse=True)
+def unseen(monkeypatch):
+    """A sign-in's record is written in a thread of its own, which could outlive a test's fake store: never here"""
+    monkeypatch.setattr(auth, "seen", lambda email: None)
+
+
 REQUISITION = {
     "response_number": 7,
     "response_id": "r",
@@ -61,8 +69,12 @@ def test_every_route_needs_iaps_header(iap):
     assert client.get("/api/me").status_code == 401
     assert client.get("/api/me", headers={auth.HEADER: "nonsense"}).status_code == 401
     me = client.get("/api/me", headers={auth.HEADER: iap()})
-    # No database in tests: a sign-in that can't be recorded still signs in
     assert me.status_code == 200 and me.json()["email"] == "tino@lekkacredit.com"
+
+
+def test_a_sign_in_that_cant_be_recorded_is_still_a_sign_in():
+    # conftest's store refuses: logged, not raised
+    auth.record("tino@lekkacredit.com")
 
 
 def test_locally_who_you_are_is_acted_as_or_your_adc(monkeypatch):

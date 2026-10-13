@@ -13,8 +13,9 @@ export TF_DATA_DIR := .terraform-$(ENV)
 
 # The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
-SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
-	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path '*/.adk/*' ! -path 'agents/expenser/evals/*' ! -name requirements.txt ! -name .env | LC_ALL=C sort)
+SERVICES_SRC := $(shell find services agents/expenser web -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
+	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path '*/.adk/*' ! -path 'agents/expenser/evals/*' ! -name requirements.txt ! -name .env \
+	! -path 'web/node_modules/*' ! -path 'web/dist/*' ! -name '*.tsbuildinfo' | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
 TRIGGER_ZIP := .build/trigger.zip
@@ -27,7 +28,7 @@ comma := ,
 CASE ?=
 RUNS ?= 1
 EVALS := expenser/evals
-TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) $(TF_ARGS)
+TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var version=$(VERSION) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # The trigger's ?workflow= names the form, as its webhook always has, and the form names its workflow
 WORKFLOW = $(if $(filter requisition,$(FORM)),expense,intake)
@@ -36,9 +37,18 @@ SUBMISSION ?=
 # The trigger's bearer token, read when used and never echoed
 TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --project $(PROJECT))
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
+API_URL = $$(gcloud run services describe ourfos-api --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
+# What the UI says it's on: the commit, from Cloud Build's SHORT_SHA or git, so a bug report names its build
+VERSION ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+# make web: the API's port beside Vite's 5173, and who to be instead of your ADC account
+API_PORT ?= 8000
+ACT_AS ?=
+OPENAPI := .build/openapi.json
+SCHEMA := web/src/lib/api/schema.d.ts
 
 .DEFAULT_GOAL := help
 .PHONY: help check-env package build stage deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
+	web types types-check web-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
 help:
@@ -52,7 +62,10 @@ help:
 	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
 	@echo "                         not posted, jailbreak, 400 and invalid handed_over, every other form's happy done and invalid handed_over,"
 	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
-	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
+	@echo "make web [API_PORT=8000] [ACT_AS=<email>]  the UI on localhost:5173 and its API, on your ADC, reading dev's Firestore."
+	@echo "                         Installs, and generates the types, first"
+	@echo "make types               web's TypeScript types, from the API's OpenAPI (after changing services/api/models.py)"
+	@echo "make check               fmt, validate, lock, lint and test, the types and the UI (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
 	@echo "make eval-report         which cases failed which metric, and what they cost, in the last RUNS runs"
@@ -95,6 +108,7 @@ stage: services/requirements.txt $(WHEELS)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
 		-C services . | tar -xf - -C $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ --exclude .adk --exclude expenser/evals -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
+	COPYFILE_DISABLE=1 tar -cf - --exclude node_modules --exclude dist --exclude '*.tsbuildinfo' web | tar -xf - -C $(SERVICES_BUILD)
 
 # As ourfos-build rather than the compute account (roles/editor), staged in our
 # africa-south1 bucket rather than the US default
@@ -204,7 +218,34 @@ agent:
 agent-web:
 	$(ADK) web
 
-check: tf-fmt-check tf-validate-ci lock-check lint test
+check: tf-fmt-check tf-validate-ci lock-check lint test types-check web-check
+
+# npm ci whenever the lock changes, and only then. npm writes this file on every install
+web/node_modules/.package-lock.json: web/package-lock.json
+	cd web && npm ci --no-audit --no-fund
+
+# The API's models → OpenAPI → web's TypeScript (docs/phase13/adr.md 4). Generated, committed, never edited
+types: web/node_modules/.package-lock.json
+	@mkdir -p .build
+	cd services && uv run -q python -c 'import json; from api.main import app; print(json.dumps(app.openapi(), indent=1))' > ../$(OPENAPI)
+	cd web && npm run -s types >/dev/null
+
+# Fails when the committed types aren't what the API's models make
+types-check: types
+	@git diff --exit-code -- $(SCHEMA) || { echo "$(SCHEMA) is stale: run make types and commit it" >&2; exit 1; }
+
+web-check: web/node_modules/.package-lock.json
+	cd web && npm run -s lint && npm run -s typecheck && npm run -s test && npm run -s build
+
+# The UI on localhost:5173, its /api proxied to the API run here on your ADC, reading dev's Firestore as you
+# (docs/phase13/tdd.md, Local). Never prod's. Both stop with ctrl-c
+web: types
+	@[ "$(ENV)" = dev ] || { echo "make web reads dev's data only" >&2; exit 1; }
+	@echo "UI: http://localhost:5173  API: http://localhost:$(API_PORT)/docs  as $(or $(ACT_AS),your ADC account)"
+	@trap 'kill 0' INT TERM EXIT; \
+	(cd services && AUTH=local ENVIRONMENT=local GOOGLE_CLOUD_PROJECT=$(PROJECT) ACT_AS=$(ACT_AS) \
+		uv run -q uvicorn api.main:app --reload --port $(API_PORT)) & \
+	cd web && API_PORT=$(API_PORT) npm run -s dev
 
 # ADK's own eval, by hand: paid, about 20 cents for every case once, so never part of test, check or a build.
 # Reads agents/expenser/.env like `make agent`. Exits non-zero if any case failed; the failures are listed
@@ -264,4 +305,4 @@ tf-output: tf-init
 	cd $(TF_DIR) && terraform output
 
 clean:
-	rm -rf .build $(REQUIREMENTS)
+	rm -rf .build $(REQUIREMENTS) web/dist

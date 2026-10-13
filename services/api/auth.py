@@ -8,7 +8,6 @@ Cloud Run, so a deployed service can never be told who's asking.
 import os
 import threading
 import time
-from contextvars import ContextVar
 
 import google.auth
 import requests
@@ -27,9 +26,6 @@ CERTS = "https://www.gstatic.com/iap/verify/public_key"
 CERTS_TTL = 3600
 # A user's last_seen, at most this often per instance
 SEEN_EVERY = 300
-
-# Set per request, so the request log says who
-user: ContextVar[str | None] = ContextVar("user", default=None)
 
 _certs: dict = {"keys": {}, "at": 0.0}
 _seen: dict[str, float] = {}
@@ -98,17 +94,23 @@ def current_user(request: Request) -> str:
         except (ValueError, requests.RequestException) as e:
             log(f"refused: {e}", "WARNING")
             raise HTTPException(401, "Not signed in") from e
-    user.set(email)
+    # For the request log, which runs outside the thread a sync route's dependencies run in
+    request.state.user = email
     seen(email)
     return email
 
 
 def seen(email: str):
-    """users/{email}: first_seen once, then last_seen. Never in the way of a read: a failure is logged."""
+    """users/{email}: first_seen once, then last_seen. In the background, never in the way of a read."""
     now = time.monotonic()
     if now - _seen.get(email, -SEEN_EVERY) < SEEN_EVERY:
         return
     _seen[email] = now
+    threading.Thread(target=record, args=(email,), daemon=True).start()
+
+
+def record(email: str):
+    """A failure is logged: a sign-in is still a sign-in."""
     try:
         ref = store.client().collection("users").document(email)
         try:

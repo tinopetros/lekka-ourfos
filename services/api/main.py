@@ -10,21 +10,16 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
-from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 
 from common import log
 
-from . import auth, routes
+from . import routes
 
 # The built UI: web/dist, copied in by the image's build. Absent locally, where Vite serves it
 STATIC = Path(os.environ.get("STATIC_DIR", Path(__file__).parent.parent / "static"))
 
-app = FastAPI(
-    title="ourfos-api",
-    # Each route's operation is named by its function: the generated TypeScript's names
-    generate_unique_id_function=lambda route: route.name if isinstance(route, APIRoute) else route.path,
-)
+app = FastAPI(title="ourfos-api")
 app.include_router(routes.router)
 
 
@@ -32,7 +27,6 @@ app.include_router(routes.router)
 async def log_requests(request: Request, call_next):
     """Every request: who, what, how it ended, and how long it took."""
     start, status = time.monotonic(), 500
-    auth.user.set(None)
     try:
         response = await call_next(request)
         status = response.status_code
@@ -42,7 +36,7 @@ async def log_requests(request: Request, call_next):
             log(
                 "request",
                 "ERROR" if status >= 500 else "INFO",
-                user=auth.user.get(),
+                user=getattr(request.state, "user", None),
                 method=request.method,
                 path=request.url.path,
                 status=status,
