@@ -22,7 +22,7 @@ A Pydantic model is a type Python checks at runtime. As a FastAPI response model
 - [Pydantic: Models](https://docs.pydantic.dev/latest/concepts/models/)
 - [FastAPI: Response Model](https://fastapi.tiangolo.com/tutorial/response-model/)
 - [FastAPI: Generating Clients](https://fastapi.tiangolo.com/advanced/generate-clients/)
-- [openapi-typescript](https://openapi-ts.dev/)
+- [openapi-typescript](https://openapi-ts.dev/), and [openapi-fetch](https://openapi-ts.dev/openapi-fetch/), the client that calls the API through its types
 
 ## TanStack Query and Zustand: server state and client state
 
@@ -31,9 +31,9 @@ Data from the server is a cache of someone else's state: it goes stale, needs re
 - [TkDodo, Practical React Query](https://tkdodo.eu/blog/practical-react-query), the series
 - [TkDodo, Working with Zustand](https://tkdodo.eu/blog/working-with-zustand)
 
-## React 19 and React Router 7
+## React 19 and React Router 8
 
-The UI's base. Router 7 has three modes; we use the plainest, a single-page app.
+The UI's base. Router has three modes; we use data mode in a single-page app: routes as objects in one file, `createBrowserRouter`, no server rendering.
 
 - [React 19](https://react.dev/blog/2024/12/05/react-19)
 - [React Router: picking a mode](https://reactrouter.com/start/modes)
