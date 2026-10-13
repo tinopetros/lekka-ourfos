@@ -5,7 +5,7 @@ Dev posts to the demo tenant, prod to default: the books. A fixture's simulate, 
 
 import os
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from functools import cache
 
 import httpx
@@ -40,7 +40,8 @@ def connect():
     """One read when an instance starts: Mifos answers, and our user logs in. Logged, never raised (step 3)"""
     tenant = os.environ.get("MIFOS_TENANT_ID")
     try:
-        client().journal_entries.list({"limit": 1})
+        # Today's manual entries only: a read with no range would make Mifos scan all of them
+        manual_entries(datetime.now(UTC).date(), {"limit": 1})
         log("mifos connected", tenant=tenant)
     except (MifosError, HTTPException, KeyError) as e:
         log(f"mifos not connected: {e!r}", "ERROR", tenant=tenant)
@@ -87,16 +88,20 @@ def failed(e: MifosError, reference: str) -> HTTPException:
 def read(mifos_transaction_id: str) -> dict:
     """One transaction as Mifos has it, in our record's shape"""
     try:
-        lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id})
+        lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id, "manualEntriesOnly": True})
     except MifosError as e:
         raise read_failed(e) from e
     return entry(mifos_transaction_id, lines)
 
 
-def manual_entries(params: dict) -> list:
-    """A page of Mifos's manual journal entries, its lines that is"""
+def manual_entries(since: date, params: dict) -> list:
+    """A page of Mifos's manual journal entries, its lines that is, booked since then. Always manual and always a range:
+    Mifos has hundreds of thousands of entries, most of them loans' and savings' own"""
+    # A year ahead: an entry can be booked in the future
+    until = (datetime.now(UTC) + timedelta(days=366)).date()
+    window = {"fromDate": since.isoformat(), "toDate": until.isoformat(), "dateFormat": "yyyy-MM-dd", "locale": "en"}
     try:
-        return client().journal_entries.list({**params, "manualEntriesOnly": True})["pageItems"]
+        return client().journal_entries.list({**params, **window, "manualEntriesOnly": True})["pageItems"]
     except MifosError as e:
         raise read_failed(e) from e
 

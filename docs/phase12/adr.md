@@ -33,7 +33,7 @@
 ### 6. The sync only adds
 
 - Entries are taken as immutable, so it never reconciles ours with Mifos's
-- Manual entries only. Fineract can't filter by created date, so it pages by entry id, newest first, back to a mark
+- Manual entries only, and within the preload's dates. Fineract can't filter by created date, so it pages by entry id, newest first, back to a mark. The date range is there to keep Mifos's query small: by transaction date, it can't say what's new
 - 10 entries under the mark again each night, a buffer: Mifos numbers an entry when it starts saving it, so a slow one can show after a higher id
 - Our Mifos user's entries are skipped: the step that posts records them. So that user is Lekkai's alone, never a person's in Mifos's screens
 

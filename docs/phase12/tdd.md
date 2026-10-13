@@ -28,11 +28,11 @@
    - Started through the Workflows API, as smoke does. A front end's route, behind its sign-in, comes later
 5. **The correction's email**: a reply in the requisition's thread, to the same people. **CORRECTED**, the new entry's lines and the reason, or **REVERSED**, nothing re-posted, and the reason
 6. **`/sync/journal_entries`**
-   - Always manual entries only (`manualEntriesOnly=true`)
+   - Always manual entries only (`manualEntriesOnly=true`), and always a date range: Mifos has hundreds of thousands of entries, most of them loans' and savings'
    - Each night: newest id first, back to the mark in `syncs/journal_entries` and 10 entries under it, since an entry mid-save can show after a higher id. Skips our Mifos user's, and transactions we hold
    - No mark: does nothing, and logs `journal_entries not preloaded`
    - `from=2026-01-01`: the preload. Everything from that transaction date, ours too: a transaction a run posted is `ourfos`, by `lekkai`, with its run
-   - The mark only ever goes up, written in a transaction once the sync is done
+   - The mark only ever goes up, written in a transaction once the sync is done. The preload also keeps its `from` on it: each night reads within that window, so an entry booked back anywhere in it is still found
 7. **The schedule**: Cloud Scheduler starts the `sync` workflow, one job per entry in Terraform's `syncs`. `journal_entries`: `0 23 * * *`, `Africa/Harare`
 
 ## Smoke
@@ -91,3 +91,4 @@ done
 - This branch on dev, without the Scheduler job: smoke passed, and `smoke-happy-1791320954561042000` reads posted, reversed, posted, each entry with Mifos's ids. Then the preload, by hand: 428 added, the 3 the correction had recorded skipped, and a nightly sync after it, 0 added, the mark unmoved
 - Dev's record also holds the stub's entries, `stub-txn-…`, from fixtures. Prod never simulates, so never has them
 - 9 of Lekkai's posts in `demo` match no run in dev's Firestore, so they're `ourfos`, by `lekkai`, with no run. Why those runs are missing isn't checked yet
+- Mifos's `demo` stopped answering journal-entry reads for a day, even `limit=1`, while `/offices` still answered. The nightly sync and the start-up check were reading with no date range, and so were the checks while it was down. Now every read is manual only and in a range, `manual_entries` refuses one without, and the start-up check reads only today's

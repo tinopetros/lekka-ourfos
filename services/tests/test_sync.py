@@ -1,5 +1,7 @@
 """Mifos's manual entries into our record: paging back to the mark, and the preload. Mifos and the store faked."""
 
+from datetime import date
+
 import pytest
 from test_forms import Doc
 
@@ -45,8 +47,8 @@ def world(monkeypatch):
     monkeypatch.setenv("MIFOS_USERNAME", OURS)
     monkeypatch.setattr(sync, "PAGE", 3)
 
-    def manual_entries(params):
-        world["pages"].append(params)
+    def manual_entries(since, params):
+        world["pages"].append(params | {"since": since.isoformat()})
         rows = sorted(MIFOS, key=lambda x: x["id"], reverse=params["sortOrder"] == "DESC")
         return rows[params["offset"] : params["offset"] + params["limit"]]
 
@@ -54,8 +56,9 @@ def world(monkeypatch):
         world["read"].append(txn)
         return mifos.entry(txn, [x for x in MIFOS if x["transactionId"] == txn])
 
-    def raise_mark(highest, added):
+    def raise_mark(highest, added, since=None):
         world["mark"] = max(world["mark"] or 0, highest)
+        world["from"] = since and since.isoformat()
 
     monkeypatch.setattr(mifos, "manual_entries", manual_entries)
     monkeypatch.setattr(mifos, "read", read)
@@ -73,22 +76,24 @@ def test_with_no_mark_nothing_is_read(world):
 
 
 def test_each_night_pages_back_past_the_mark_and_adds_only_peoples_new_entries(world):
-    world["docs"][("syncs", "journal_entries")] = {"last_entry_id": 1105}
+    world["docs"][("syncs", "journal_entries")] = {"last_entry_id": 1105, "from": "2026-01-01"}
     world["held"] = {"P2"}
     assert sync.journal_entries() == {"added": 1, "last_entry_id": 1302, "was": 1105}
     # 10 under the mark is 1095: P2 again, which we hold, and L3, which is ours. Never P1
     assert sorted(world["written"]) == ["P4"] and world["read"] == ["P4"]
     assert all(p["sortOrder"] == "DESC" for p in world["pages"]) and len(world["pages"]) == 3
+    # Within the preload's window, never all of Mifos
+    assert all(p["since"] == "2026-01-01" for p in world["pages"])
     assert world["mark"] == 1302
     assert [x["type"] for x in world["written"]["P4"]["lines"]] == ["CREDIT", "DEBIT"]
 
 
 def test_the_preload_takes_everything_since_its_date_ours_too(world):
     assert sync.journal_entries("2026-01-01") == {"added": 4, "transactions": 4, "last_entry_id": 1302}
-    assert world["pages"][0]["fromDate"] == "2026-01-01" and world["pages"][0]["sortOrder"] == "ASC"
+    assert world["pages"][0]["since"] == "2026-01-01" and world["pages"][0]["sortOrder"] == "ASC"
     # A page ends halfway through P2, and its lines are still one entry
     assert len(world["written"]["P2"]["lines"]) == 2 and world["read"] == []
-    assert world["mark"] == 1302
+    assert world["mark"] == 1302 and world["from"] == "2026-01-01"
 
 
 def test_a_preloaded_entry_is_ours_with_its_run_when_a_run_posted_it(monkeypatch):
@@ -112,3 +117,17 @@ def test_a_preloaded_entry_is_ours_with_its_run_when_a_run_posted_it(monkeypatch
         "recorded_at": None,
     }
     assert sync.recorded("P1", {"created_by": "ZSaruchera"}, runs)["source"] == "mifos"
+
+
+def test_every_list_of_entries_is_manual_and_in_a_range(monkeypatch):
+    asked = []
+
+    class Journal:
+        def list(self, params):
+            asked.append(params)
+            return {"pageItems": []}
+
+    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": Journal()})())
+    mifos.manual_entries(date(2026, 1, 1), {"limit": 1})
+    assert asked[0]["manualEntriesOnly"] is True
+    assert asked[0]["fromDate"] == "2026-01-01" and asked[0]["toDate"] > "2026-01-01"

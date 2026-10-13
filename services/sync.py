@@ -4,7 +4,7 @@ immutable, so ours is never reconciled with Mifos's (docs/phase12/adr.md 6).
 Each night, newest entry id first, back to a mark. With a date to start from, the preload: everything since then.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 
 from fastapi import HTTPException
 from google.cloud import firestore
@@ -29,7 +29,8 @@ def journal_entries(since: str | None = None) -> dict:
     if since:
         return preload(date.fromisoformat(since))
     try:
-        last = mark().get()["last_entry_id"]
+        held_mark = mark().get()
+        last, since = held_mark["last_entry_id"], date.fromisoformat(held_mark["from"])
     except HTTPException as e:
         if e.status_code != 404:
             raise
@@ -38,7 +39,8 @@ def journal_entries(since: str | None = None) -> dict:
         return {"skipped": "not preloaded"}
     lines, highest, offset = {}, last, 0
     while True:
-        page = mifos.manual_entries({"orderBy": "id", "sortOrder": "DESC", "offset": offset, "limit": PAGE})
+        # Within the preload's window, so an entry booked back anywhere in it is still found
+        page = mifos.manual_entries(since, {"orderBy": "id", "sortOrder": "DESC", "offset": offset, "limit": PAGE})
         fresh = [x for x in page if x["id"] > last - MARGIN]
         for x in fresh:
             highest = max(highest, x["id"])
@@ -58,21 +60,8 @@ def journal_entries(since: str | None = None) -> dict:
 def preload(since: date) -> dict:
     """Every manual entry booked since then, ours too: one a run posted is Lekkai's, and names its run."""
     lines, offset = {}, 0
-    # A year ahead: an entry can be booked in the future
-    until = (datetime.now(UTC) + timedelta(days=366)).date()
     while True:
-        page = mifos.manual_entries(
-            {
-                "fromDate": since.isoformat(),
-                "toDate": until.isoformat(),
-                "dateFormat": "yyyy-MM-dd",
-                "locale": "en",
-                "orderBy": "id",
-                "sortOrder": "ASC",
-                "offset": offset,
-                "limit": PAGE,
-            }
-        )
+        page = mifos.manual_entries(since, {"orderBy": "id", "sortOrder": "ASC", "offset": offset, "limit": PAGE})
         for x in page:
             lines.setdefault(x["transactionId"], []).append(x)
         if len(page) < PAGE:
@@ -82,7 +71,7 @@ def preload(since: date) -> dict:
     known = held(lines)
     found = {txn: mifos.entry(txn, group) for txn, group in lines.items() if txn not in known}
     added = write(found, posted_by_runs())
-    raise_mark(highest, added)
+    raise_mark(highest, added, since)
     log(f"{KIND} preloaded", since=since, transactions=len(lines), added=added, last_entry_id=highest)
     return {"added": added, "transactions": len(lines), "last_entry_id": highest}
 
@@ -132,12 +121,16 @@ def recorded(txn: str, entry: dict, runs: dict) -> dict:
     return entry | source | {"status": "live", "recorded_at": store.NOW}
 
 
-def raise_mark(highest: int, added: int):
-    """Once the sync is done, and only ever up: two at once can't move it back."""
-    _raise(store.client().transaction(), mark().ref, highest, added)
+def raise_mark(highest: int, added: int, since: date | None = None):
+    """Once the sync is done, and only ever up: two at once can't move it back. A preload also keeps where it started:
+    the nightly sync reads from there"""
+    _raise(store.client().transaction(), mark().ref, highest, added, since)
 
 
 @firestore.transactional
-def _raise(transaction, ref, highest, added):
-    now = (ref.get(transaction=transaction).to_dict() or {}).get("last_entry_id") or 0
-    transaction.set(ref, {"last_entry_id": max(now, highest), "last_run_at": store.NOW, "added": added}, merge=True)
+def _raise(transaction, ref, highest, added, since):
+    now = ref.get(transaction=transaction).to_dict() or {}
+    fields = {"last_entry_id": max(now.get("last_entry_id") or 0, highest), "last_run_at": store.NOW, "added": added}
+    if since:
+        fields["from"] = min(now.get("from") or since.isoformat(), since.isoformat())
+    transaction.set(ref, fields, merge=True)
