@@ -28,7 +28,7 @@ comma := ,
 CASE ?=
 RUNS ?= 1
 EVALS := expenser/evals
-TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var version=$(VERSION) $(TF_ARGS)
+TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var build_version=$(VERSION) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # The trigger's ?workflow= names the form, as its webhook always has, and the form names its workflow
 WORKFLOW = $(if $(filter requisition,$(FORM)),expense,intake)
@@ -59,7 +59,7 @@ help:
 	@echo "make sync [FROM=2026-01-01]  the nightly journal_entries sync, or with FROM the preload, and wait"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
-	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
+	@echo "make smoke               the UI turns away whoever isn't signed in, no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
 	@echo "                         not posted, jailbreak, 400 and invalid handed_over, every other form's happy done and invalid handed_over,"
 	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
 	@echo "make web [API_PORT=8000] [ACT_AS=<email>]  the UI on localhost:5173 and its API, on your ADC, reading dev's Firestore."
@@ -175,6 +175,8 @@ doc:
 # happy's for real, happy-gcs's and google-doc's on the stub, mifos-off's never posted. Corrections are never retried
 # (docs/phase12/tdd.md, Smoke)
 smoke: check-env
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' "$(API_URL)/api/me"); echo "ui, signed out: $$code"; \
+		case $$code in 302|401|403) ;; *) exit 1 ;; esac
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
 		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)?workflow=requisition"); echo "no token: $$code"; [ "$$code" = 401 ]
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \

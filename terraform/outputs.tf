@@ -5,3 +5,7 @@ output "trigger_url" {
 output "services_url" {
   value = google_cloud_run_v2_service.services.uri
 }
+
+output "api_url" {
+  value = google_cloud_run_v2_service.api.uri
+}

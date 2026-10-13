@@ -47,10 +47,19 @@ packages/          shared libraries, never deployed alone
 services/          called BY workflows — invoker is the workflow's SA only
   classify/        a requisition's files, and expenser's call on them
   integrations/    third parties: Mifos, and Workspace as lekkai@
+  api/             ourfos-api, the UI's: reads only, behind IAP, from the same image
 agents/            ADK agents, run inside services for now (expenser, behind Model Armor)
-apps/              user-facing — behind IAP
+web/               the UI: React, built into the image and served by ourfos-api (docs/phase13)
 workflows/         the definitions, their shared lib, and fixtures per form for running them
 ```
+
+## The UI, locally
+
+```bash
+make web
+```
+
+The UI on http://localhost:5173, against the API run on your machine as your ADC account, reading dev's Firestore. It installs and makes the types first. `make types` after changing the API's models. See [phase 13](docs/phase13/tdd.md).
 
 ## Testing by hand
 

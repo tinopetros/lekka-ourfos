@@ -27,4 +27,10 @@ jobs:
           terraform_version: 1.16.4
           terraform_wrapper: false
       - uses: astral-sh/setup-uv@v10.2.0 # no major tag published
+      # The UI's checks, and its types against the API's (docs/phase13/tdd.md, step 4)
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - run: make check

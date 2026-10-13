@@ -16,33 +16,49 @@
    - Lists latest activity first, cursor paginated (ADR 9)
    - Every request logged with its `user`, method, path, status and latency
    - Serves the built UI, same origin (ADR 7)
-2. **Response models** in Pydantic, one per route: `Me`, `SubmissionSummary`, `Submission` (answers, runs, emails, journal entries), `JournalEntry`, `Page[T]`. Firestore's documents are read through them
+2. **Response models** in Pydantic, one per route: `Me`, `FormInfo`, `SubmissionSummary`, `Submission` (answers, runs, emails, journal entries), `JournalEntry`, and a page of each list. Firestore's documents are read through them, every shape they've had: what a document lacks is `None`, and a run of a shape they don't know still shows how it ended
 3. **Sign-in** (ADR 3)
    - IAP in front of `ourfos-api`. One Workspace group, or a short list, gets through
    - `current_user`, a dependency every route takes, verifies IAP's signed header
    - Locally, the identity is your ADC account. Refused on Cloud Run
-   - `users/{email}`: `name`, `first_seen`, `last_seen`, written on sign-in
-4. **Types**: FastAPI's OpenAPI → `openapi-typescript` → `web/src/lib/api`. CI fails when it's stale (ADR 4)
+   - `users/{email}`: `email`, `first_seen`, `last_seen`, written on sign-in, in the background, at most every 5 minutes. A name comes with Workspace's directory, with permissions
+4. **Types**: FastAPI's OpenAPI → `openapi-typescript` → `web/src/lib/api/schema.d.ts`, called through `openapi-fetch`. `make types` makes them; CI fails when they're stale (ADR 4)
 5. **`web/`**
    - Vite, React 19, TypeScript strict, Tailwind 4, shadcn (from ourfos-v2)
-   - React Router 7 (ADR 5); TanStack Query for server data, Zustand for UI state only (ADR 6)
-   - A shell: a sidebar of the forms, and Journal
-   - A table per list, filters in the URL; a row opens a read-only detail sheet
+   - React Router 8 (ADR 5); TanStack Query for server data, Zustand for UI state only (ADR 6)
+   - A shell: a sidebar of the forms, from the API, and Journal
+   - A table per list, its page in the URL; a row opens a read-only sheet, a route of its own, so an open sheet is a link. Filters wait for the indexes they need
    - Responsive
    - Banners: red **TEST** on dev, **LOCAL → dev data** locally. Test submissions have a badge, prod's too
-6. **Build once** (ADR 8): one image, the API and the UI. The environment is read at runtime, so the commit that passed on dev is the one released
-7. **Terraform**: the service, IAP and its access list, the service account's grants
+6. **Build once** (ADR 8): one image, the API and the UI, built in a Node stage of the services image. The environment is read at runtime, so the commit that passed on dev is the one released. The UI shows the commit
+7. **Terraform**: `ourfos-api`, `iap_enabled`, IAP's agent as its invoker, and `ui_access` in each env's tfvars: who IAP lets through
 
 ## Local
 
-- `make web`: installs, generates the types, then runs Vite and the API locally, on your ADC, reading dev's Firestore
+- `make web`: installs when the lock changed, makes the types, then runs Vite on :5173 and the API on :8000, on your ADC, reading dev's Firestore. `ACT_AS=<email>` to be someone else. Never prod's
+- `make types` after changing `services/api/models.py`; Vite and the API reload on their own
+- The API's docs, on what it answers: http://localhost:8000/docs
 
 ## Smoke
 
-- Dev's `ourfos-api` answers `/api/me` and both lists for the deployer, through IAP. How smoke authenticates through IAP is still to confirm
-- `happy`'s submission and its journal entry are in the lists, and open
+- IAP turns away a request that isn't signed in
+- Through IAP, signed in, waits on how a build can sign in to IAP on Cloud Run: checked by hand on dev for now
 
 ## Bootstrapped, once
 
-- Infra: `iap.googleapis.com` enabled; the `ourfos-api` service account
-- Workspace: the access group
+**1. Infra**: `ourfos-api@`, in both projects (tinopetros/lekka-ourfos-infra#20). Merge and apply it first: Terraform here looks the account up, and fails until it exists
+
+**2. The deployer**: acts as `ourfos-api@`, and manages who IAP lets in. And IAP's own account, which calls the service:
+
+```bash
+SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
+for P in ourfos-dev ourfos-prod; do
+  gcloud iam service-accounts add-iam-policy-binding "ourfos-api@$P.iam.gserviceaccount.com" --project="$P" \
+    --member="serviceAccount:$SA" --role=roles/iam.serviceAccountUser
+  gcloud projects add-iam-policy-binding "$P" --condition=None \
+    --member="serviceAccount:$SA" --role=roles/iap.admin
+  gcloud beta services identity create --service=iap.googleapis.com --project="$P"
+done
+```
+
+**3. Who gets in**: `ui_access` in `terraform/env/<env>.tfvars`. A Workspace group, `group:…`, once there is one
