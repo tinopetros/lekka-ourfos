@@ -7,9 +7,12 @@
 
 ### 2. A BFF, `ourfos-api`, beside `ourfos-services`
 
-- Same code, its own service and service account. Browsers never reach the routes that post to Mifos
-- Its actions, later, start workflows. Only workflows touch Mifos
-- Not taken: **opening `ourfos-services`** to the UI. One auth bug from the money
+- Same code, its own service and service account
+- Not taken: **letting the UI call `ourfos-services`**. Its routes are a workflow's steps: they trust that a workflow called them, in order, and check no user. Opened to browsers, anyone signed in could call a step such as `post` directly
+- For later, a leaning rather than a rule:
+  - Writes outside us, to Mifos or by email, go through workflows: something has to retry, hand over, and never do it twice
+  - Reads, and changes to our own data, the API does itself. Outside reads with read-only credentials where we can: Gmail's `gmail.readonly`, and a Mifos user that can only read. The existing Mifos user may do until release 1.0.0
+  - A read that takes minutes, like Mifos's journal entries today, runs in the background, and the UI picks up the result
 
 ### 3. IAP for sign-in
 
@@ -41,13 +44,20 @@
 ### 8. One build, the environment at runtime
 
 - Dev and prod run the same image, as the release gate assumes
+- `/api/me` says which environment and version, with who you are: one call before anything shows
 
-### 9. No permissions yet
+### 9. Lists are latest activity first
+
+- A submission that failed validation has no answers, so no `submitted_at`, and Firestore leaves a document out of a query ordered by a field it lacks. Every submission has `updated_at`
+- Cursor paginated: the same cost on any page, unlike an offset, which Firestore bills for every document it skips
+- The cost: a submission whose run moves on while you page can show twice, or not at all, until you refresh
+
+### 10. No permissions yet
 
 - Whoever IAP lets through sees everything, journal entries included
 - The cost: fine while the access list is short and trusted. Phase 15 adds them
 
-### 10. What comes after
+### 11. What comes after
 
 - **Phase 14, submitting forms from the UI**
   - The API saves the submission and starts the workflow the trigger would. One path for a Google Form and the UI

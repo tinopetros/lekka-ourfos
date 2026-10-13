@@ -3,19 +3,20 @@
 ## Goal
 
 - A UI, on dev and prod, signed in with Google, that lists each form's submissions and our journal entries, and opens any of them
-- Reads only: no actions, and no permissions beyond who may sign in (ADR 9)
-- A foundation the next phases build on: actions, then permissions (ADR 10)
+- Reads only: no actions, and no permissions beyond who may sign in (ADR 10)
+- A foundation the next phases build on: actions, then permissions (ADR 11)
 
 ## Steps
 
 1. **`ourfos-api`**, a Cloud Run service in each project, from the same Python package as `ourfos-services` (ADR 2)
    - Reads Firestore, and writes only `users`. No Mifos, no workflows
-   - `GET /api/me`, `GET /api/config` (the environment)
+   - `GET /api/me`: who you are, and the environment and version (ADR 8)
    - `GET /api/forms`, `GET /api/forms/{form}/submissions`, `GET /api/forms/{form}/submissions/{id}`
    - `GET /api/journal_entries`, `GET /api/journal_entries/{transaction_id}`
-   - Lists newest first, cursor paginated
+   - Lists latest activity first, cursor paginated (ADR 9)
+   - Every request logged with its `user`, method, path, status and latency
    - Serves the built UI, same origin (ADR 7)
-2. **Response models** in Pydantic, one per route: `Me`, `Config`, `SubmissionSummary`, `Submission` (answers, runs, emails, journal entries), `JournalEntry`, `Page[T]`. Firestore's documents are read through them
+2. **Response models** in Pydantic, one per route: `Me`, `SubmissionSummary`, `Submission` (answers, runs, emails, journal entries), `JournalEntry`, `Page[T]`. Firestore's documents are read through them
 3. **Sign-in** (ADR 3)
    - IAP in front of `ourfos-api`. One Workspace group, or a short list, gets through
    - `current_user`, a dependency every route takes, verifies IAP's signed header
@@ -34,7 +35,7 @@
 
 ## Local
 
-- `make web`: Vite, against the API run locally on your ADC, reading dev's Firestore
+- `make web`: installs, generates the types, then runs Vite and the API locally, on your ADC, reading dev's Firestore
 
 ## Smoke
 
