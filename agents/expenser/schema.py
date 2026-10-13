@@ -22,13 +22,12 @@ class Classification(BaseModel):
 
 
 class Said(BaseModel):
-    # The name first: the model names the account it means before its code
+    # The account by name only: its code is the chart's. Codes are what the model slipped on, 5035 for 5135 (#24)
     name: str
-    glCode: str
     amount: float
 
 
-# The model's output_schema: GL IDs and types are the chart's, filled in after
+# The model's output_schema: GL codes, IDs and types are the chart's, filled in after
 class Answer(BaseModel):
     approve: bool
     reason: str

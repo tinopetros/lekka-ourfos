@@ -1,4 +1,4 @@
-"""The model names each line's account, code fills in the rest from the chart (docs/phase8/adr.md 2).
+"""The model names each line's account, code fills in its GL code and the rest from the chart (docs/phase8/adr.md 2).
 
 An after_model_callback, so classify, adk eval and adk web all see the whole Classification, as before.
 """
@@ -26,11 +26,10 @@ async def fill(*, callback_context, llm_response: LlmResponse) -> LlmResponse | 
 
 
 def whole(said: dict) -> dict:
-    """Each line's account, from its name, and its GL code, glId and accountType from the chart.
+    """Each line's account, from its name, and its GL code, GL ID and type from the chart.
 
-    The name leads: the model writes it first, in words, and it's the code that slips (5035 for 5135). A code that
-    disagrees with its name is corrected, and a comment says so. A name the chart hasn't got is a rejection naming it:
-    we can't tell which account was meant, and never guess an id (docs/phase8/adr.md 2).
+    The model writes names only: codes are what it slipped on (#24). A name the chart hasn't got is a rejection naming
+    it, and its reason says so: we can't tell which account was meant, and never guess one (docs/phase8/adr.md 2).
     """
     lines = [line for side in ("debit", "credit") for line in said[side]]
     problems = [f"{line['name']} is not in the chart of accounts" for line in lines if not row_of(line)]
@@ -43,18 +42,7 @@ def whole(said: dict) -> dict:
             "credit": [],
             "comments": said["comments"] + problems,
         }
-    corrected = [
-        f"GL code {line['glCode']} isn't {row_of(line)['Account']}: posted to {row_of(line)['GL Code']}"
-        for line in lines
-        if row_of(line)["GL Code"] != line["glCode"]
-    ]
-    if corrected:
-        log("expenser: codes corrected to their names'", "WARNING", corrected=corrected)
-    return (
-        said
-        | {side: [line_of(line) for line in said[side]] for side in ("debit", "credit")}
-        | {"comments": said["comments"] + corrected}
-    )
+    return said | {side: [line_of(line) for line in said[side]] for side in ("debit", "credit")}
 
 
 def row_of(line: dict) -> dict | None:

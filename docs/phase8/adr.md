@@ -10,7 +10,7 @@
 - `glId` and `accountType` are lookups, not judgements (phase 7 ADR 5): the chart has them, so the model no longer writes them
 - The model keeps writing `name` before `glCode`, as its own check. What's stored is the chart's name
 - An account not in the chart, or a name that isn't its code's, is a rejection that names it: never a guessed id posted to Mifos
-- **Revised** (#25): the name leads. A code that isn't its name's is corrected to the name's, and a comment says so: the code is what slips, 5035 for System Support's 5135 about one run in five (#24). A name the chart hasn't got is still a rejection, and its reason says so
+- **Revised** (#25): the model writes only the account's name, and code looks up its GL code too. The model slipped on codes, 5035 for System Support's 5135 in 3 runs of 10 (#24), and a name is what it gets right. A name the chart hasn't got is still a rejection, and its reason says so
 
 ### 3. The chart stays whole
 
