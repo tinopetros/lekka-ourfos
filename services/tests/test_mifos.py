@@ -1,7 +1,7 @@
 """Posting to Mifos, its failures and its read-back, with the connector faked; and the steps around it."""
 
 import os
-from datetime import date
+from datetime import date, datetime
 
 import httpx
 import pytest
@@ -135,35 +135,6 @@ def test_the_books_are_only_prods(monkeypatch):
     assert "ourfos-prod" in e.value.detail
 
 
-def test_a_read_back_is_what_mifos_has(journal):
-    mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject")
-    entry = mifos.read_back("L42", DEBIT, CREDIT)
-    assert entry["mismatch"] is None
-    assert {k: v for k, v in entry["posted"].items() if k != "lines"} == {
-        "transaction_id": "L42",
-        "transaction_date": "2026-10-05",
-        "created_on": "2026-10-06",
-        "office": {"id": 1, "name": "Head Office"},
-        "currency": "USD",
-    }
-    assert entry["entry"]["entry_ids"] == [966, 1009]
-    assert entry["entry"]["created_by"] == "lekkai@lekkacredit.com"
-    assert [(x["name"], x["type"], x["amount"]) for x in entry["posted"]["lines"]] == [
-        ("Advertising and Promotions", "DEBIT", 60),
-        ("Cash at Vault", "CREDIT", 60),
-    ]
-
-
-def test_verify_compares_each_line_not_the_count():
-    wanted = [mifos.line(DEBIT[0], "DEBIT"), mifos.line(CREDIT[0], "CREDIT")]
-    swapped = [mifos.line(DEBIT[0], "CREDIT"), mifos.line(CREDIT[0], "DEBIT")]
-    assert mifos.mismatch(wanted, swapped) == (
-        "missing debit 60.00 to GL 66, credit 60.00 to GL 109; not ours credit 60.00 to GL 66, debit 60.00 to GL 109"
-    )
-    assert mifos.mismatch(wanted, wanted[:1]) == "missing credit 60.00 to GL 109"
-    assert mifos.mismatch(wanted, [{**wanted[0], "amount": 60.001}, wanted[1]]) is None
-
-
 @pytest.fixture
 def docs(monkeypatch):
     docs = {("requisition", "r"): {"answers": REQUISITION}}
@@ -214,9 +185,9 @@ def test_a_post_is_recorded_as_lekkais_and_live(docs, journal, sent):
     assert [(x["type"], x["glId"]) for x in recorded["lines"]] == [("DEBIT", 66), ("CREDIT", 109)]
     assert docs[("requisition", "r")]["live_entry"] == "L42"
     assert docs[("requisition", "r")]["journal_entries"] == ["L42"]
-    requisitions.read_back("r", "L42", None)
-    assert docs[("journal_entries", "L42")]["created_on"] == "2026-10-06"
-    assert docs[("journal_entries", "L42")]["entry_ids"] == [966, 1009]
+    # What we sent, and the day we posted it: Mifos isn't read back
+    assert recorded["created_on"] == datetime.now(journal_entries.HARARE).date().isoformat()
+    assert docs[("requisition", "r", "run-1")]["posted"]["lines"] == recorded["lines"]
 
 
 def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(docs, journal, sent):
@@ -233,9 +204,8 @@ def test_a_test_run_or_mifos_off_never_posts(docs, journal, field, value, skippe
     assert journal.created == []
 
 
-def test_the_last_email_is_what_mifos_has_and_its_id(docs, journal, sent):
+def test_the_last_email_is_what_we_posted_and_its_id(docs, journal, sent):
     requisitions.post("r", {})
-    requisitions.read_back("r", "L42", None)
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     assert [kind for kind, _ in sent] == ["confirmation"]
@@ -254,12 +224,27 @@ def test_a_ledger_totals_each_side():
     ]
 
 
-def test_a_start_logs_whether_mifos_answers(monkeypatch, capsys):
+class Office:
+    """The connector's transport, for the one read a start makes: our office"""
+
+    def __init__(self, fail=None):
+        self.fail, self.asked = fail, []
+
+    def get(self, path):
+        self.asked.append(path)
+        if self.fail:
+            raise self.fail
+        return {"id": 1, "name": "Head Office"}
+
+
+def test_a_start_reads_our_office_and_logs_whether_mifos_answers(monkeypatch, capsys):
     monkeypatch.setenv("MIFOS_TENANT_ID", "demo")
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": Journal()})())
+    office = Office()
+    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": office})())
     mifos.connect()
-    journal = Journal(fail=MifosNetworkError("refused", httpx.ConnectError("refused")))
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": journal})())
+    assert office.asked == ["/offices/1"]
+    failing = Office(fail=MifosNetworkError("refused", httpx.ConnectError("refused")))
+    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": failing})())
     mifos.connect()
     out = capsys.readouterr().out
     assert '"mifos connected"' in out and "mifos not connected" in out

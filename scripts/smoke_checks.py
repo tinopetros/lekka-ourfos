@@ -92,7 +92,7 @@ def expense_run(fixture: str) -> dict:
     return next((r for r in runs if r.get("workflow") == "expense"), {})
 
 
-# happy: posted, its entry ours and live, and the run keeps Mifos's dates. The correction has since moved it on
+# happy: posted, its entry ours, and the run keeps what we sent. The correction has since moved it on
 happy = result("requisition-happy")["mifos_transaction_id"]
 posted = entry(happy)
 check(
@@ -102,8 +102,8 @@ check(
 )
 
 check("happy's comments start Subject:", (posted.get("comments") or "").startswith("Subject: "), posted.get("comments"))
-check("happy's entry has Mifos's dates", bool(posted.get("transaction_date") and posted.get("created_on")), posted)
-check("happy's entry has Mifos's ids", len(posted.get("entry_ids") or []) >= 2, posted.get("entry_ids"))
+check("happy's entry has its dates", bool(posted.get("transaction_date") and posted.get("created_on")), posted)
+check("happy's entry has the lines we sent", len(posted.get("lines") or []) >= 2, posted.get("lines"))
 first = doc(f"requisitions/{submitted('happy')}/runs/{posted.get('run')}") or {}
 dates = first.get("posted") or {}
 check(
@@ -151,14 +151,6 @@ check("mifos-off has no journal entries", not s.get("journal_entries") and not s
 check("mifos-off is done, its refused correction aside", s.get("status") == "done", s.get("status"))
 emails = expense_run("mifos-off").get("emails") or {}
 check("mifos-off sent no third email", "suggestion" in emails and "confirmation" not in emails, sorted(emails))
-
-# the sync: its mark is what it said
-synced = json.loads((results / "sync.json").read_text().split("\t")[1])
-mark = doc("syncs/journal_entries")
-if synced.get("skipped"):
-    check("no mark, none written", mark is None, mark)
-else:
-    check("the mark is the sync's", ((mark or {}).get("last_entry_id") or 0) >= synced["last_entry_id"], mark)
 
 if failed:
     sys.exit(f"{len(failed)} failed")

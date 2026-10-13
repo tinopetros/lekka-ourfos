@@ -67,9 +67,9 @@ variable "mifos" {
 variable "syncs" {
   description = "What's synced from Mifos each night, and when, in Harare's time (docs/phase12/tdd.md, step 7)"
   type        = map(object({ schedule = string }))
-  default = {
-    journal_entries = { schedule = "0 23 * * *" }
-  }
+  # None for now: Mifos takes minutes to list even a day's entries (docs/phase12/adr.md 11). Journal entries were
+  # journal_entries = { schedule = "0 23 * * *" }
+  default = {}
 }
 
 variable "scheduler_region" {

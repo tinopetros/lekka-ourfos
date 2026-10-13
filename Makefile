@@ -51,7 +51,7 @@ help:
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
 	@echo "                         not posted, jailbreak, 400 and invalid handed_over, every other form's happy done and invalid handed_over,"
-	@echo "                         happy corrected in demo, the stub's corrections, and the sync (what CI runs)"
+	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
 	@echo "make check               fmt, validate, lock, lint and test (what a PR runs)"
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
@@ -192,9 +192,6 @@ smoke: check-env
 			[ $$form = correction ] && exit 1; [ $$try = 3 ] && exit 1; sleep 30; \
 		done; \
 	done
-	@result=$$($(MAKE) -s sync 2>/dev/null | tail -1); echo "sync: $$result"; echo "$$result" > .build/smoke/sync.json; \
-		echo "$$result" | python3 -c 'import json, sys; r = json.loads(sys.stdin.read().split(None, 1)[1]); \
-			assert r.get("skipped") == "not preloaded" or r["last_entry_id"] >= r["was"], r'
 	@python3 scripts/smoke_checks.py $(PROJECT) .build/smoke
 
 # Reads agents/expenser/.env. services/ on the path, since the agent fetches files through it, and agents/ for

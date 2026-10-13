@@ -1,5 +1,5 @@
 """What the correction workflow does to a posted requisition: post its live entry's mirror, then the corrected lines,
-read each back, and reply in its thread (docs/phase12/tdd.md, step 4).
+and reply in its thread (docs/phase12/tdd.md, step 4).
 
 A run of its own on the submission, beside the run that posted (docs/phase12/adr.md 3). Each step is safe to retry:
 what it did is on the run, and a retried post finds it.
@@ -7,7 +7,7 @@ what it did is on the run, and a retried post finds it.
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 
 import emails
 import journal
@@ -178,7 +178,11 @@ def post(id: str, body: dict):
     what = said(id, this, doc, f"Correction of transaction {doc['entry']}")
     posted = mifos.post(reference, request["debit"], request["credit"], on, what, code)
     transaction = posted["mifos_transaction_id"]
-    this.record(status="posted", mifos_transaction_id=transaction)
+    this.record(
+        status="posted",
+        mifos_transaction_id=transaction,
+        posted=journal.sent(transaction, request["debit"], request["credit"], on),
+    )
     journal.posted(
         FORM,
         id,
@@ -192,25 +196,6 @@ def post(id: str, body: dict):
         by=request["requested_by"],
     )
     return posted
-
-
-@router.get("/read-back/{mifos_transaction_id}")
-def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None, alias="simulate")):
-    """What Mifos has for the mirror or the corrected lines, against what we posted."""
-    this = run(id)
-    doc = this.get()
-    reversal = doc.get("reversal") or {}
-    if mifos_transaction_id == reversal.get("transaction_id"):
-        wanted = reversal
-    elif mifos_transaction_id == doc.get("mifos_transaction_id"):
-        wanted = doc["request"]
-    else:
-        raise HTTPException(404, f"run {this.ref.id} didn't post {mifos_transaction_id}")
-    entry = mifos.read_back(mifos_transaction_id, wanted["debit"], wanted["credit"], code)
-    if wanted is not reversal:
-        this.record(posted=entry["posted"])
-    journal.read_back(entry["entry"])
-    return entry
 
 
 @router.post("/confirm")

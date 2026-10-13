@@ -220,12 +220,12 @@ def action(heading: str, note: str, lines: list[dict], disclaimer: bool = True) 
 
 
 def confirmation(lines: list[dict], transaction: str) -> tuple[str, str]:
-    """The last word: what Mifos has, from its read-back, not what we sent (docs/phase11/adr.md 3)."""
+    """The last word: what we posted, and the transaction id Mifos booked it as (docs/phase12/adr.md 11)."""
     return action("Lekkai's action: POSTED", f"Mifos transaction ID: {transaction}", lines)
 
 
 def corrected(lines: list[dict], transaction: str, reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
-    """A correction's reply: only the new entry, as Mifos has it. The lines are a person's, so no disclaimer."""
+    """A correction's reply: only the new entry, as posted. The lines are a person's, so no disclaimer."""
     note = (
         f"Mifos transaction ID: {transaction}. It replaces {reversed_}, now reversed. "
         f"Reason: {reason}. Requested by: {requested_by}."

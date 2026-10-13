@@ -3,7 +3,7 @@ acknowledging and handing over are every form's (routers/forms.py)."""
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
 
 import emails
@@ -118,7 +118,13 @@ def post(id: str, body: dict):
         reference, classification["debit"], classification["credit"], on, said, "stub" if code == "unrecorded" else code
     )
     transaction = posted["mifos_transaction_id"]
-    this.record(fail=code == "unrecorded", status="posted", mifos_transaction_id=transaction)
+    # What the last email shows: what we sent, and Mifos's transaction id. Mifos isn't read back (docs/phase12/adr.md 11)
+    this.record(
+        fail=code == "unrecorded",
+        status="posted",
+        mifos_transaction_id=transaction,
+        posted=journal.sent(transaction, classification["debit"], classification["credit"], on),
+    )
     journal.posted(
         FORM, id, this.ref.id, transaction, classification["debit"], classification["credit"], on, reference, said
     )
@@ -133,20 +139,9 @@ def comments(requisition: Requisition, run: str, *before: str) -> str:
     )
 
 
-@router.get("/read-back/{mifos_transaction_id}")
-def read_back(id: str, mifos_transaction_id: str, code: str | None = Query(None, alias="simulate")):
-    # What Mifos has, kept for the last email, and what differs from what we posted
-    this = run(id)
-    classification = this.get()["classification"]
-    entry = mifos.read_back(mifos_transaction_id, classification["debit"], classification["credit"], code)
-    this.record(posted=entry["posted"])
-    journal.read_back(entry["entry"])
-    return entry
-
-
 @router.post("/confirm")
 def confirm(id: str, body: dict):
-    """The last email: what Mifos has and its transaction id. Only after a post: a run that didn't post sends none"""
+    """The last email: what we posted and Mifos's transaction id. Only after a post: a run that didn't post sends none"""
     this = run(id)
     doc = this.get()
     if sent := doc.get("emails", {}).get("confirmation"):

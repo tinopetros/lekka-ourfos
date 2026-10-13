@@ -40,8 +40,8 @@ def connect():
     """One read when an instance starts: Mifos answers, and our user logs in. Logged, never raised (step 3)"""
     tenant = os.environ.get("MIFOS_TENANT_ID")
     try:
-        # Today's manual entries only: a read with no range would make Mifos scan all of them
-        manual_entries(datetime.now(UTC).date(), {"limit": 1})
+        # Our office, not journal entries: Mifos takes minutes to list those, even a day's (docs/phase12/adr.md 11)
+        client()._http.get(f"/offices/{int(os.environ.get('MIFOS_OFFICE_ID', '1'))}")
         log("mifos connected", tenant=tenant)
     except (MifosError, HTTPException, KeyError) as e:
         log(f"mifos not connected: {e!r}", "ERROR", tenant=tenant)
@@ -148,55 +148,5 @@ def day(value) -> str | None:
     return date(*value).isoformat() if value else None
 
 
-# What a run keeps of its entry: what its emails show
-POSTED = ("transaction_id", "transaction_date", "created_on", "office", "currency", "lines")
-
-
-def read_back(mifos_transaction_id: str, debit: list, credit: list, code=None) -> dict:
-    """What Mifos has for the transaction, and what differs from what we posted, if anything."""
-    wanted = [line(d, "DEBIT") for d in debit] + [line(c, "CREDIT") for c in credit]
-    if code or mifos_transaction_id.startswith(STUB):
-        # The stub echoes what we posted, with no dates or office's name. "mismatch" drops a line
-        simulate("mifos_read", code)
-        found = {
-            "transaction_id": mifos_transaction_id,
-            "transaction_date": None,
-            "created_on": None,
-            "office": {"id": int(os.environ.get("MIFOS_OFFICE_ID", "1")), "name": None},
-            "currency": os.environ.get("MIFOS_CURRENCY", "USD"),
-            "lines": wanted[:-1] if code == "mismatch" else wanted,
-            "entry_ids": [],
-        }
-    else:
-        found = read(mifos_transaction_id)
-    log("mifos read back", mifos_transaction_id=mifos_transaction_id, lines=len(found["lines"]))
-    return {
-        "mifos_transaction_id": mifos_transaction_id,
-        "entry": found,
-        "posted": {k: found[k] for k in POSTED},
-        "mismatch": mismatch(wanted, found["lines"]),
-    }
-
-
 def line(d: dict, side: str) -> dict:
     return {"glId": d["glId"], "glCode": d["glCode"], "name": d["name"], "type": side, "amount": d["amount"]}
-
-
-def mismatch(wanted: list, got: list) -> str | None:
-    """Each line we posted is there once, account, side and amount, and nothing else is."""
-
-    def key(x: dict) -> tuple:
-        return x["glId"], x["type"], round(float(x["amount"]), 2)
-
-    missing, extra = [key(x) for x in wanted], []
-    for x in got:
-        if key(x) in missing:
-            missing.remove(key(x))
-        else:
-            extra.append(key(x))
-
-    def say(keys: list) -> str:
-        return ", ".join(f"{side.lower()} {amount:,.2f} to GL {gl}" for gl, side, amount in keys)
-
-    parts = ([f"missing {say(missing)}"] if missing else []) + ([f"not ours {say(extra)}"] if extra else [])
-    return "; ".join(parts) or None

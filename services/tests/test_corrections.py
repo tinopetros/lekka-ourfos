@@ -110,10 +110,7 @@ ASK = {"reason": "Fuel, not advertising", "requested_by": "accountant@lekkacredi
 def correct(lines=LINES):
     started = corrections.start("r", ASK | ({"lines": lines} if lines else {}))
     reversal = corrections.reverse("r", {})["mifos_transaction_id"]
-    corrections.read_back("r", reversal, None)
-    posted = corrections.post("r", {})
-    if new := posted.get("mifos_transaction_id"):
-        corrections.read_back("r", new, None)
+    new = corrections.post("r", {}).get("mifos_transaction_id")
     corrections.confirm("r", {"thread": started["thread"]})
     return reversal, new
 
@@ -138,7 +135,7 @@ def test_a_correction_reverses_the_live_entry_on_its_date_then_posts_the_new_lin
     assert docs[("journal_entries", "T1")]["reverses"] == "L1"
     assert docs[("journal_entries", "T1")]["by"] == docs[("journal_entries", "T2")]["by"] == ASK["requested_by"]
     assert docs[("journal_entries", "T2")]["status"] == "live"
-    assert docs[("journal_entries", "T2")]["created_on"] == "2026-10-06"
+    assert docs[("journal_entries", "T2")]["transaction_date"] == "2026-10-05"
 
     (kind, html, thread), *rest = sent
     assert kind == "correction" and not rest and thread == {"thread_id": "t1"}

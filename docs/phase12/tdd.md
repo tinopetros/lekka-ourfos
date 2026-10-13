@@ -3,37 +3,38 @@
 ## Goal
 
 - A posted requisition can be corrected, as many times as needed: a reversal, then the corrected lines
-- `journal_entries` is our record of manual journal entries, Lekkai's and people's in Mifos, from 1 Jan 2026, kept up to date each night
+- `journal_entries` is our record of the journal entries we post. People's in Mifos, by a sync, wait until Mifos's reads are usable (ADR 11)
 - Prod can be released without posting to Mifos
 
 ## Steps
 
 1. **Phase 11's fixes**
-   - The run's `posted` keeps Mifos's `transaction_date`, and its `created_on`
+   - The run's `posted` keeps the `transaction_date` we posted on, and `created_on`, the day we posted it
    - Comments: `Subject: {subject}. Response number: …. Workflow run: …`. The reference has its own field
    - `?mifos=false` on the trigger, kept on the run. Like a test run, it posts nothing and sends no third email
 2. **`journal_entries/{transaction_id}`**, one per Mifos transaction
-   - `transaction_date`, `created_on`, `office`, `currency`, `reference_number`, `comments`, `created_by`, `lines`, `entry_ids`
+   - `transaction_date`, `created_on`, `office`, `currency`, `reference_number`, `comments`, `lines`: what we sent, and Mifos's transaction id. A synced one would also have `created_by` and `entry_ids`
    - `source`: `ourfos`, made through ourfos, or `mifos`, made in Mifos's own screens and brought in by the sync
    - `by`, on ours: `lekkai` for the expense workflow's posts, or who asked for a correction. A workflow's also have `form`, `submission` and `run`. Mifos's say who in `created_by`
    - Three fields for reversals: `status`, `live` or `reversed`; `reverses`, on a mirror, naming what it reverses; `reversed_by`, on a reversed entry, naming its mirror
-   - Written in the step that posts. The read-back adds what only Mifos knows: `created_on`, `entry_ids`
+   - Written in the step that posts. Never read back from Mifos (ADR 11)
 3. **On the requisition's submission**: `live_entry`, and `journal_entries`, every post and reversal's transaction id in order
 4. **The `correction` workflow**, its runs on the submission like the run that posted (`workflow: correction`)
    - Takes: `lines` (`debit`, `credit`), optional; `reason`; `requested_by`; `transaction_id`, optional, and if given must be `live_entry`
    - Refuses a requisition that was never posted, a stale transaction id, and unbalanced lines: the run ends `refused`, with no email
-   - Check `live_entry` → mark it `reversing` → post its mirror, on its date → read back → post the corrected lines, on the same date → read back → reply in the thread
+   - Check `live_entry` → mark it `reversing` → post its mirror, on its date → post the corrected lines, on the same date → reply in the thread
    - No lines: a reversal only
    - As post: never twice, never retried blind after a timeout. An entry whose mirror may have landed is refused until a person has checked Mifos (ADR 4)
    - Started through the Workflows API, as smoke does. A front end's route, behind its sign-in, comes later
 5. **The correction's email**: a reply in the requisition's thread, to the same people. **CORRECTED**, the new entry's lines and the reason, or **REVERSED**, nothing re-posted, and the reason
-6. **`/sync/journal_entries`**
+6. **`/sync/journal_entries`**, built and paused: no schedule, no preload, not in smoke (ADR 11)
    - Always manual entries only (`manualEntriesOnly=true`), and always a date range: Mifos has hundreds of thousands of entries, most of them loans' and savings'
    - Each night: newest id first, back to the mark in `syncs/journal_entries` and 10 entries under it, since an entry mid-save can show after a higher id. Skips our Mifos user's, and transactions we hold
    - No mark: does nothing, and logs `journal_entries not preloaded`
    - `from=2026-01-01`: the preload. Everything from that transaction date, ours too: a transaction a run posted is `ourfos`, by `lekkai`, with its run
    - The mark only ever goes up, written in a transaction once the sync is done. The preload also keeps its `from` on it: each night reads within that window, so an entry booked back anywhere in it is still found
-7. **The schedule**: Cloud Scheduler starts the `sync` workflow, one job per entry in Terraform's `syncs`. `journal_entries`: `0 23 * * *`, `Africa/Harare`
+7. **The schedule**: Cloud Scheduler starts the `sync` workflow, one job per entry in Terraform's `syncs`. None for now. `journal_entries` would be `0 23 * * *`, `Africa/Harare`
+8. **No read-back** (ADR 11): the expense and correction workflows go from post to email. The email shows what we posted and Mifos's transaction id. The start-up check reads our office, not journal entries
 
 ## Smoke
 
@@ -47,14 +48,11 @@ Each run its own submission, so the corrections after know which to correct. Eac
   - `reverse-only` on `happy-gcs`, stub: done, nothing re-posted
   - `correct-unposted` on `mifos-off`: refused
   - `correct-timeout` on `google-doc`, the mirror times out: handed over
-- The sync: with no mark, `skipped: not preloaded`. With one, the mark after is never under the mark before
-- In Firestore: `happy`'s entry is ours by `lekkai`, `Subject:`, with Mifos's dates and ids; it reads posted, reversed, posted, the correction's entries by who asked; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`; the mark is the sync's
+- In Firestore: `happy`'s entry is ours by `lekkai`, `Subject:`, with its dates and the lines we sent; it reads posted, reversed, posted, the correction's entries by who asked; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`
 
 ## By hand, once
 
-- Dev, after the merge build's apply: the preload, `make sync FROM=2026-01-01`, and then a manual entry in `demo` as another user, for smoke to find
-- Prod, after its release: the preload, when ready
-- `make sync` and `gcloud scheduler jobs run` show the whole chain on dev
+- Dev: people's entries from Mifos dropped from `journal_entries`, with the sync's mark, so dev holds only what we posted, as prod will
 
 ## Bootstrapped, once
 
@@ -76,6 +74,9 @@ done
 
 ## Later
 
+- The sync and a preload, once Mifos's reads are usable: one page a call, a longer timeout for lists only, never retried after a timeout, and a narrow window each night (the cost follows the window, not what's new)
+- Mifos's read-back, if its reads ever answer in seconds
+
 - Reversal mappings for 2026's manual entries, from a list
 - A reversal workflow with no requisition, its runs on the journal entry
 - The front end's routes, and their sign-in
@@ -92,3 +93,4 @@ done
 - Dev's record also holds the stub's entries, `stub-txn-…`, from fixtures. Prod never simulates, so never has them
 - 9 of Lekkai's posts in `demo` match no run in dev's Firestore, so they're `ourfos`, by `lekkai`, with no run. Why those runs are missing isn't checked yet
 - Mifos's `demo` stopped answering journal-entry reads for a day, even `limit=1`, while `/offices` still answered. The nightly sync and the start-up check were reading with no date range, and so were the checks while it was down. Now every read is manual only and in a range, `manual_entries` refuses one without, and the start-up check reads only today's
+- Then Mifos's own screens: 5 minutes for one day's manual entries, 2.9 minutes for one transaction id. A post still answered in 2.3 seconds. So no read-back and no sync for now (ADR 11). Each list read we gave up on at 15s likely kept running in Mifos, and each retry started another

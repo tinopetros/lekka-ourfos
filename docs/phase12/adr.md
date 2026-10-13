@@ -57,3 +57,12 @@
 - Cloud Scheduler isn't offered in africa-south1, nor anywhere in Africa
 - A job holds only its schedule and the call that starts the workflow, which still runs in africa-south1. No data is in it
 - Its time zone is still Africa/Harare
+
+### 11. Mifos is written to, not read
+
+- Mifos's reads of journal entries take minutes: its own screens took 5 for one day's manual entries, and 2.9 for one transaction id. Writes still answer in seconds
+- So nothing reads it back: a post's proof is the transaction id Mifos answers with. The run, the record and the last email keep what we sent. The cost: a line booked differently from what we sent goes unseen, unlikely since Mifos books what it's sent or refuses it
+- So `journal_entries` holds only what we post. The sync is built and paused: no schedule, no preload. ADRs 6, 7 and 9 wait for it
+- The start-up check reads our office instead
+- A post that times out still hands over, and finding it in Mifos by its workflow run is now a search of minutes
+- Closes phase 11 ADRs 2 and 3
