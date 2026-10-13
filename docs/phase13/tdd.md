@@ -44,4 +44,4 @@
 ## Bootstrapped, once
 
 - Infra: `iap.googleapis.com` enabled; the `ourfos-api` service account
-- Workspace: the access group (Tino)
+- Workspace: the access group
