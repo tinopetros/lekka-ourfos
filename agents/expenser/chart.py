@@ -10,6 +10,8 @@ from pathlib import Path
 
 ROWS = list(csv.DictReader((Path(__file__).parent / "accounts.csv").read_text().splitlines()))
 BY_CODE = {row["GL Code"]: row for row in ROWS}
+# Names are unique, as codes are: a line's name is how the model means its account
+BY_NAME = {" ".join(row["Account"].lower().split()): row for row in ROWS}
 
 # What the model reads. The rest of the chart is the same on every row, or code's to fill
 SHOWN_COLUMNS = ["Account", "GL Code", "Account Type", "Comment"]

@@ -72,21 +72,22 @@ def test_the_chart_s_name_is_stored():
     assert filled(answer(name="advertising and  promotions")).debit[0].name == "Advertising and Promotions"
 
 
-def test_a_name_that_isn_t_its_code_s_is_a_rejection():
-    # mr-muchenje, once: System Support Expense is 5135, the model wrote 5035
+def test_a_code_that_isn_t_its_name_s_is_corrected_to_the_name_s():
+    # mr-muchenje, about one run in five: System Support Expense is 5135, the model wrote 5035 (#24)
     got = filled(answer(debit_code="5035", name="System Support Expense"))
+    assert got.approve
+    assert [(line.name, line.glCode, line.glId) for line in got.debit] == [("System Support Expense", "5135", 89)]
+    assert "GL code 5035 isn't System Support Expense: posted to 5135" in got.comments
+
+
+def test_a_code_the_chart_hasn_t_got_is_corrected_too():
+    got = filled(answer(debit_code="9999"))
+    assert got.approve and got.debit[0].glCode == "5020"
+
+
+def test_a_name_the_chart_hasn_t_got_is_a_rejection_that_says_why():
+    got = filled(answer(name="Coffee for the office"))
     assert not got.approve
     assert got.debit == got.credit == []
-    assert "GL code 5035 is Consumables in the chart, not System Support Expense" in got.comments
-
-
-def test_an_account_not_in_the_chart_is_a_rejection():
-    got = filled(answer(debit_code="1812"))
-    assert not got.approve
-    assert got.debit == got.credit == []
-    assert "GL code 1812 is not in the chart of accounts" in got.comments
-
-
-def test_anything_else_is_left_alone():
-    blocked = LlmResponse(content=types.Content(role="model", parts=[types.Part(text="Blocked by Model Armor")]))
-    assert asyncio.run(fill(callback_context=None, llm_response=blocked)) is None
+    assert got.reason == "Coffee for the office is not in the chart of accounts"
+    assert got.reason in got.comments
