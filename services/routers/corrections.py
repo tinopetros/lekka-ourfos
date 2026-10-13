@@ -59,7 +59,7 @@ def start(id: str, body: dict):
         "thread": submission.get("thread"),
         "submission": submission["answers"],
         "test": bool(submission.get("test")),
-        "repost": bool(debit),
+        "has_lines": bool(debit),
     }
 
 

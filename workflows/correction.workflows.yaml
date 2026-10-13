@@ -111,9 +111,10 @@ process:
                   code: ${map.get(simulate, "mifos_post")}
                   path: /correction/reverse
                 result: reversal
-            - repost:
+            # No lines: a reversal only, so straight to the email
+            - has_lines:
                 switch:
-                  - condition: ${not started.repost}
+                  - condition: ${not started.has_lines}
                     next: confirm
             - post:
                 call: post
