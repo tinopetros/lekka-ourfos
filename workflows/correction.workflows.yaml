@@ -1,4 +1,4 @@
-# A posted requisition, corrected: its live entry's mirror, then the corrected lines, and a reply in its thread (docs/phase12/tdd.md, step 4). A run of its own on the submission. Its plumbing is lib.workflows.yaml's.
+# A posted requisition, corrected: its live entry's mirror, then the corrected lines, and a reply in its thread. A run of its own on the submission. Its plumbing is lib.workflows.yaml's.
 #
 # Started through the Workflows API, with: id, the requisition's submission; reason; requested_by; and optionally
 # lines {debit, credit}, none for a reversal only, and transaction_id, which must be the live entry
@@ -20,7 +20,12 @@ main:
         call: sys.log
         args:
           severity: INFO
-          json: { message: "correction started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', at: '${at}' }
+          json:
+            {
+              message: "correction started",
+              execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}',
+              at: "${at}",
+            }
     - run:
         try:
           call: process
@@ -36,7 +41,11 @@ main:
                 call: complete
                 args:
                   at: ${at}
-                  result: { status: "failed", reason: '${default(map.get(e, "message"), json.encode_to_string(e))}' }
+                  result:
+                    {
+                      status: "failed",
+                      reason: '${default(map.get(e, "message"), json.encode_to_string(e))}',
+                    }
             - fail:
                 raise: ${e}
     - complete:
@@ -87,7 +96,11 @@ process:
                     - refused:
                         switch:
                           - condition: ${default(map.get(e, "code"), 0) in [404, 409, 422]}
-                            return: { status: "refused", reason: '${default(map.get(e, "message"), json.encode_to_string(e))}' }
+                            return:
+                              {
+                                status: "refused",
+                                reason: '${default(map.get(e, "message"), json.encode_to_string(e))}',
+                              }
                     - rethrow:
                         raise: ${e}
             - reverse:
@@ -128,7 +141,12 @@ process:
                   max_retries: 3
                   backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
             - done:
-                return: { status: "done", reversal: "${reversal.mifos_transaction_id}", mifos_transaction_id: '${mifos_transaction_id}' }
+                return:
+                  {
+                    status: "done",
+                    reversal: "${reversal.mifos_transaction_id}",
+                    mifos_transaction_id: "${mifos_transaction_id}",
+                  }
         except:
           as: e
           steps:
