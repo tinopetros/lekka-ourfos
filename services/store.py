@@ -64,12 +64,18 @@ class Doc:
 # what it did but can't move the status back. A status that stands is the submission's too, so a list needs one read
 @firestore.transactional
 def _save_status(transaction, ref, parent, fields):
-    if (ref.get(transaction=transaction).to_dict() or {}).get("status") in ENDED:
+    # Both read before either is written, as a transaction must
+    run = ref.get(transaction=transaction).to_dict() or {}
+    submission = parent.get(transaction=transaction).to_dict() or {}
+    if run.get("status") in ENDED:
         fields = {k: v for k, v in fields.items() if k != "status"}
     transaction.set(ref, fields, merge=True)
     # A refused correction changed nothing, so the submission's status stands
     if fields.get("status") not in (None, "refused"):
-        transaction.set(parent, {"status": fields["status"], "run": ref.id, "updated_at": NOW}, merge=True)
+        # The first status a submission gets, valid or not, says when we received it: lists sort by it.
+        # Never moved after
+        received = {} if submission.get("received_at") else {"received_at": NOW}
+        transaction.set(parent, {"status": fields["status"], "run": ref.id, "updated_at": NOW} | received, merge=True)
 
 
 ENDED = {"done", "rejected", "handed_over", "failed", "refused"}

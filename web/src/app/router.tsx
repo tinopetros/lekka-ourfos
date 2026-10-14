@@ -5,7 +5,7 @@ import { SubmissionSheet } from '@/features/submissions/SubmissionSheet';
 import { SubmissionsPage } from '@/features/submissions/SubmissionsPage';
 import { Root } from './Root';
 
-// Every route, in one file (docs/phase13/adr.md 5). A sheet is a child route, so an open one is a link
+// Every route, in one file. A sheet is a child route, so an open one is a link
 export const router = createBrowserRouter([
   {
     element: <Root />,

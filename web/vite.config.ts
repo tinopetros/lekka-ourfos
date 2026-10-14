@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-// Locally, /api goes to the API that `make web` runs beside Vite (docs/phase13/tdd.md, Local). Deployed, the API
+// Locally, /api goes to the API that `make web` runs beside Vite. Deployed, the API
 // serves this build itself, from the same origin
 export default defineConfig({
   plugins: [react(), tailwindcss()],

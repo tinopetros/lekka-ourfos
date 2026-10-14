@@ -1,6 +1,6 @@
 import type { Me } from '@/lib/api/types';
 
-/** Each environment's look, so nobody mistakes dev's data for the books (docs/phase13/tdd.md, step 5). */
+/** Each environment's look, so nobody mistakes dev's data for the books. */
 export const ENVIRONMENTS: Record<Me['environment'], { banner?: string; tone?: string; prefix?: string }> = {
   local: { banner: 'LOCAL → dev data', tone: 'bg-amber-500 text-black', prefix: '[LOCAL] ' },
   dev: { banner: 'TEST: dev environment, not the books', tone: 'bg-red-600 text-white', prefix: '[DEV] ' },

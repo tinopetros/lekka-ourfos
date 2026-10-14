@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 from google.auth import crypt, jwt
 
-from api import auth, reads
+from api import auth, views
 from api.main import app
 
 AUDIENCE = "/projects/1/locations/africa-south1/services/ourfos-api"
@@ -96,7 +96,7 @@ def test_local_sign_in_is_refused_on_cloud_run(monkeypatch):
 
 
 def test_a_form_is_titled_by_its_noun():
-    assert [reads.title(f) for f in ("requisition", "vehicle_log", "write_off")] == [
+    assert [views.title(f) for f in ("requisition", "vehicle_log", "write_off")] == [
         "Requisitions",
         "Vehicle logs",
         "Write-off requests",
@@ -104,10 +104,17 @@ def test_a_form_is_titled_by_its_noun():
 
 
 def test_a_requisitions_row_and_answers():
-    doc = {"answers": REQUISITION, "status": "done", "live_entry": "T1", "test": True, "response_number": 7}
-    row = reads.summary("requisition", "r", doc)
+    doc = {
+        "answers": REQUISITION,
+        "status": "done",
+        "live_entry": "T1",
+        "test": True,
+        "received_at": "2026-10-01T10:00:01Z",
+    }
+    row = views.summary("requisition", "r", doc)
+    assert row.response_number == 7 and row.received_at is not None
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
-    answers = reads.answers("requisition", doc)
+    answers = views.answers("requisition", doc)
     assert [(a.label, a.text) for a in answers[:2]] == [("Payable To", "Acme"), ("Total Amount", "$1,234.50")]
     assert [(f.name, f.url) for f in answers[2].files] == [
         ("File 1", "https://drive.google.com/open?id=drive-id"),
@@ -117,7 +124,7 @@ def test_a_requisitions_row_and_answers():
 
 def test_a_text_forms_answers_are_in_its_order_with_links_and_empty_ones_left_out():
     answers = {"applicant_first_name": "Ada", "client_folder": "https://drive.google.com/x", "purpose": ""}
-    rows = reads.answers("loan_approval", {"answers": answers})
+    rows = views.answers("loan_approval", {"answers": answers})
     assert [(a.label, a.text, a.link) for a in rows] == [
         ("Applicant First Name", "Ada", None),
         ("Link to Applicant Client Folder", None, "https://drive.google.com/x"),
@@ -126,13 +133,13 @@ def test_a_text_forms_answers_are_in_its_order_with_links_and_empty_ones_left_ou
 
 def test_an_invalid_submission_shows_what_was_sent():
     doc = {"status": "handed_over", "run": "x", "raw": {"answers": "?"}}
-    sheet = reads.submission("vehicle_log", "v", doc, [], [])
+    sheet = views.submission("vehicle_log", "v", doc, [], [])
     assert sheet.title is None and sheet.answers == [] and sheet.raw == {"answers": "?"}
     assert sheet.submitted_at is None and sheet.status == "handed_over"
 
 
 def test_an_old_requisition_shape_still_shows_its_answers():
-    rows = reads.answers("requisition", {"answers": {"payable_to": "Acme", "an_old_field": "x"}})
+    rows = views.answers("requisition", {"answers": {"payable_to": "Acme", "an_old_field": "x"}})
     assert ("payable_to", "Acme") in [(a.label, a.text) for a in rows]
 
 
@@ -140,12 +147,12 @@ LINE = {"name": "Fuel", "glCode": "5040", "glId": 70, "amount": 60, "type": "DEB
 
 
 def test_a_runs_posted_lines_now_and_in_phase_11():
-    assert reads.run("a", {"posted": {"lines": [LINE]}}).posted[0].name == "Fuel"
-    assert reads.run("b", {"posted": [LINE]}).posted[0].name == "Fuel"
+    assert views.run("a", {"workflow": "expense", "posted": {"lines": [LINE]}}).posted[0].name == "Fuel"
+    assert views.run("b", {"workflow": "expense", "posted": [LINE]}).posted[0].name == "Fuel"
 
 
 def test_a_correction_run():
-    run = reads.run(
+    run = views.run(
         "c",
         {
             "workflow": "correction",
@@ -157,24 +164,37 @@ def test_a_correction_run():
             "emails": {"correction": {"message_id": "m"}},
         },
     )
+    assert run.workflow == "correction"
     assert (run.entry, run.reversal, run.mifos_transaction_id, run.request.reason) == ("T1", "T2", "T3", "Fuel")
     assert [e.kind for e in run.emails] == ["correction"]
 
 
+def test_an_intake_run_is_only_what_every_run_has():
+    run = views.run("i", {"workflow": "intake", "status": "done", "emails": {"acknowledgement": {}}})
+    assert run.workflow == "intake" and run.status == "done" and not hasattr(run, "classification")
+
+
 def test_a_run_of_a_shape_we_dont_know_still_shows_how_it_ended():
-    run = reads.run("d", {"workflow": "expense", "status": "done", "classification": ["?"]})
+    run = views.run("d", {"workflow": "expense", "status": "done", "classification": ["?"]})
     assert (run.workflow, run.status, run.classification) == ("expense", "done", None)
 
 
+def test_a_workflow_we_dont_know_says_what_it_was():
+    run = views.run("e", {"workflow": "approval", "status": "done"})
+    assert (run.workflow, run.name, run.status) == ("unknown", "approval", "done")
+
+
 def test_runs_newest_first_and_posting_off_says_so():
-    later = reads.run("later", {"execution": {"started_at": "2026-10-02T00:00:00Z"}, "mifos": False})
-    earlier = reads.run("earlier", {"execution": {"started_at": "2026-10-01T00:00:00Z"}})
-    sheet = reads.submission("requisition", "r", {"answers": REQUISITION}, [earlier, later], [])
+    later = views.run(
+        "later", {"workflow": "expense", "execution": {"started_at": "2026-10-02T00:00:00Z"}, "mifos": False}
+    )
+    earlier = views.run("earlier", {"workflow": "expense", "execution": {"started_at": "2026-10-01T00:00:00Z"}})
+    sheet = views.submission("requisition", "r", {"answers": REQUISITION}, [earlier, later], [])
     assert [r.id for r in sheet.runs] == ["later", "earlier"] and sheet.runs[0].skipped == "mifos"
 
 
 def test_a_journal_entry():
-    entry = reads.journal_entry("T1", {"lines": [LINE], "status": "reversed", "reversed_by": "T2", "office": {"id": 1}})
+    entry = views.journal_entry("T1", {"lines": [LINE], "status": "reversed", "reversed_by": "T2", "office": {"id": 1}})
     assert (entry.transaction_id, entry.reversed_by, entry.lines[0].glId) == ("T1", "T2", 70)
 
 

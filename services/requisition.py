@@ -8,13 +8,18 @@ from submission import Submission
 
 
 class Files(BaseModel):
-    """Per upload field: Drive file ids, or gs:// refs into our attachments bucket."""
+    """Per upload field: Drive file ids, or gs:// refs into our attachments bucket. Each titled as its question is on
+    the form, which is what the emails and the UI call it."""
 
     model_config = ConfigDict(extra="forbid")
 
-    signed_requisition_form: list[str] = []
-    receipts: list[str] = []
-    invoices: list[str] = []
+    signed_requisition_form: list[str] = Field([], title="Signed Requisition Form")
+    receipts: list[str] = Field([], title="Receipt(s)")
+    invoices: list[str] = Field([], title="Invoice(s)")
+
+    @classmethod
+    def label(cls, field: str) -> str:
+        return cls.model_fields[field].title or field
 
 
 class Requisition(Submission):

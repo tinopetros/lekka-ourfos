@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Model(BaseModel):
@@ -10,7 +10,7 @@ class Model(BaseModel):
 
 
 class Me(Model):
-    """Who's signed in, and where: one call before anything shows (docs/phase13/adr.md 8)."""
+    """Who's signed in, and where: one call before anything shows."""
 
     email: str
     environment: Literal["local", "dev", "prod"]
@@ -31,6 +31,8 @@ class SubmissionSummary(Model):
     response_number: int | None = None
     submitted_by: str | None = None
     submitted_at: datetime | None = None
+    # When we first had it, valid or not: lists sort by it
+    received_at: datetime | None = None
     updated_at: datetime | None = None
     status: str | None = None
     test: bool = False
@@ -89,11 +91,10 @@ class CorrectionRequest(Model):
     credit: list[Line] = []
 
 
-class Run(Model):
-    """One workflow run on a submission: the run that took it in, or a correction."""
+class RunBase(Model):
+    """What every workflow's run has: what it is, how it ended, and the emails it sent."""
 
     id: str
-    workflow: str | None = None
     status: str | None = None
     test: bool = False
     started_at: datetime | None = None
@@ -101,19 +102,49 @@ class Run(Model):
     # Why it was handed over, rejected or refused
     reason: str | None = None
     emails: list[Email] = []
+
+
+class ExpenseRun(RunBase):
+    """A requisition taken in: expenser's call, and what was posted to Mifos."""
+
+    workflow: Literal["expense"] = "expense"
     classification: Classification | None = None
     mifos_transaction_id: str | None = None
-    # A posting that was turned off or skipped says why
+    # Posting turned off by the trigger says so
     skipped: str | None = None
     posted: list[Line] = []
-    # A correction's: what it was asked, the entry it corrected, and that entry's mirror
+
+
+class CorrectionRun(RunBase):
+    """A posted requisition corrected: what was asked, the entry it reversed, its mirror, and what was posted."""
+
+    workflow: Literal["correction"] = "correction"
     request: CorrectionRequest | None = None
     entry: str | None = None
     reversal: str | None = None
+    mifos_transaction_id: str | None = None
+    posted: list[Line] = []
+
+
+class IntakeRun(RunBase):
+    """A form only received and acknowledged."""
+
+    workflow: Literal["intake"] = "intake"
+
+
+class UnknownRun(RunBase):
+    """A run of a workflow this API doesn't know yet: how it ended, and what the store calls it."""
+
+    workflow: Literal["unknown"] = "unknown"
+    name: str | None = None
+
+
+# Which a run is, by its workflow: TypeScript narrows on `run.workflow` to each one's own fields
+Run = Annotated[ExpenseRun | CorrectionRun | IntakeRun | UnknownRun, Field(discriminator="workflow")]
 
 
 class JournalEntry(Model):
-    """One Mifos transaction we posted (docs/phase12/tdd.md, step 2)."""
+    """One Mifos transaction we posted."""
 
     transaction_id: str
     transaction_date: str | None = None
@@ -127,7 +158,7 @@ class JournalEntry(Model):
     status: str | None = None
     reverses: str | None = None
     reversed_by: str | None = None
-    # A mirror was posted without hearing back: check Mifos (docs/phase12/adr.md 4)
+    # A mirror was posted without hearing back: check Mifos
     reversing: str | None = None
     form: str | None = None
     submission: str | None = None

@@ -12,11 +12,9 @@ from html import escape
 
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
-from requisition import Requisition
+from requisition import Files, Requisition
 from submission import Submission
 
-# Their questions' titles on the form, for the fields with files
-FILE_LABELS = {"signed_requisition_form": "Signed Requisition Form", "receipts": "Receipt(s)", "invoices": "Invoice(s)"}
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
 # Where Lekkai stops on a requisition, so a deferral says it as the handover does
 TAKE_OVER = f"{FORMS['requisition'].taker.capitalize()} needs to take it from here."
@@ -153,7 +151,7 @@ def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
         rows.append(("Comment", escape(r.comment), r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
-            rows.append((FILE_LABELS[field], *file_links(refs)))
+            rows.append((Files.label(field), *file_links(refs)))
     return rows
 
 

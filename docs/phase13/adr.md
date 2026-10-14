@@ -41,16 +41,21 @@
 - Same origin: no CORS, and IAP's cookie just works
 - Not taken: **Firebase Hosting**, until a CDN matters
 
-### 8. One build, the environment at runtime
+### 8. An image per service, built once per commit, the environment at runtime
 
-- Dev and prod run the same image, as the release gate assumes
+- `ourfos-services` and `ourfos-api` each have their own Dockerfile and start command: nothing overrides what an image runs
+- One package list for both: the API's image carries what it never imports, ADK and the Mifos connector among them. The cost: a heavier image, and maybe a slower cold start. Leaner only if a measured cold start asks for it: a second package list, or the shared code as a package of its own
+- Each is tagged by a hash of what goes in it, so a UI change rebuilds only the API's
+- Dev and prod each build their own images, from the same commit and the same way: the release gate checks the commit
+- Not taken: **one image, the API's start command overridden in Terraform**. Hard to tell which service runs what, and every UI change rebuilt the services
 - `/api/me` says which environment and version, with who you are: one call before anything shows
 
-### 9. Lists are latest activity first
+### 9. Lists are newest first, by when we received them
 
-- A submission that failed validation has no answers, so no `submitted_at`, and Firestore leaves a document out of a query ordered by a field it lacks. Every submission has `updated_at`
+- `received_at` is set on a submission with its first status, valid or not, and never moved. Not `submitted_at`: an invalid submission's never validated, and Firestore leaves a document out of a query ordered by a field it lacks
+- Submissions from before it were backfilled from their earliest run's start (`scripts/backfill_received_at.py`)
 - Cursor paginated: the same cost on any page, unlike an offset, which Firestore bills for every document it skips
-- The cost: a submission whose run moves on while you page can show twice, or not at all, until you refresh
+- Latest activity, once there's an activity list to sort by
 
 ### 10. No permissions yet
 

@@ -7,7 +7,7 @@ import { StatusBadge, TestBadge } from '@/components/StatusBadge';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useSubmission } from '@/lib/api/queries';
-import type { Answer, Run, SubmissionSummary } from '@/lib/api/types';
+import type { Answer, CorrectionRun, ExpenseRun, Run, SubmissionSummary } from '@/lib/api/types';
 import { when } from '@/lib/format';
 import { usePages } from '@/lib/usePages';
 
@@ -41,71 +41,99 @@ function AnswerValue({ answer }: { answer: Answer }) {
   return <>{answer.text}</>;
 }
 
-function RunCard({ run }: { run: Run }) {
+function EntryLink({ id }: { id: string }) {
+  return (
+    <Link to={`/journal/${id}`} className="underline underline-offset-2">
+      {id}
+    </Link>
+  );
+}
+
+/** What an expense run adds: expenser's call, and what was posted. */
+function ExpenseFields({ run }: { run: ExpenseRun }) {
   const c = run.classification;
+  return (
+    <>
+      {c && (
+        <Field label="Expenser">
+          {c.approve === null ? '' : c.approve ? 'Approved' : 'Rejected'}
+          {c.reason ? `: ${c.reason}` : ''}
+          {c.comments.length > 0 && (
+            <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+              {c.comments.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          )}
+        </Field>
+      )}
+      {run.skipped && <Field label="Posting">Skipped: {run.skipped === 'mifos' ? 'posting off' : run.skipped}</Field>}
+      {run.mifos_transaction_id && (
+        <Field label="Mifos transaction">
+          <EntryLink id={run.mifos_transaction_id} />
+        </Field>
+      )}
+    </>
+  );
+}
+
+/** What a correction adds: who asked and why, the entry it reversed, its mirror, and what replaced it. */
+function CorrectionFields({ run }: { run: CorrectionRun }) {
+  return (
+    <>
+      {run.request && (
+        <>
+          <Field label="Requested by">{run.request.requested_by}</Field>
+          <Field label="Reason">{run.request.reason}</Field>
+        </>
+      )}
+      {run.entry && (
+        <Field label="Corrects">
+          <EntryLink id={run.entry} />
+        </Field>
+      )}
+      {run.reversal && (
+        <Field label="Its mirror">
+          <EntryLink id={run.reversal} />
+        </Field>
+      )}
+      {run.mifos_transaction_id && (
+        <Field label="Posted instead">
+          <EntryLink id={run.mifos_transaction_id} />
+        </Field>
+      )}
+    </>
+  );
+}
+
+/** One run: what every run has, then what its workflow adds. */
+function RunCard({ run }: { run: Run }) {
+  const title = run.workflow === 'unknown' ? (run.name ?? 'Run') : run.workflow;
+  const posted = run.workflow === 'expense' || run.workflow === 'correction' ? run.posted : [];
   return (
     <div className="space-y-2 rounded-md border p-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium capitalize">{run.workflow ?? 'run'}</span>
+        <span className="font-medium capitalize">{title}</span>
         <StatusBadge status={run.status} />
         {run.test && <TestBadge />}
         <span className="ml-auto text-xs text-muted-foreground">{when(run.started_at)}</span>
       </div>
       <dl className="divide-y">
         {run.reason && <Field label="Why">{run.reason}</Field>}
-        {run.request && (
-          <>
-            <Field label="Requested by">{run.request.requested_by}</Field>
-            <Field label="Reason">{run.request.reason}</Field>
-          </>
-        )}
-        {run.entry && (
-          <Field label="Corrects">
-            <Link to={`/journal/${run.entry}`} className="underline underline-offset-2">
-              {run.entry}
-            </Link>
-          </Field>
-        )}
-        {run.reversal && (
-          <Field label="Its mirror">
-            <Link to={`/journal/${run.reversal}`} className="underline underline-offset-2">
-              {run.reversal}
-            </Link>
-          </Field>
-        )}
-        {c && (
-          <Field label="Expenser">
-            {c.approve === null ? '' : c.approve ? 'Approved' : 'Rejected'}
-            {c.reason ? `: ${c.reason}` : ''}
-            {c.comments.length > 0 && (
-              <ul className="mt-1 list-disc pl-4 text-muted-foreground">
-                {c.comments.map((x) => (
-                  <li key={x}>{x}</li>
-                ))}
-              </ul>
-            )}
-          </Field>
-        )}
-        {run.skipped && <Field label="Posting">Skipped: {run.skipped === 'mifos' ? 'posting off' : run.skipped}</Field>}
-        {run.mifos_transaction_id && (
-          <Field label="Mifos transaction">
-            <Link to={`/journal/${run.mifos_transaction_id}`} className="underline underline-offset-2">
-              {run.mifos_transaction_id}
-            </Link>
-          </Field>
-        )}
+        {run.workflow === 'expense' && <ExpenseFields run={run} />}
+        {run.workflow === 'correction' && <CorrectionFields run={run} />}
         {run.emails.length > 0 && (
           <Field label="Emails">
             {run.emails.map((e) => `${e.kind.replaceAll('_', ' ')} ${when(e.at)}`).join('\n')}
           </Field>
         )}
       </dl>
-      {run.posted.length > 0 && <Lines lines={run.posted} />}
+      {posted.length > 0 && <Lines lines={posted} />}
     </div>
   );
 }
 
-/** What a row opens: its answers, every run on it, and the entries it posted. Read only (docs/phase13/tdd.md). */
+/** What a row opens: its answers, every run on it, and the entries it posted. Read only. */
 export function SubmissionSheet() {
   const { form = '', id = '' } = useParams();
   const { search } = usePages();

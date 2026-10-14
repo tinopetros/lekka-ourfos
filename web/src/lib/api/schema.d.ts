@@ -171,6 +171,49 @@ export interface components {
        */
       credit: components['schemas']['Line'][];
     };
+    /**
+     * CorrectionRun
+     * @description A posted requisition corrected: what was asked, the entry it reversed, its mirror, and what was posted.
+     */
+    CorrectionRun: {
+      /** Id */
+      id: string;
+      /** Status */
+      status: string | null;
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+      /** Started At */
+      started_at: string | null;
+      /** Completed At */
+      completed_at: string | null;
+      /** Reason */
+      reason: string | null;
+      /**
+       * Emails
+       * @default []
+       */
+      emails: components['schemas']['Email'][];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      workflow: 'correction';
+      request: components['schemas']['CorrectionRequest'] | null;
+      /** Entry */
+      entry: string | null;
+      /** Reversal */
+      reversal: string | null;
+      /** Mifos Transaction Id */
+      mifos_transaction_id: string | null;
+      /**
+       * Posted
+       * @default []
+       */
+      posted: components['schemas']['Line'][];
+    };
     /** Email */
     Email: {
       /** Kind */
@@ -179,6 +222,47 @@ export interface components {
       at: string | null;
       /** Message Id */
       message_id: string | null;
+    };
+    /**
+     * ExpenseRun
+     * @description A requisition taken in: expenser's call, and what was posted to Mifos.
+     */
+    ExpenseRun: {
+      /** Id */
+      id: string;
+      /** Status */
+      status: string | null;
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+      /** Started At */
+      started_at: string | null;
+      /** Completed At */
+      completed_at: string | null;
+      /** Reason */
+      reason: string | null;
+      /**
+       * Emails
+       * @default []
+       */
+      emails: components['schemas']['Email'][];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      workflow: 'expense';
+      classification: components['schemas']['Classification'] | null;
+      /** Mifos Transaction Id */
+      mifos_transaction_id: string | null;
+      /** Skipped */
+      skipped: string | null;
+      /**
+       * Posted
+       * @default []
+       */
+      posted: components['schemas']['Line'][];
     };
     /** File */
     File: {
@@ -200,8 +284,39 @@ export interface components {
       detail?: components['schemas']['ValidationError'][];
     };
     /**
+     * IntakeRun
+     * @description A form only received and acknowledged.
+     */
+    IntakeRun: {
+      /** Id */
+      id: string;
+      /** Status */
+      status: string | null;
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+      /** Started At */
+      started_at: string | null;
+      /** Completed At */
+      completed_at: string | null;
+      /** Reason */
+      reason: string | null;
+      /**
+       * Emails
+       * @default []
+       */
+      emails: components['schemas']['Email'][];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      workflow: 'intake';
+    };
+    /**
      * JournalEntry
-     * @description One Mifos transaction we posted (docs/phase12/tdd.md, step 2).
+     * @description One Mifos transaction we posted.
      */
     JournalEntry: {
       /** Transaction Id */
@@ -264,7 +379,7 @@ export interface components {
     };
     /**
      * Me
-     * @description Who's signed in, and where: one call before anything shows (docs/phase13/adr.md 8).
+     * @description Who's signed in, and where: one call before anything shows.
      */
     Me: {
       /** Email */
@@ -276,49 +391,6 @@ export interface components {
       environment: 'local' | 'dev' | 'prod';
       /** Version */
       version: string;
-    };
-    /**
-     * Run
-     * @description One workflow run on a submission: the run that took it in, or a correction.
-     */
-    Run: {
-      /** Id */
-      id: string;
-      /** Workflow */
-      workflow: string | null;
-      /** Status */
-      status: string | null;
-      /**
-       * Test
-       * @default false
-       */
-      test: boolean;
-      /** Started At */
-      started_at: string | null;
-      /** Completed At */
-      completed_at: string | null;
-      /** Reason */
-      reason: string | null;
-      /**
-       * Emails
-       * @default []
-       */
-      emails: components['schemas']['Email'][];
-      classification: components['schemas']['Classification'] | null;
-      /** Mifos Transaction Id */
-      mifos_transaction_id: string | null;
-      /** Skipped */
-      skipped: string | null;
-      /**
-       * Posted
-       * @default []
-       */
-      posted: components['schemas']['Line'][];
-      request: components['schemas']['CorrectionRequest'] | null;
-      /** Entry */
-      entry: string | null;
-      /** Reversal */
-      reversal: string | null;
     };
     /**
      * Submission
@@ -335,6 +407,8 @@ export interface components {
       submitted_by: string | null;
       /** Submitted At */
       submitted_at: string | null;
+      /** Received At */
+      received_at: string | null;
       /** Updated At */
       updated_at: string | null;
       /** Status */
@@ -363,7 +437,12 @@ export interface components {
        * Runs
        * @default []
        */
-      runs: components['schemas']['Run'][];
+      runs: (
+        | components['schemas']['ExpenseRun']
+        | components['schemas']['CorrectionRun']
+        | components['schemas']['IntakeRun']
+        | components['schemas']['UnknownRun']
+      )[];
       /**
        * Journal Entries
        * @default []
@@ -392,6 +471,8 @@ export interface components {
       submitted_by: string | null;
       /** Submitted At */
       submitted_at: string | null;
+      /** Received At */
+      received_at: string | null;
       /** Updated At */
       updated_at: string | null;
       /** Status */
@@ -407,6 +488,39 @@ export interface components {
       amount: number | null;
       /** Live Entry */
       live_entry: string | null;
+    };
+    /**
+     * UnknownRun
+     * @description A run of a workflow this API doesn't know yet: how it ended, and what the store calls it.
+     */
+    UnknownRun: {
+      /** Id */
+      id: string;
+      /** Status */
+      status: string | null;
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+      /** Started At */
+      started_at: string | null;
+      /** Completed At */
+      completed_at: string | null;
+      /** Reason */
+      reason: string | null;
+      /**
+       * Emails
+       * @default []
+       */
+      emails: components['schemas']['Email'][];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      workflow: 'unknown';
+      /** Name */
+      name: string | null;
     };
     /** ValidationError */
     ValidationError: {

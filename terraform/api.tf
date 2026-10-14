@@ -1,5 +1,5 @@
-# ourfos-api: what the UI reads, and the UI itself, behind IAP. The services
-# image, run with its own command and as its own account, which can read the database and post nothing
+# ourfos-api: what the UI reads, and the UI itself, behind IAP. Its own image, and its own account, which can read
+# the database and post nothing
 data "google_project" "this" {}
 
 locals {
@@ -21,12 +21,10 @@ resource "google_cloud_run_v2_service" "api" {
       max_instance_count = 2
     }
     containers {
-      image   = var.services_image
-      command = ["uvicorn"]
-      args    = ["api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+      image = var.api_image
       resources {
         limits = { cpu = "1", memory = "512Mi" }
-        # A cold start is someone waiting on a page (docs/phase13/adr.md)
+        # A cold start is someone waiting on a page
         startup_cpu_boost = true
       }
 
@@ -55,7 +53,7 @@ resource "google_cloud_run_v2_service_iam_member" "iap_invokes_api" {
   member   = "serviceAccount:${local.iap_agent}"
 }
 
-# Who IAP lets through: everyone listed sees everything for now (docs/phase13/adr.md 10)
+# Who IAP lets through: everyone listed sees everything for now
 resource "google_iap_web_cloud_run_service_iam_member" "ui_access" {
   for_each = toset(var.ui_access)
 

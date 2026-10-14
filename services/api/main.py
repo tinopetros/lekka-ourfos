@@ -1,4 +1,4 @@
-"""ourfos-api: what the UI reads, and the UI itself, from one origin (docs/phase13/adr.md 2 and 7).
+"""ourfos-api: what the UI reads, and the UI itself, from one origin.
 
 Run as `uvicorn api.main:app`, from the same image as ourfos-services. It imports none of what posts or sends: no
 Mifos, no Gmail, no model.

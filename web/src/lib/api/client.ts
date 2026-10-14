@@ -2,7 +2,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './schema';
 
 /** The API's own, typed from its OpenAPI: a path or a parameter it doesn't have fails to compile. Same origin, so
- * IAP's cookie goes with every call (docs/phase13/adr.md 7). */
+ * IAP's cookie goes with every call. */
 export const api = createClient<paths>({ baseUrl: window.location.origin });
 
 export class ApiError extends Error {

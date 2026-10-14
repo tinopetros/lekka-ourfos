@@ -8,7 +8,7 @@ import { money, when } from '@/lib/format';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
 
-/** A form's submissions, latest activity first (docs/phase13/adr.md 9). A row opens its sheet. */
+/** A form's submissions, the newest we received first. A row opens its sheet. */
 export function SubmissionsPage() {
   const { form = '', id } = useParams();
   const { cursor, search } = usePages();
@@ -35,7 +35,7 @@ export function SubmissionsPage() {
                   <TableHead className="hidden md:table-cell">Submitted by</TableHead>
                   <TableHead className="hidden lg:table-cell">Submitted</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">Last activity</TableHead>
+                  <TableHead className="hidden sm:table-cell">Received</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -63,7 +63,7 @@ export function SubmissionsPage() {
                     <TableCell>
                       <StatusBadge status={s.status} />
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">{when(s.updated_at)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{when(s.received_at)}</TableCell>
                   </TableRow>
                 ))}
                 {!data.items.length && (

@@ -1,27 +1,33 @@
-"""Firestore's documents as the API's models. Pure: a document in, a model out, so every shape a document has had is
-tested without a database. What the store lacks is None, never an error: an invalid submission has no answers."""
+"""Turns what Firestore stores into what the API sends. Stored documents have changed shape over the phases, and some
+lack fields: a submission that failed validation has no answers. So whatever is missing comes back empty, never as an
+error. No database here: tests hand it documents of every shape."""
 
 from pydantic import ValidationError
 
 from common import log
 from forms import FORMS
-from requisition import Requisition
+from requisition import Files, Requisition
 
 from .models import (
     Answer,
     Classification,
     CorrectionRequest,
+    CorrectionRun,
     Email,
+    ExpenseRun,
     File,
+    IntakeRun,
     JournalEntry,
     Line,
     Run,
+    RunBase,
     Submission,
     SubmissionSummary,
+    UnknownRun,
 )
 
-# Their questions' titles on the form, for the requisition's fields with files, as its emails have them
-FILE_LABELS = {"signed_requisition_form": "Signed Requisition Form", "receipts": "Receipt(s)", "invoices": "Invoice(s)"}
+# Each workflow's run, by the name the store gives it
+RUNS: dict[str, type[RunBase]] = {"expense": ExpenseRun, "correction": CorrectionRun, "intake": IntakeRun}
 
 
 def title(form: str) -> str:
@@ -38,6 +44,7 @@ def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
         response_number=doc.get("response_number", answers.get("response_number")),
         submitted_by=doc.get("submitted_by", answers.get("submitted_by")),
         submitted_at=doc.get("submitted_at", answers.get("submitted_at")),
+        received_at=doc.get("received_at"),
         updated_at=doc.get("updated_at"),
         status=doc.get("status"),
         test=bool(doc.get("test")),
@@ -90,7 +97,7 @@ def requisition_answers(values: dict) -> list[Answer]:
         rows.append(Answer(label="Comment", text=r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
-            rows.append(Answer(label=FILE_LABELS[field], files=files(refs)))
+            rows.append(Answer(label=Files.label(field), files=files(refs)))
     return rows
 
 
@@ -104,59 +111,78 @@ def posted(value) -> list[Line]:
 
 
 def run(id: str, doc: dict) -> Run:
-    """One run, however much of it there is. A shape this doesn't know still shows its workflow and how it ended."""
+    """One run, as its workflow's shape. A field of a shape this doesn't know leaves only what every run has, so the
+    sheet still shows how it ended."""
+    name = doc.get("workflow")
+    kind = RUNS.get(name)
+    base = shared(id, doc)
+    if not kind:
+        return UnknownRun(**base, name=str(name) if name else None)
     try:
-        return _run(id, doc)
+        return kind(**base, **ONLY[kind](doc))
     except (AttributeError, TypeError, ValueError) as e:
         log(f"run shown in part: {e}", "WARNING", run=id)
-        return Run(id=id, workflow=str(doc.get("workflow") or "") or None, status=str(doc.get("status") or "") or None)
+        return kind(**base)
 
 
-def _run(id: str, doc: dict) -> Run:
-    execution = doc.get("execution") or {}
-    classification = doc.get("classification")
-    request = doc.get("request")
-    emails = sorted(
-        (
-            Email(kind=kind, at=e.get("at"), message_id=e.get("message_id"))
-            for kind, e in (doc.get("emails") or {}).items()
+def shared(id: str, doc: dict) -> dict:
+    """What every run has, read as safely as can be: these never fail a sheet."""
+    execution = doc.get("execution") if isinstance(doc.get("execution"), dict) else {}
+    emails = doc.get("emails") if isinstance(doc.get("emails"), dict) else {}
+    return {
+        "id": id,
+        "status": doc.get("status") if isinstance(doc.get("status"), str) else None,
+        "test": bool(doc.get("test")),
+        "started_at": execution.get("started_at"),
+        "completed_at": execution.get("completed_at"),
+        "reason": doc.get("reason") if isinstance(doc.get("reason"), str) else None,
+        "emails": sorted(
+            (Email(kind=k, at=e.get("at"), message_id=e.get("message_id")) for k, e in emails.items()),
+            key=lambda e: (e.at is None, e.at),
         ),
-        key=lambda e: (e.at is None, e.at),
-    )
-    return Run(
-        id=id,
-        workflow=doc.get("workflow"),
-        status=doc.get("status"),
-        test=bool(doc.get("test")),
-        started_at=execution.get("started_at"),
-        completed_at=execution.get("completed_at"),
-        reason=doc.get("reason") if isinstance(doc.get("reason"), str) else None,
-        emails=emails,
-        classification=Classification(
-            approve=classification.get("approve"),
-            reason=classification.get("reason"),
-            comments=classification.get("comments") or [],
-            debit=lines(classification.get("debit")),
-            credit=lines(classification.get("credit")),
+    }
+
+
+def expense(doc: dict) -> dict:
+    c = doc.get("classification")
+    return {
+        "classification": Classification(
+            approve=c.get("approve"),
+            reason=c.get("reason"),
+            comments=c.get("comments") or [],
+            debit=lines(c.get("debit")),
+            credit=lines(c.get("credit")),
         )
-        if classification
+        if c
         else None,
-        mifos_transaction_id=doc.get("mifos_transaction_id"),
-        # Posting turned off by the trigger (docs/phase12/adr.md 8)
-        skipped="mifos" if doc.get("mifos") is False else None,
-        posted=posted(doc.get("posted")),
-        request=CorrectionRequest(
-            reason=request.get("reason"),
-            requested_by=request.get("requested_by"),
-            transaction_id=request.get("transaction_id"),
-            debit=lines(request.get("debit")),
-            credit=lines(request.get("credit")),
+        "mifos_transaction_id": doc.get("mifos_transaction_id"),
+        # Posting turned off by the trigger
+        "skipped": "mifos" if doc.get("mifos") is False else None,
+        "posted": posted(doc.get("posted")),
+    }
+
+
+def correction(doc: dict) -> dict:
+    r = doc.get("request")
+    return {
+        "request": CorrectionRequest(
+            reason=r.get("reason"),
+            requested_by=r.get("requested_by"),
+            transaction_id=r.get("transaction_id"),
+            debit=lines(r.get("debit")),
+            credit=lines(r.get("credit")),
         )
-        if request
+        if r
         else None,
-        entry=doc.get("entry"),
-        reversal=(doc.get("reversal") or {}).get("transaction_id"),
-    )
+        "entry": doc.get("entry"),
+        "reversal": (doc.get("reversal") or {}).get("transaction_id"),
+        "mifos_transaction_id": doc.get("mifos_transaction_id"),
+        "posted": posted(doc.get("posted")),
+    }
+
+
+# What each workflow's run adds to what every run has
+ONLY = {ExpenseRun: expense, CorrectionRun: correction, IntakeRun: lambda doc: {}}
 
 
 def journal_entry(id: str, doc: dict) -> JournalEntry:

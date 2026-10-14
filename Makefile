@@ -13,11 +13,18 @@ export TF_DATA_DIR := .terraform-$(ENV)
 
 # The image tag is a hash of what goes in it, so an unchanged service is never rebuilt.
 # No git, since Cloud Shell gets a plain copy, and sha1sum or shasum, whichever the image has
-SERVICES_SRC := $(shell find services agents/expenser web -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
+SERVICES_SRC := $(shell find services agents/expenser -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' \
 	! -path '*/.pytest_cache/*' ! -path '*/tests/*' ! -path '*/.adk/*' ! -path 'agents/expenser/evals/*' ! -name requirements.txt ! -name .env \
-	! -path 'web/node_modules/*' ! -path 'web/dist/*' ! -name '*.tsbuildinfo' | LC_ALL=C sort)
+	! -path 'services/api/*' ! -name api.Dockerfile | LC_ALL=C sort)
 TAG := $(shell cat $(SERVICES_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-services:$(TAG)
+# ourfos-api's image the same way, from what goes in it: the services' code, and the UI
+API_SRC := $(shell find services web -type f ! -path '*/.venv/*' ! -path '*/__pycache__/*' ! -path '*/.pytest_cache/*' \
+	! -path '*/tests/*' ! -name requirements.txt ! -name .env ! -name Dockerfile \
+	! -path 'web/node_modules/*' ! -path 'web/dist/*' ! -name '*.tsbuildinfo' | LC_ALL=C sort)
+API_TAG := $(shell cat $(API_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
+API_IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-api:$(API_TAG)
+API_BUILD := .build/api
 TRIGGER_ZIP := .build/trigger.zip
 SERVICES_BUILD := .build/services
 WHEELS := .build/wheels
@@ -28,7 +35,7 @@ comma := ,
 CASE ?=
 RUNS ?= 1
 EVALS := expenser/evals
-TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var build_version=$(VERSION) $(TF_ARGS)
+TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var api_image=$(API_IMAGE) -var build_version=$(VERSION) $(TF_ARGS)
 TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
 # The trigger's ?workflow= names the form, as its webhook always has, and the form names its workflow
 WORKFLOW = $(if $(filter requisition,$(FORM)),expense,intake)
@@ -47,7 +54,7 @@ OPENAPI := .build/openapi.json
 SCHEMA := web/src/lib/api/schema.d.ts
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build stage deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
+.PHONY: help check-env package build build-services build-api stage stage-api deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
 	web types types-check web-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
@@ -71,7 +78,7 @@ help:
 	@echo "make eval-report         which cases failed which metric, and what they cost, in the last RUNS runs"
 	@echo "make test                the trigger's cleaners and token, the services' steps, emails and attachments"
 	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
-	@echo "make build               Cloud Build the services image, if this hash is new"
+	@echo "make build               Cloud Build the services' and the API's images, each only if its hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
 	@echo "make agent|agent-web     expenser locally, in the terminal or the browser"
 	@echo "make destroy             terraform destroy"
@@ -101,23 +108,42 @@ $(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/tr
 
 package: $(REQUIREMENTS) $(TRIGGER_ZIP) $(WHEELS)
 
-# services/ with expenser and the connector's wheel beside it, as the image sees them. Never a local .env or venv
+# services/ with expenser and the connector's wheel beside it, as the image sees them. Never a local .env or venv,
+# and not ourfos-api's own code, which has its image
 stage: services/requirements.txt $(WHEELS)
 	rm -rf $(SERVICES_BUILD) && mkdir -p $(SERVICES_BUILD)
 	cp -R $(WHEELS) $(SERVICES_BUILD)/wheels
 	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
-		-C services . | tar -xf - -C $(SERVICES_BUILD)
+		--exclude ./api --exclude api.Dockerfile -C services . | tar -xf - -C $(SERVICES_BUILD)
 	COPYFILE_DISABLE=1 tar -cf - --exclude .env --exclude __pycache__ --exclude .adk --exclude expenser/evals -C agents expenser | tar -xf - -C $(SERVICES_BUILD)
-	COPYFILE_DISABLE=1 tar -cf - --exclude node_modules --exclude dist --exclude '*.tsbuildinfo' web | tar -xf - -C $(SERVICES_BUILD)
 
-# As ourfos-build rather than the compute account (roles/editor), staged in our
-# africa-south1 bucket rather than the US default
-build: check-env
+# ourfos-api's: services/ and web/ side by side, the same packages, and its own Dockerfile
+stage-api: services/requirements.txt $(WHEELS)
+	rm -rf $(API_BUILD) && mkdir -p $(API_BUILD)/services
+	cp -R $(WHEELS) $(API_BUILD)/wheels
+	cp services/requirements.txt $(API_BUILD)/
+	cp services/api.Dockerfile $(API_BUILD)/Dockerfile
+	COPYFILE_DISABLE=1 tar -cf - --exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude tests \
+		--exclude Dockerfile --exclude api.Dockerfile --exclude requirements.txt -C services . | tar -xf - -C $(API_BUILD)/services
+	COPYFILE_DISABLE=1 tar -cf - --exclude node_modules --exclude dist --exclude '*.tsbuildinfo' web | tar -xf - -C $(API_BUILD)
+
+# As ourfos-build rather than the compute account (roles/editor), staged in our africa-south1 bucket rather than the
+# US default. Each image only when its hash is new
+CLOUD_BUILD = gcloud builds submit --project $(PROJECT) --region $(REGION) \
+	--service-account projects/$(PROJECT)/serviceAccounts/ourfos-build@$(PROJECT).iam.gserviceaccount.com \
+	--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs
+
+build: build-services build-api
+
+build-services: check-env
 	@gcloud artifacts docker images describe $(IMAGE) --project $(PROJECT) >/dev/null 2>&1 \
 		&& echo "$(IMAGE) already built" \
-		|| { $(MAKE) -s stage && gcloud builds submit $(SERVICES_BUILD) --project $(PROJECT) --region $(REGION) --tag $(IMAGE) \
-			--service-account projects/$(PROJECT)/serviceAccounts/ourfos-build@$(PROJECT).iam.gserviceaccount.com \
-			--gcs-source-staging-dir gs://$(PROJECT)-ourfos-sources/builds --gcs-log-dir gs://$(PROJECT)-ourfos-sources/logs; }
+		|| { $(MAKE) -s stage && $(CLOUD_BUILD) $(SERVICES_BUILD) --tag $(IMAGE); }
+
+build-api: check-env
+	@gcloud artifacts docker images describe $(API_IMAGE) --project $(PROJECT) >/dev/null 2>&1 \
+		&& echo "$(API_IMAGE) already built" \
+		|| { $(MAKE) -s stage-api && $(CLOUD_BUILD) $(API_BUILD) --tag $(API_IMAGE); }
 
 deploy: build tf-apply
 
@@ -226,7 +252,7 @@ check: tf-fmt-check tf-validate-ci lock-check lint test types-check web-check
 web/node_modules/.package-lock.json: web/package-lock.json
 	cd web && npm ci --no-audit --no-fund
 
-# The API's models → OpenAPI → web's TypeScript (docs/phase13/adr.md 4). Generated, committed, never edited
+# The API's models → OpenAPI → web's TypeScript. Generated, committed, never edited
 types: web/node_modules/.package-lock.json
 	@mkdir -p .build
 	cd services && uv run -q python -c 'import json; from api.main import app; print(json.dumps(app.openapi(), indent=1))' > ../$(OPENAPI)
@@ -240,7 +266,7 @@ web-check: web/node_modules/.package-lock.json
 	cd web && npm run -s lint && npm run -s typecheck && npm run -s test && npm run -s build
 
 # The UI on localhost:5173, its /api proxied to the API run here on your ADC, reading dev's Firestore as you
-# (docs/phase13/tdd.md, Local). Never prod's. Both stop with ctrl-c
+#. Never prod's. Both stop with ctrl-c
 web: types
 	@[ "$(ENV)" = dev ] || { echo "make web reads dev's data only" >&2; exit 1; }
 	@echo "UI: http://localhost:5173  API: http://localhost:$(API_PORT)/docs  as $(or $(ACT_AS),your ADC account)"
