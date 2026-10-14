@@ -1,8 +1,6 @@
 import createClient from 'openapi-fetch';
 import type { paths } from './schema';
 
-/** The API's own, typed from its OpenAPI: a path or a parameter it doesn't have fails to compile. Same origin, so
- * IAP's cookie goes with every call. */
 export const api = createClient<paths>({ baseUrl: window.location.origin });
 
 export class ApiError extends Error {
@@ -15,7 +13,6 @@ export class ApiError extends Error {
   }
 }
 
-/** What a call answered, or an ApiError saying why not. FastAPI's errors say why in `detail`. */
 export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   let result: Awaited<typeof call>;
   try {

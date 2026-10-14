@@ -1,16 +1,21 @@
-const dateTime = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'Africa/Harare',
-});
-const date = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' });
-
-/** In Harare's time, as the business is. */
-export function when(iso: string | null | undefined): string {
-  return iso ? dateTime.format(new Date(iso)) : '—';
+// A time in the viewer's own zone, named, so a screenshot can't be misread: 14 Oct 2026, 18:30 GMT+2
+export function when(iso: string | null | undefined, timeZone?: string): string {
+  if (!iso) return '—';
+  const at = new Date(iso);
+  return `${new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(at)} ${zone(at, timeZone)}`;
 }
 
-/** A date with no time, e.g. a transaction date: 2026-09-18 stays the 18th wherever you are. */
+function zone(at: Date, timeZone?: string): string {
+  return (
+    new Intl.DateTimeFormat('en-GB', { timeZoneName: 'short', timeZone })
+      .formatToParts(at)
+      .find((p) => p.type === 'timeZoneName')?.value ?? ''
+  );
+}
+
+const date = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' });
+
+// A date with no time, e.g. a transaction date: 2026-09-18 stays the 18th wherever you are
 export function day(iso: string | null | undefined): string {
   return iso ? date.format(new Date(`${iso}T00:00:00Z`)) : '—';
 }

@@ -33,7 +33,10 @@
    - A shell: a sidebar of the forms, from the API, and Journal
    - A table per list, its page in the URL; a row opens a read-only sheet, a route of its own, so an open sheet is a link. Filters wait for the indexes they need
    - Responsive
-   - Banners: red **TEST** on dev, **LOCAL → dev data** locally. Test submissions have a badge, prod's too
+   - Banners: red **TEST** on dev, amber **LOCAL** locally. Test submissions have a badge, prod's too
+   - Times in each viewer's own zone, named; a transaction's date as the calendar day it is
+   - Signing out through IAP, in the header
+   - Laid out as ADR 12 says, mapped in `web/README.md`
 7. **Images** (ADR 8): `ourfos-api`'s own, `services/api.Dockerfile`, its UI built in a Node stage; the services' as before. Each tagged by a hash of what goes in it. The environment is read at runtime, so the commit that passed on dev is the one released. The UI shows the commit
 8. **Terraform**: `ourfos-api` on its own image, `iap_enabled`, IAP's agent as its invoker, and `ui_access` in each env's tfvars: who IAP lets through
 

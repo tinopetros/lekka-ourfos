@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { Outlet } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -33,6 +33,14 @@ export function Layout({ me }: { me: Me }) {
               <span className="hidden text-xs sm:inline" title="The build you're on">
                 {me.version}
               </span>
+              {/* IAP's own sign-out: it clears its cookie, and the next page asks Google who you are. None locally */}
+              {me.environment !== 'local' && (
+                <Button variant="ghost" size="sm" asChild>
+                  <a href="/?gcp-iap-mode=CLEAR_LOGIN_COOKIE">
+                    <LogOut /> <span className="hidden sm:inline">Sign out</span>
+                  </a>
+                </Button>
+              )}
             </div>
           </header>
           <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">

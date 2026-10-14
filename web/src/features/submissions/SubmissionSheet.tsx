@@ -6,7 +6,7 @@ import { QueryState } from '@/components/QueryState';
 import { StatusBadge, TestBadge } from '@/components/StatusBadge';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useSubmission } from '@/lib/api/queries';
+import { useSubmission } from './api';
 import type { Answer, CorrectionRun, ExpenseRun, Run, SubmissionSummary } from '@/lib/api/types';
 import { when } from '@/lib/format';
 import { usePages } from '@/lib/usePages';
@@ -152,7 +152,7 @@ export function SubmissionSheet() {
         if (!open) void navigate({ pathname: `/forms/${form}`, search });
       }}
     >
-      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+      <SheetContent className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:w-[80vw] data-[side=right]:sm:max-w-none">
         <SheetHeader>
           <SheetTitle className="flex flex-wrap items-center gap-2 pr-8">
             {data?.title ?? id} {data?.test && <TestBadge />}

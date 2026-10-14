@@ -4,7 +4,7 @@ import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useJournalEntry } from '@/lib/api/queries';
+import { useJournalEntry } from './api';
 import { day, when } from '@/lib/format';
 import { usePages } from '@/lib/usePages';
 
@@ -29,7 +29,7 @@ export function JournalEntrySheet() {
         if (!open) void navigate({ pathname: '/journal', search });
       }}
     >
-      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+      <SheetContent className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:w-[80vw] data-[side=right]:sm:max-w-none">
         <SheetHeader>
           <SheetTitle className="font-mono">{id}</SheetTitle>
           <SheetDescription>{e && `${day(e.transaction_date)} · ${e.currency ?? ''}`}</SheetDescription>

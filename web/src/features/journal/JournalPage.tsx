@@ -3,7 +3,7 @@ import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useJournalEntries } from '@/lib/api/queries';
+import { useJournalEntries } from './api';
 import type { JournalEntry } from '@/lib/api/types';
 import { day, money, when } from '@/lib/format';
 import { usePages } from '@/lib/usePages';

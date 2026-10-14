@@ -68,6 +68,7 @@
   - The API saves the submission and starts the workflow the trigger would. One path for a Google Form and the UI
   - `submitted_by` is who's signed in; `source`, `ui` or `google-form`
   - A typed definition per form: react-hook-form and zod. Attachments to GCS through signed URLs
+  - Toasts, for an action that fails: `MutationCache`'s `onError`, and shadcn's Sonner. A page that can't load already says so where it is
   - Every route declares its permission, e.g. `forms:requisition:submit`, all granted to everyone for now. Phase 15 then changes the policy, not the routes
 - **Phase 15, journal entry actions, and permissions**
   - Workspace groups, nested ones too, synced onto `users`; roles from a policy file in the repo, and roles granted to a person
@@ -77,3 +78,16 @@
 - **Later**
   - A reversal with no requisition, its own workflow (phase 12 ADR 3)
   - A PWA or a native app: camera, offline, Wi-Fi only (#30)
+  - Integration tests from the UI's side: its client against the deployed API, with fixtures, as the backend's are (#34)
+
+### 12. The UI's conventions, after bulletproof-react
+
+A standard to start from, borrowed from [bulletproof-react](https://github.com/alan2207/bulletproof-react), and changed when we learn better
+
+- **A folder per feature**: its pages, sheets and `api.ts`, its queries and their hooks, together. What features share goes in `components/` and `lib/`; what every page needs, `me` and the forms, in `lib/api`
+- **Imports from `@/`**, never `../../`: moving a file breaks no one else's imports
+- **The API's data in TanStack Query, what only the browser knows in Zustand** (ADR 6)
+- **API errors in one place**: `unwrap` makes a failed call an `ApiError`, and `QueryState` shows it where the page is. Toasts come with actions
+- **Tests beside what they test**, on Vitest and Testing Library
+- **Types generated from the API**, never written by hand (ADR 4)
+- **shadcn's components copied in**, ours to change (its CSS too: #33)
