@@ -1,4 +1,4 @@
-"""Who's signed in (docs/phase13/tdd.md, step 3).
+"""Who's signed in
 
 On Cloud Run, IAP has already signed them in, and says who in a JWT it signs: we check its signature, audience and
 issuer, and nothing else gets through. Locally, there's no IAP: who you are is your ADC account, or ACT_AS. Refused on

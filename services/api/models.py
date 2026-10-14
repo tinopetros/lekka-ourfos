@@ -1,7 +1,3 @@
-"""What the API answers with: one model per route, and the UI's TypeScript types are generated from them
-(docs/phase13/adr.md 4). Firestore enforces no schema, so these are the only definition of what a list or a sheet
-holds: a field the store lacks is None here, never an error."""
-
 from datetime import datetime
 from typing import Literal
 

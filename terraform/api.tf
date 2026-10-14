@@ -1,4 +1,4 @@
-# ourfos-api: what the UI reads, and the UI itself, behind IAP (docs/phase13/tdd.md, steps 1, 3 and 7). The services
+# ourfos-api: what the UI reads, and the UI itself, behind IAP. The services
 # image, run with its own command and as its own account, which can read the database and post nothing
 data "google_project" "this" {}
 

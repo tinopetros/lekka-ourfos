@@ -1,5 +1,3 @@
-"""What the UI reads (docs/phase13/tdd.md, step 1). Reads only, and every route takes the signed-in user."""
-
 import os
 from typing import Annotated
 
@@ -27,7 +25,7 @@ def known(form: str):
 
 
 def page(collection, field: str, cursor: str | None, limit: int):
-    """Latest first, cursor paginated (docs/phase13/adr.md 9). The cursor is the last document's id: the next page
+    """Latest first, cursor paginated. The cursor is the last document's id: the next page
     starts after it, wherever it now sorts. One more than asked for says whether there's a next page."""
     query = collection.order_by(field, direction=firestore.Query.DESCENDING)
     if cursor:
