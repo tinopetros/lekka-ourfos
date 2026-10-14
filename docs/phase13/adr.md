@@ -53,7 +53,7 @@
 ### 9. Lists are newest first, by when we received them
 
 - `received_at` is set on a submission with its first status, valid or not, and never moved. Not `submitted_at`: an invalid submission's never validated, and Firestore leaves a document out of a query ordered by a field it lacks
-- Submissions from before it were backfilled from their earliest run's start (`scripts/backfill_received_at.py`)
+- Submissions from before it were backfilled from their earliest run's start, by a one-off script: dev on Oct 14, prod at release
 - Cursor paginated: the same cost on any page, unlike an offset, which Firestore bills for every document it skips
 - Latest activity, once there's an activity list to sort by
 
