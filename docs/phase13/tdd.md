@@ -18,7 +18,7 @@
    - Serves the built UI, same origin (ADR 7)
 2. **Response models** in Pydantic, one per route: `Me`, `FormInfo`, `SubmissionSummary`, `Submission` (answers, runs, emails, journal entries), `JournalEntry`, and a page of each list. Firestore's documents are read through them, every shape they've had: what a document lacks is `None`, and a run of a shape they don't know still shows how it ended
 3. **Sign-in** (ADR 3)
-   - IAP in front of `ourfos-api`. One Workspace group, or a short list, gets through
+   - IAP in front of `ourfos-api`. Everyone at `lekkacredit.com` gets through
    - `current_user`, a dependency every route takes, verifies IAP's signed header
    - Locally, the identity is your ADC account. Refused on Cloud Run
    - `users/{email}`: `email`, `first_seen`, `last_seen`, written on sign-in, in the background, at most every 5 minutes. A name comes with Workspace's directory, with permissions
@@ -46,19 +46,16 @@
 
 ## Bootstrapped, once
 
-**1. Infra**: `ourfos-api@`, in both projects (tinopetros/lekka-ourfos-infra#20). Merge and apply it first: Terraform here looks the account up, and fails until it exists
+**1. Infra** (tinopetros/lekka-ourfos-infra#20), in both projects: `ourfos-api@`, our deployer's right to act as it, and IAP's service agent, which calls the service. Applied before this merges: Terraform here looks the account up, and `plan-prod` fails until prod has it too
 
-**2. The deployer**: acts as `ourfos-api@`, and manages who IAP lets in. And IAP's own account, which calls the service:
+**2. The deployer manages who IAP lets in.** Its own project role, so by hand, like its others (docs/phase2). Run on Oct 14:
 
 ```bash
 SA=ourfos-app-deployer@ourfos-prod.iam.gserviceaccount.com
 for P in ourfos-dev ourfos-prod; do
-  gcloud iam service-accounts add-iam-policy-binding "ourfos-api@$P.iam.gserviceaccount.com" --project="$P" \
-    --member="serviceAccount:$SA" --role=roles/iam.serviceAccountUser
   gcloud projects add-iam-policy-binding "$P" --condition=None \
     --member="serviceAccount:$SA" --role=roles/iap.admin
-  gcloud beta services identity create --service=iap.googleapis.com --project="$P"
 done
 ```
 
-**3. Who gets in**: `ui_access` in `terraform/env/<env>.tfvars`. A Workspace group, `group:…`, once there is one
+**3. Who gets in**: `ui_access` in `terraform/env/<env>.tfvars`. Everyone at `lekkacredit.com` for now; groups, and what each may see, come with permissions (ADR 10)

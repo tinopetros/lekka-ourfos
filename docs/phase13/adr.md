@@ -54,8 +54,8 @@
 
 ### 10. No permissions yet
 
-- Whoever IAP lets through sees everything, journal entries included
-- The cost: fine while the access list is short and trusted. Phase 15 adds them
+- Everyone at `lekkacredit.com` gets through IAP, and sees everything, journal entries included
+- The cost: anyone in the company can read every submission and entry until phase 15 narrows it by group. Nobody can change anything
 
 ### 11. What comes after
 
