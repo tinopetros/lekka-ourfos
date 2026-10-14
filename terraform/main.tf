@@ -28,7 +28,7 @@ data "google_artifact_registry_repository" "ourfos" {
 # Infra makes what we run as and build with (modules/ourfos-app). Fails here
 # until it exists, like the registry
 data "google_service_account" "this" {
-  for_each   = toset(["trigger", "workflow", "services", "build"])
+  for_each   = toset(["trigger", "workflow", "services", "build", "api"])
   account_id = "ourfos-${each.key}"
 }
 

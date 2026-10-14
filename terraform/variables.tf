@@ -12,6 +12,22 @@ variable "services_image" {
   type        = string
 }
 
+variable "api_image" {
+  description = "Built by `make build`, tagged with a hash of services/ and web/"
+  type        = string
+}
+
+variable "build_version" {
+  description = "The commit the image was built from, which the UI shows: Cloud Build's SHORT_SHA, or git's"
+  type        = string
+  default     = "unknown"
+}
+
+variable "ui_access" {
+  description = "Who IAP lets into the UI, as IAM members: user:, group:, or domain:"
+  type        = list(string)
+}
+
 variable "trigger_zip" {
   description = "Packaged by `make package`"
   type        = string

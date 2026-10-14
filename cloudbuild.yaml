@@ -58,7 +58,7 @@ steps:
   - id: apply
     name: hashicorp/terraform:1.16.4
     entrypoint: sh
-    args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} TF_ARGS='-auto-approve -input=false'"]
+    args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} VERSION=${SHORT_SHA} TF_ARGS='-auto-approve -input=false'"]
 
   # Dev only. Smoke runs real executions, and in prod those would reach real people and Mifos
   - id: smoke
@@ -70,4 +70,4 @@ steps:
   - id: plan-prod
     name: hashicorp/terraform:1.16.4
     entrypoint: sh
-    args: [-c, "[ ${_ENV} = dev ] || exit 0; apk add -q make && make tf-plan ENV=prod"]
+    args: [-c, "[ ${_ENV} = dev ] || exit 0; apk add -q make && make tf-plan ENV=prod VERSION=${SHORT_SHA}"]

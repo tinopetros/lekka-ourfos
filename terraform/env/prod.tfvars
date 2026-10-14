@@ -19,3 +19,4 @@ mifos = {
   tenant_id  = "default"
   verify_ssl = false
 }
+ui_access = ["domain:lekkacredit.com"]
