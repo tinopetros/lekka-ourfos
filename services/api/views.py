@@ -30,11 +30,6 @@ from .models import (
 RUNS: dict[str, type[RunBase]] = {"expense": ExpenseRun, "correction": CorrectionRun, "intake": IntakeRun}
 
 
-def title(form: str) -> str:
-    """What the sidebar calls a form's list: Requisitions, Vehicle logs."""
-    return f"{FORMS[form].noun[0].upper()}{FORMS[form].noun[1:]}s"
-
-
 def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
     answers = doc.get("answers") or {}
     named = " ".join(str(answers[k]).strip() for k in FORMS[form].subject if answers.get(k))
@@ -55,9 +50,9 @@ def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
 
 
 def files(refs: list[str]) -> list[File]:
-    """File 1, File 2, as the emails name them. Drive's open in Drive."""
+    """File 1, File 2, as the emails name them: Drive's by id, ours by gs:// ref."""
     return [
-        File(name=f"File {n}", url=None if ref.startswith("gs://") else f"https://drive.google.com/open?id={ref}")
+        File(name=f"File {n}", ref=ref) if ref.startswith("gs://") else File(name=f"File {n}", drive_id=ref)
         for n, ref in enumerate(refs, 1)
     ]
 

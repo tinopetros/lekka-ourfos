@@ -32,6 +32,7 @@ resource "google_cloud_run_v2_service" "api" {
         for_each = {
           GOOGLE_CLOUD_PROJECT = var.project_id
           FIRESTORE_DATABASE   = "ourfos"
+          ATTACHMENTS_BUCKET   = "${var.project_id}-attachments"
           ENVIRONMENT          = trimprefix(var.project_id, "ourfos-")
           VERSION              = var.build_version
           # What IAP's signed header must be for: this service, and no other

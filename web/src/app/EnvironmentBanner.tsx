@@ -10,7 +10,10 @@ export function EnvironmentBanner({ environment }: { environment: Me['environmen
   const { banner, tone } = ENVIRONMENTS[environment];
   if (!banner) return null;
   return (
-    <div role="status" className={cn('px-4 py-1 text-center text-xs font-semibold tracking-wide', tone)}>
+    <div
+      role="status"
+      className={cn('h-6 shrink-0 truncate px-4 text-center text-xs leading-6 font-semibold tracking-wide', tone)}
+    >
       {banner}
     </div>
   );

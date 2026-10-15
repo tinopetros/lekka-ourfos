@@ -1,11 +1,14 @@
 import os
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from google.cloud import firestore
 
 import store
 from forms import FORMS
+from integrations import gcs
 
 from . import views
 from .auth import current_user
@@ -48,7 +51,7 @@ def me(email: User) -> Me:
 
 @router.get("/forms")
 def forms(_: User) -> list[FormInfo]:
-    return [FormInfo(key=form, title=views.title(form)) for form in FORMS]
+    return [FormInfo(key=form, title=spec.title) for form, spec in FORMS.items()]
 
 
 @router.get("/forms/{form}/submissions")
@@ -89,3 +92,31 @@ def journal_entry(transaction_id: str, _: User) -> JournalEntry:
     if not doc.exists:
         raise HTTPException(404, f"No journal entry {transaction_id}")
     return views.journal_entry(doc.id, doc.to_dict())
+
+
+@router.get("/files", response_class=StreamingResponse, responses={200: {"content": {"application/octet-stream": {}}}})
+def file(ref: str, _: User):
+    """A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
+    Drive's own preview instead"""
+    try:
+        name_of_bucket, name = gcs.parse(ref)
+    except gcs.GcsError as e:
+        raise HTTPException(400, str(e)) from e
+    if name_of_bucket != gcs.bucket():
+        raise HTTPException(403, "Not our attachments bucket")
+    response = gcs.session().get(
+        gcs.OBJECTS.format(bucket=name_of_bucket, name=quote(name, safe="")),
+        params={"alt": "media"},
+        timeout=gcs.TIMEOUT,
+        stream=True,
+    )
+    if not response.ok:
+        raise HTTPException(404 if response.status_code == 404 else 502, gcs.reason(response))
+    return StreamingResponse(
+        response.iter_content(64 * 1024),
+        media_type=response.headers.get("Content-Type", "application/octet-stream"),
+        headers={
+            "Content-Disposition": f'inline; filename="{name.rsplit("/", 1)[-1]}"',
+            "Cache-Control": "private, max-age=3600",
+        },
+    )

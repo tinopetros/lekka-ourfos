@@ -4,6 +4,7 @@ import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { router } from '@/app/router';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { ApiError } from '@/lib/api/client';
 
 const queryClient = new QueryClient({
@@ -28,7 +29,9 @@ if (!root) throw new Error('No #root in index.html');
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <TooltipProvider delayDuration={300}>
+        <RouterProvider router={router} />
+      </TooltipProvider>
       <Suspense>
         <Devtools />
       </Suspense>

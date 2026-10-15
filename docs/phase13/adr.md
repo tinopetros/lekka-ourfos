@@ -91,3 +91,27 @@ A standard to start from, borrowed from [bulletproof-react](https://github.com/a
 - **Tests beside what they test**, on Vitest and Testing Library
 - **Types generated from the API**, never written by hand (ADR 4)
 - **shadcn's components copied in**, ours to change (its CSS too: #33)
+
+### 13. A record is a page of its own
+
+- Part 1's sheets over the list gave way: a record has tabs, a history and files, and wants the room
+- The way back is a breadcrumb to the page of the list you came from, carried in the browser's history, not the URL. A record opened from a shared link goes back to the list's first page
+- Previous and next walk the list you came from, fetching its next or previous page when one runs out. Opened from a link, they walk the list's first page if it's there
+- Not taken: **keeping the sheet**, which overlaid the list it needed the room of
+
+### 14. Files open where you are, each from where it lives
+
+- Drive's: its own preview, in a frame. It shows only what your Google account can open, which is Drive's permissions doing their job, and needs nothing of ours
+- Ours, in GCS: the API streams them, behind IAP like everything else. Its account reads the attachments bucket, nothing more
+- Not taken: **signed URLs** for ours, links that open for anyone holding them, and need the API to sign; **the API fetching Drive's as lekkai@**, which would show everyone every file, a choice for permissions (ADR 11)
+
+### 15. The sidebar gets out of the way
+
+- shadcn's, collapsible to icons. Collapsed on a record's page, unless you open it there, which keeps it open on records from then on
+- Remembered in the browser, per browser: a preference, not a record. Gone in a private window, which falls back to the defaults
+
+### 16. Search, when it comes, is one kind of record at a time
+
+- Ids and response numbers are lookups; subjects match from their start, through a lowercased field and a range query
+- A word in the middle of a subject, or of an answer, needs a search index: Firestore's own, if its Enterprise edition's text search fits, or a service beside it. Its own phase
+- Part 2 has the search bar, as a look only

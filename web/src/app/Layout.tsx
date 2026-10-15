@@ -1,61 +1,55 @@
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { Outlet } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Tip } from '@/components/Tip';
 import type { Me } from '@/lib/api/types';
+import { firstName } from '@/lib/greeting';
 import { useUi } from '@/stores/ui';
+import { AppSidebar } from './AppSidebar';
 import { EnvironmentBanner } from './EnvironmentBanner';
-import { Navigation, Sidebar } from './Sidebar';
+import { useOnRecord } from './useOnRecord';
 
 export function Layout({ me }: { me: Me }) {
-  const { menuOpen, setMenuOpen } = useUi();
+  const onRecord = useOnRecord();
+  const { expanded, pinned, setSidebar } = useUi();
   return (
-    <div className="flex h-dvh flex-col bg-background">
+    <div
+      className="flex h-dvh flex-col bg-background"
+      style={{ '--banner-height': me.environment === 'prod' ? '0px' : '1.5rem' } as CSSProperties}
+    >
       <EnvironmentBanner environment={me.environment} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 md:px-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              aria-label="Menu"
-              onClick={() => {
-                setMenuOpen(true);
-              }}
-            >
-              <Menu />
-            </Button>
-            <span className="text-sm font-semibold md:hidden">OurFOS</span>
-            <div className="ml-auto flex min-w-0 items-center gap-3 text-sm text-muted-foreground">
-              <span className="truncate">{me.email}</span>
-              <span className="hidden text-xs sm:inline" title="The build you're on">
-                {me.version}
-              </span>
-              {/* IAP's own sign-out: it clears its cookie, and the next page asks Google who you are. None locally */}
-              {me.environment !== 'local' && (
-                <Button variant="ghost" size="sm" asChild>
-                  <a href="/?gcp-iap-mode=CLEAR_LOGIN_COOKIE">
-                    <LogOut /> <span className="hidden sm:inline">Sign out</span>
+      <SidebarProvider
+        className="min-h-0 flex-1"
+        open={onRecord ? pinned : expanded}
+        onOpenChange={(open) => {
+          setSidebar(open, onRecord);
+        }}
+      >
+        <AppSidebar version={me.version} />
+        <SidebarInset className="min-w-0">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4 md:px-6">
+            <SidebarTrigger className="md:hidden" aria-label="Menu" />
+            <span className="ml-auto truncate text-sm text-muted-foreground" title={me.email}>
+              Hi {firstName(me.email)}
+            </span>
+            {/* IAP's own sign-out: it clears its cookie, and the next page asks Google who you are. None locally */}
+            {me.environment !== 'local' && (
+              <Tip label="Sign out">
+                <Button variant="ghost" size="icon-sm" asChild>
+                  <a href="/?gcp-iap-mode=CLEAR_LOGIN_COOKIE" aria-label="Sign out">
+                    <LogOut />
                   </a>
                 </Button>
-              )}
-            </div>
+              </Tip>
+            )}
           </header>
           <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
             <Outlet />
           </main>
-        </div>
-      </div>
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetHeader className="border-b">
-            <SheetTitle>OurFOS</SheetTitle>
-          </SheetHeader>
-          <Navigation />
-        </SheetContent>
-      </Sheet>
+        </SidebarInset>
+      </SidebarProvider>
     </div>
   );
 }

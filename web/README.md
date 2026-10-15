@@ -16,15 +16,19 @@ src/
     router.tsx          every page, in one file: start here
     Root.tsx            who's signed in, before anything shows
     Layout.tsx          banner, sidebar, header, and the page in between
-  features/             one folder a feature: its pages, sheets, and api.ts (its queries and hooks)
-    submissions/
-    journal/
-  components/           shared by features: StatusBadge, Lines, QueryState…
+    AppSidebar.tsx      the sidebar: home, workflows, accounts, the build
+  features/             one folder a feature: its pages and api.ts (its queries and hooks)
+    home/
+    submissions/        a form's list, and a submission's page: Overview and History
+    journal/            the journal's list, and an entry's page
+  components/           shared by features: RecordHeader, FileDialog, Skeletons, Tip, StatusBadge, Lines…
     ui/                 shadcn's components, copied in and ours to change
   lib/
     api/                the client, the generated types, and the queries every page shares
     format.ts           dates and money
     usePages.ts         a list's page, in the URL
+    useNeighbours.ts    previous and next through the list a record was opened from
+  hooks/                shadcn's (use-mobile)
   stores/               Zustand: what only the browser knows
 ```
 

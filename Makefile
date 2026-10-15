@@ -271,7 +271,7 @@ web: types
 	@[ "$(ENV)" = dev ] || { echo "make web reads dev's data only" >&2; exit 1; }
 	@echo "UI: http://localhost:5173  API: http://localhost:$(API_PORT)/docs  as $(or $(ACT_AS),your ADC account)"
 	@trap 'kill 0' INT TERM EXIT; \
-	(cd services && AUTH=local ENVIRONMENT=local GOOGLE_CLOUD_PROJECT=$(PROJECT) ACT_AS=$(ACT_AS) \
+	(cd services && AUTH=local ENVIRONMENT=local GOOGLE_CLOUD_PROJECT=$(PROJECT) ACT_AS=$(ACT_AS) ATTACHMENTS_BUCKET=$(PROJECT)-attachments \
 		uv run -q uvicorn api.main:app --reload --port $(API_PORT)) & \
 	cd web && API_PORT=$(API_PORT) npm run -s dev
 

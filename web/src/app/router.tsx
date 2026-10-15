@@ -1,25 +1,28 @@
 import { createBrowserRouter, Navigate } from 'react-router';
-import { JournalEntrySheet } from '@/features/journal/JournalEntrySheet';
-import { JournalPage } from '@/features/journal/JournalPage';
-import { SubmissionSheet } from '@/features/submissions/SubmissionSheet';
-import { SubmissionsPage } from '@/features/submissions/SubmissionsPage';
 import { Root } from './Root';
 
-// Every route, in one file. A sheet is a child route, so an open one is a link
+// Every page, in one file. A record is a page of its own, so it's a link. Each page's code loads when it's first
+// opened, so the first visit only fetches the shell and the page it's on
 export const router = createBrowserRouter([
   {
     element: <Root />,
     children: [
-      { index: true, element: <Navigate to="/forms/requisition" replace /> },
+      { index: true, lazy: async () => ({ Component: (await import('@/features/home/HomePage')).HomePage }) },
       {
         path: 'forms/:form',
-        element: <SubmissionsPage />,
-        children: [{ path: ':id', element: <SubmissionSheet /> }],
+        lazy: async () => ({ Component: (await import('@/features/submissions/SubmissionsPage')).SubmissionsPage }),
+      },
+      {
+        path: 'forms/:form/:id',
+        lazy: async () => ({ Component: (await import('@/features/submissions/SubmissionPage')).SubmissionPage }),
       },
       {
         path: 'journal',
-        element: <JournalPage />,
-        children: [{ path: ':id', element: <JournalEntrySheet /> }],
+        lazy: async () => ({ Component: (await import('@/features/journal/JournalPage')).JournalPage }),
+      },
+      {
+        path: 'journal/:id',
+        lazy: async () => ({ Component: (await import('@/features/journal/JournalEntryPage')).JournalEntryPage }),
       },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

@@ -5,7 +5,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'src/lib/api/schema.d.ts'] },
+  // Generated, or shadcn's own, copied in as they come
+  { ignores: ['dist', 'src/lib/api/schema.d.ts', 'src/components/ui/sidebar.tsx', 'src/hooks/use-mobile.ts'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked, reactHooks.configs.flat.recommended],
