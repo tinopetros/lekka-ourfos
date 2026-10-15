@@ -1,96 +1,112 @@
-# lekka-ourfos
+# OurFOS
 
-Internal workflows for [Lekka Credit](https://lekkacredit.com), orchestrated
-with Google Cloud Workflows.
+Lekka Credit's back office: forms in, books out. A microlender's paperwork, turned into workflows that file the ledger entry themselves, and a web app to see all of it.
 
-A form is submitted, something reviews it, it gets filed, and somebody gets a
-reply. This repo holds the orchestration — the workflow definitions, the
-services those workflows call, and the apps that read the same records.
+![A requisition's history: received, approved by the model, posted to the ledger, then corrected and posted again](docs/img/history.png)
 
-| Workflow  | Forms                                                 | What it does                                                        | Status |
-| --------- | ----------------------------------------------------- | ------------------------------------------------------------------- | ------ |
-| `expense` | requisition                                           | Requisition form → posted Mifos journal entry, one thread of emails | Design |
-| `intake`  | vehicle log, loan approval request, write-off request | Received and acknowledged: stored, and the first email sent         | Design |
+## The problem
 
-A submission is one document, keyed by the form's `response_id`, and every workflow run on it is a document under it: a later approval or reversal is a run of its own. See [phase 10](docs/phase10/tdd.md).
+Every request in the business was a Google Form, then a thread of emails, then someone typing it into Mifos, the core banking system, by hand.
 
-## The shape of it
+- **Separate workflows** for requisitions, vehicle logs, loan approvals and write-offs, each with its own form and its own habits
+- **Where a request stood lived in email threads**: who approved it, whether it was booked, what was booked
+- **Manual entry**, mostly by the one accountant, for every expense
 
-```
-Google Form ─▶ trigger ─▶ Workflows execution ─▶ one thread of emails, then done
-                 │            │
-                 │            ├─ receive     (every form)
-                 │            ├─ acknowledge (every form: the first email, which starts the thread)
-                 │            ├─ classify    (expense on: expenser, an ADK agent, in the services)
-                 │            ├─ check       (deterministic, in the workflow)
-                 │            ├─ suggest     (a reply: Lekkai's suggestion)
-                 │            ├─ post        (Mifos: demo on dev, the books on prod; never a test run)
-                 │            ├─ read back   (what Mifos has, line by line against what we posted)
-                 │            └─ confirm     (a reply: Mifos's lines and its transaction id)
-                 ▼
-             Firestore
+```mermaid
+flowchart LR
+  F[Google Form] --> E[Email loop] --> M[Manual entry in Mifos]
 ```
 
-## Where things live
+## What it does now
 
-| Repo                                                                       | Owns                                                                                                |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [`lekka-ourfos-infra`](https://github.com/tinopetros/lekka-ourfos-infra)   | Project-level: APIs, service identities, the Firestore database, Artifact Registry, quotas, budgets |
-| [`lekka-ourfos-agents`](https://github.com/tinopetros/lekka-ourfos-agents) | Agents: Reasoning Engines, agent service accounts, Model Armor, prompts, evals                      |
-| **`lekka-ourfos`**                                                         | Workflows, services, apps, Firestore indexes and rules, Cloud Build triggers                        |
+A form starts a workflow. It reads the requisition and its receipts, decides how to book it, posts the journal entry to Mifos, and replies in the same email thread with what it did. Every step is recorded, and the web app shows it.
 
-## Layout
-
-```
-envs/dev|prod/     Terraform: service accounts, IAM, Firestore indexes, triggers
-packages/          shared libraries, never deployed alone
-services/          called BY workflows — invoker is the workflow's SA only
-  classify/        a requisition's files, and expenser's call on them
-  integrations/    third parties: Mifos, and Workspace as lekkai@
-  api/             ourfos-api, the UI's: reads only, behind IAP, from the same image
-agents/            ADK agents, run inside services for now (expenser, behind Model Armor)
-web/               the UI: React, built into the image and served by ourfos-api (docs/phase13)
-workflows/         the definitions, their shared lib, and fixtures per form for running them
+```mermaid
+flowchart LR
+  F[Google Form] --> W[Workflow] --> M[Entry posted to Mifos] --> N[Reply in the thread]
+  W --> R[(The record)] --> U[The web app]
 ```
 
-## The UI, locally
+Live on prod, in beta. Posting to the books is a switch on each form's link, held off on prod until corrections can be made from the web app.
+
+## The web app
+
+Everyone at Lekka signs in with their Google account. They see every form's submissions and every ledger entry we've posted, and where each one stands.
+
+| Home | A list, with a row peeking on hover |
+| --- | --- |
+| ![Home: a greeting, search, and a card for each workflow](docs/img/home.png) | ![Requisitions, with a row's summary on hover](docs/img/list.png) |
+
+- **A record is a page of its own.** A breadcrumb leads back to the page of the list you came from. ← and → step through the list, into its next page when one runs out
+- **Overview, then History.** Overview is where a record stands: its answers, then the entry live in the books. History tells its story, oldest first, with each posting's ledger lines inline, corrections included
+- **Files open where you are**: Drive's own preview, or ours streamed through the API, in a modal
+- **Built for poor connections.** Our field staff work on patchy mobile data. Pages load their code only when opened, the library code stays cached between releases, lists keep the page you're on while the next loads, and a flaky call is retried
+- **Small things done properly**: skeletons shaped like what's coming, a tooltip on every icon, keyboard navigation, a sidebar that gets out of the way on a record and remembers when you want it back, times in your own zone with the zone named, and a red banner on every non-production page so test data is never mistaken for the books
+
+## How it's built
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI[React app]
+  end
+  UI --> IAP[Google IAP<br/>sign-in] --> API[ourfos-api<br/>FastAPI, reads only]
+  API --> FS[(Firestore<br/>the record)]
+  GF[Google Form] --> T[Trigger] --> WF[Cloud Workflows]
+  WF --> S[ourfos-services<br/>FastAPI]
+  S --> G[Gemini + Model Armor]
+  S --> MF[Mifos<br/>the books]
+  S --> GM[Gmail<br/>as lekkai@]
+  S --> FS
+```
+
+- **Frontend**: React 19, TypeScript in strict mode, Vite, Tailwind 4 and shadcn, React Router, TanStack Query, Zustand
+- **Backend**: Python and FastAPI on Cloud Run, Cloud Workflows to run each request's steps, Firestore, and Gemini behind Model Armor to read the receipts
+- **Infra**: Terraform, in this repo and [lekka-ourfos-infra](https://github.com/tinopetros/lekka-ourfos-infra), deployed by Cloud Build
+
+## Frontend decisions worth talking about
+
+Each was written down when it was made, with what wasn't chosen and why ([phase 13's ADRs](docs/phase13/adr.md)).
+
+- **Types flow from the API to the browser.** The API's Pydantic models generate its OpenAPI, which generates the app's TypeScript. A response the UI misreads fails to compile, and CI fails if the two drift apart (ADR 4)
+- **The API's data in TanStack Query, what only the browser knows in Zustand.** Caching, refetching and stale data are Query's job, never a hand-rolled store's (ADR 6)
+- **No auth code in the app.** Google's IAP signs people in before a request reaches us. The API checks one signed header (ADR 3)
+- **A backend for the frontend.** The UI's API is its own service, with its own account that can read and can't post: browsers never reach the routes that touch money (ADR 2)
+- **Conventions written down**, after [bulletproof-react](https://github.com/alan2207/bulletproof-react): a folder per feature with its own queries, imports from `@/`, tests beside what they test (ADR 12)
+- **Read only, first.** Seeing everything clearly comes before changing anything from the UI. Actions, then permissions by group, come next
+
+## Other decisions
+
+- **Capability, rolled out gradually.** Receive and acknowledge first, then classify, then post, each live before the next ([phases](docs/))
+- **Workflows, not a queue of our own.** Each request's steps, retries and handovers to a person are Cloud Workflows', and every run is on the record
+- **The model is evaluated, not trusted.** Expenser, the agent that reads receipts, is scored against 36 real requisitions with ADK's own evals, and every prompt it gets is screened by Model Armor first
+- **Never post twice.** A post that times out hands over to a person rather than retry. A correction is a mirror entry, then the corrected one, both on the original's date, so the period it was booked in still balances
+- **Spend caps and one instance.** Budgets cap the model's spend, and the services run on a single instance
+
+## How it ships
+
+```mermaid
+flowchart LR
+  PR[PR: checks] --> M[Merge to main] --> B[Build images] --> D[Deploy dev] --> SM[Smoke: real runs] --> P[Plan prod]
+  T[Tag the commit] --> G{Passed dev?} --> BP[Build] --> DP[Deploy prod]
+```
+
+Every PR runs the backend's tests, the UI's lint, types, tests and build, and checks the generated types are current. Merging deploys dev and runs real workflows against it. Prod only takes a commit that passed dev.
+
+## Next
+
+- **Actions from the UI**: submitting forms, then correcting and reversing entries, through the same workflows
+- **Permissions by Workspace group**: what each person sees in a list, and what they may do
+- **The field, offline**: a native app for staff on patchy connections, queueing submissions until they're back ([#30](https://github.com/tinopetros/lekka-ourfos/issues/30))
+- **Live runs**: a record's history filling in as its workflow runs
+- **Integration tests from the UI's side** ([#34](https://github.com/tinopetros/lekka-ourfos/issues/34))
+
+## Run it
 
 ```bash
 make web
 ```
 
-The UI on http://localhost:5173, against the API run on your machine as your ADC account, reading dev's Firestore. It installs and makes the types first. `make types` after changing the API's models. See [phase 13](docs/phase13/tdd.md).
+The UI on http://localhost:5173, and its API beside it, signed in as your own Google account, reading dev's data. It installs and generates the types first.
 
-## Testing by hand
-
-The Makefile is for manual testing on `ourfos-dev`, its default (`ENV=dev`). Each env has its own Terraform data dir, so `ENV=prod` can't plan against dev's state, but prod normally goes out by tag.
-
-Fixtures are what a form's webhook posts, in `workflows/fixtures/<form>/`: every value a string, files as Drive links or `gs://` refs into the attachments bucket. The trigger cleans them into the form's model (`services/forms.py`) and answers 400 with every problem when it can't; `make test` covers the cleaners. A requisition is strictly typed; the other forms are text, bar who sent them and when ([phase 10 ADR 4](docs/phase10/adr.md)). See [phase 5](docs/phase5/tdd.md).
-
-`make run FORM=vehicle_log FIXTURE=happy` runs one, `FORM=requisition` by default. Each run is a fresh submission, `fixture-<fixture>-<time>`; `SUBMISSION=<id>` runs on one again. `make doc FORM=<form> ID=<submission>` shows it and its runs.
-
-The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigger-token`, and `?workflow=<form>`: `requisition`, `vehicle_log`, `loan_approval` or `write_off`. It names the form, not the workflow; `make start` and `make smoke` send both for you. Classify fetches a requisition's files from Drive as `lekkai@`. See [phase 6](docs/phase6/tdd.md).
-
-Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to the form's `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. A loan request's replies go to `directors@` and `lekkai@`. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](docs/phase9/tdd.md).
-
-`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@`, and whoever submitted if `test_to` lists them, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](docs/release1/adr.md).
-
-`make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](docs/phase7/tdd.md).
-
-Classify calls the model unless a fixture says otherwise, e.g. `"simulate": {"classify": "stub"}` beside the form's keys for the free, canned answer, or `"files"` to fetch the files for real first. `simulate` only works on dev; prod ignores it. `make agent` runs expenser on its own, locally. See [phase 3](docs/phase3/tdd.md).
-
-## Deployment
-
-A PR runs `make check`. Merging to `main` deploys dev, smoke-tests it and plans prod. Tagging that commit (`0.1.0`) releases it to prod. See [phase 2](docs/phase2/tdd.md).
-
-## TODO
-
-- [ ] **Catch a reused requisition.** Flag a Drive file, or a hash of its contents, already attached to an earlier requisition, before the model sees it. The model doesn't catch an old signed requisition on a new claim ([phase 6 ADR 4](docs/phase6/adr.md)). In the attachments bucket, the hash is already in each object's name
-- [ ] **Reverse a requisition.** Asked for by whoever submitted it, or by an accountant, and approved before anything is reversed. Someone once filed a second wifi requisition in error, and said so in its comment
-- [ ] **Fixtures expire on dev.** Every smoke leaves a dozen submissions and their runs. A 7-day Firestore TTL on dev only, on an `expire_at` set only on fixture runs (their submission ids start `fixture-`), and a second policy on `runs`, since deleting a document leaves its subcollections. Not on prod until we know the feature
-- [ ] **Hot to cold storage.** Attachments are read once, when classified. Try Autoclass on the attachments bucket before writing any lifecycle rules
-- [ ] **Alert when nobody was told.** Any failed execution (the handover email failing) and any trigger 5xx should email someone right away. Every one counts, not a rate. Handovers aren't alerts: they already emailed someone
-- [ ] **Harden: alert when it goes quiet.** If the form's add-on stops calling the webhook, or the trigger refuses everything, no run starts, so nothing fails and nobody hears. ourfos-v2 died that way, of an expired custom domain, unnoticed. A Cloud Monitoring alert on prod, within the free tier: no trigger request in N days, or any trigger 401 or 5xx. Our own front end will contain more of this, but not all of it
-- [ ] **Drop `raw` once our own front end posts requisitions.** The form's payload rides beside the clean requisition while the cleaner is new ([phase 5 ADR 2](docs/phase5/adr.md)), and it's what an unreadable form's handover shows ([phase 9 ADR 5](docs/phase9/adr.md)). A front end that validates before it posts needs neither
-- [ ] **One bootstrap for a fresh project.** Each phase adds its own "Bootstrapped, once" steps on top of the last. At the end, fold them into one set of instructions that takes a fresh project, after infra has run, to deployable, and test it on one
-- [ ] **A post that timed out but landed.** The handover says to check the reference before booking it again, but a person may skip that and book it twice. With the real Mifos, look the reference up before handing over (phase 4's `post-timeout`). And when a post lands after the run ended, email the thread that it landed, with its transaction id
+The working details, from running a workflow by hand to deploying, are in [the handbook](docs/handbook.md). Each phase's design and decisions are in [docs](docs/).
