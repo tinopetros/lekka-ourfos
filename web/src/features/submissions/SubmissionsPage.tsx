@@ -65,7 +65,7 @@ export function SubmissionsPage() {
         </div>
       </div>
       {!data ? (
-        <QueryState error={error} loading={<TableSkeleton columns={amounts ? 6 : 5} />} />
+        <QueryState error={error} loading={<TableSkeleton columns={amounts ? 5 : 4} />} />
       ) : (
         <>
           <div className={cn('rounded-md border', isPlaceholderData && 'opacity-60')}>
@@ -76,9 +76,8 @@ export function SubmissionsPage() {
                   <TableHead>Subject</TableHead>
                   {amounts && <TableHead className="text-right">Amount</TableHead>}
                   <TableHead className="hidden md:table-cell">Submitted by</TableHead>
-                  <TableHead className="hidden lg:table-cell">Submitted</TableHead>
+                  <TableHead className="hidden sm:table-cell">Submitted</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">Received</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -103,17 +102,16 @@ export function SubmissionsPage() {
                       </TableCell>
                       {amounts && <TableCell className="text-right">{money(s.amount)}</TableCell>}
                       <TableCell className="hidden md:table-cell">{s.submitted_by ?? '—'}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{when(s.submitted_at)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{when(s.submitted_at)}</TableCell>
                       <TableCell>
                         <StatusBadge status={s.status} />
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">{when(s.received_at)}</TableCell>
                     </TableRow>
                   </Peek>
                 ))}
                 {!data.items.length && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       Nothing yet
                     </TableCell>
                   </TableRow>
