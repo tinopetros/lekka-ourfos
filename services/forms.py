@@ -18,6 +18,8 @@ class Form:
     collection: str
     workflow: str
     model: type[Submission]
+    # What the UI's lists and sidebar call it
+    title: str
     # What a handover calls it, and who takes it from there
     noun: str
     taker: str
@@ -106,6 +108,7 @@ FORMS = {
         collection="requisitions",
         workflow="expense",
         model=Requisition,
+        title="Requisitions",
         noun="requisition",
         taker="an accountant",
         subject=("payable_to",),
@@ -114,6 +117,7 @@ FORMS = {
         collection="vehicle_logs",
         workflow="intake",
         model=text_form("VehicleLog", VEHICLE_LOG, ("trip_name_purpose",), ("vehicle_images",)),
+        title="Vehicle logs",
         noun="vehicle log",
         taker="someone",
         subject=("trip_name_purpose",),
@@ -124,6 +128,7 @@ FORMS = {
         collection="loan_approvals",
         workflow="intake",
         model=text_form("LoanApproval", LOAN_APPROVAL, ("applicant_first_name", "applicant_last_name")),
+        title="Loan approvals",
         noun="loan approval request",
         taker="a director",
         subject=("applicant_first_name", "applicant_last_name"),
@@ -133,6 +138,7 @@ FORMS = {
         collection="write_offs",
         workflow="intake",
         model=text_form("WriteOff", WRITE_OFF, ("client_full_name",), ("supporting_documents",)),
+        title="Write-offs",
         noun="write-off request",
         taker="a director",
         subject=("client_full_name",),

@@ -10,6 +10,7 @@ from google.auth import crypt, jwt
 
 from api import auth, views
 from api.main import app
+from integrations import gcs
 
 AUDIENCE = "/projects/1/locations/africa-south1/services/ourfos-api"
 
@@ -95,12 +96,40 @@ def test_local_sign_in_is_refused_on_cloud_run(monkeypatch):
         auth.local()
 
 
-def test_a_form_is_titled_by_its_noun():
-    assert [views.title(f) for f in ("requisition", "vehicle_log", "write_off")] == [
-        "Requisitions",
-        "Vehicle logs",
-        "Write-off requests",
-    ]
+def test_each_form_has_its_own_title(monkeypatch):
+    monkeypatch.setenv("AUTH", "local")
+    monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
+    titles = {f["key"]: f["title"] for f in TestClient(app).get("/api/forms").json()}
+    assert titles["loan_approval"] == "Loan approvals" and titles["write_off"] == "Write-offs"
+
+
+def test_a_file_is_only_ever_ours(monkeypatch):
+    monkeypatch.setenv("AUTH", "local")
+    monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+    client = TestClient(app)
+    assert client.get("/api/files", params={"ref": "gs://someone-elses/x.pdf"}).status_code == 403
+    assert client.get("/api/files", params={"ref": "https://example.com/x.pdf"}).status_code == 400
+
+
+def test_a_file_streams_through_with_its_type(monkeypatch):
+    monkeypatch.setenv("AUTH", "local")
+    monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+
+    class Response:
+        ok, status_code, headers = True, 200, {"Content-Type": "application/pdf"}
+
+        def iter_content(self, size):
+            yield b"%PDF"
+
+    asked = []
+    monkeypatch.setattr(
+        gcs, "session", lambda: type("S", (), {"get": lambda self, url, **kw: asked.append(url) or Response()})()
+    )
+    got = TestClient(app).get("/api/files", params={"ref": "gs://ourfos-dev-attachments/r/receipt one.pdf"})
+    assert got.content == b"%PDF" and got.headers["content-type"] == "application/pdf"
+    assert asked == ["https://storage.googleapis.com/storage/v1/b/ourfos-dev-attachments/o/r%2Freceipt%20one.pdf"]
 
 
 def test_a_requisitions_row_and_answers():
@@ -116,9 +145,9 @@ def test_a_requisitions_row_and_answers():
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
     answers = views.answers("requisition", doc)
     assert [(a.label, a.text) for a in answers[:2]] == [("Payable To", "Acme"), ("Total Amount", "$1,234.50")]
-    assert [(f.name, f.url) for f in answers[2].files] == [
-        ("File 1", "https://drive.google.com/open?id=drive-id"),
-        ("File 2", None),
+    assert [(f.name, f.drive_id, f.ref) for f in answers[2].files] == [
+        ("File 1", "drive-id", None),
+        ("File 2", None, "gs://bucket/x.pdf"),
     ]
 
 

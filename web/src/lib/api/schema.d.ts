@@ -106,6 +106,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/files': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * File
+     * @description A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
+     *     Drive's own preview instead
+     */
+    get: operations['file'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -268,8 +289,10 @@ export interface components {
     File: {
       /** Name */
       name: string;
-      /** Url */
-      url: string | null;
+      /** Drive Id */
+      drive_id: string | null;
+      /** Ref */
+      ref: string | null;
     };
     /** FormInfo */
     FormInfo: {
@@ -700,6 +723,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['JournalEntry'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  file: {
+    parameters: {
+      query: {
+        ref: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/octet-stream': unknown;
         };
       };
       /** @description Validation Error */

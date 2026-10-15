@@ -45,8 +45,10 @@ class SubmissionSummary(Model):
 
 class File(Model):
     name: str
-    # Drive's, opened in Drive. A gs:// file has nowhere to open yet
-    url: str | None = None
+    # Drive's, by its id: Drive's own preview shows it to whoever's Google account can open it
+    drive_id: str | None = None
+    # Ours, by its gs:// ref: the API streams it, at /api/files
+    ref: str | None = None
 
 
 class Answer(Model):
