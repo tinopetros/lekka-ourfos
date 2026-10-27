@@ -13,7 +13,7 @@ from html import escape
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
 from requisition import Files, Requisition, RequisitionForm
-from submission import Submission
+from submission import Submission, kinds
 
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
 # Where Lekkai stops on a requisition, so a deferral says it as the handover does
@@ -111,7 +111,12 @@ def table(rows: list[tuple[str, str, str]]) -> str:
 
 def acknowledgement(form: str, s: Submission) -> tuple[str, str]:
     """The first email: the form's answers, as its add-on sent them."""
-    rows = requisition_rows(s) if isinstance(s, Requisition) else text_rows(form, s)
+    if isinstance(s, Requisition):
+        rows = requisition_rows(s)
+    elif s.source == "ourfos":
+        rows = form_rows(form, s)
+    else:
+        rows = text_rows(form, s)
     heading = f"{form_name(form)} has a new entry from {s.submitted_by}:"
     html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
     text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
@@ -140,6 +145,27 @@ def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
 
 def title(field: str) -> str:
     return RequisitionForm.model_fields[field].title or field
+
+
+def form_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
+    """Our own form's answers, in its order, titled as it asks them, empty ones left out."""
+    model, rows = FORMS[form].model, [submitter_row(s)]
+    for key, field in model.model_fields.items():
+        value = getattr(s, key)
+        if value in (None, "", []):
+            continue
+        kind = kinds(model)[key]
+        if kind == "files":
+            rows.append((field.title, *file_links(value)))
+        elif kind == "amount":
+            rows.append((field.title, f"${money(value)}", f"${money(value)}"))
+        elif isinstance(value, date):
+            rows.append((field.title, day(value), day(value)))
+        elif URL.match(str(value)):
+            rows.append((field.title, f'<a href="{escape(value)}">{escape(value)}</a>', value))
+        else:
+            rows.append((field.title, escape(str(value)).replace("\n", "<br>"), str(value)))
+    return rows
 
 
 def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:

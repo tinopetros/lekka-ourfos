@@ -231,3 +231,16 @@ def test_unknown_forms_are_404(monkeypatch):
     monkeypatch.setenv("AUTH", "local")
     monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
     assert TestClient(app).get("/api/forms/nope/submissions").status_code == 404
+
+
+def test_our_own_forms_answers_are_titled_as_it_asks():
+    answers = {"source": "ourfos", "client_first_name": "Ada", "total_recovered": 20, "supporting_documents": ["d"]}
+    rows = views.answers("write_off", {"answers": answers})
+    assert [(a.label, a.text) for a in rows[:2]] == [("Client's first name", "Ada"), ("Total recovered", "$20.00")]
+    assert rows[2].label == "Supporting documents" and rows[2].files[0].drive_id == "d"
+
+
+def test_a_write_off_is_named_as_either_form_names_its_client():
+    assert views.summary("write_off", "w", {"answers": {"client_full_name": "Ada Moyo"}}).title == "Ada Moyo"
+    named = {"client_first_name": "Ada", "client_last_name": "Moyo"}
+    assert views.summary("write_off", "w", {"answers": named}).title == "Ada Moyo"

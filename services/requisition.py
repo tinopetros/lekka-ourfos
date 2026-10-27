@@ -37,9 +37,4 @@ class RequisitionForm(BaseModel):
 
 
 class Requisition(RequisitionForm, Submission):
-    def to_firestore(self) -> dict:
-        """disbursed_on as YYYY-MM-DD, since Firestore has no date."""
-        doc = super().to_firestore()
-        if self.disbursed_on:
-            doc["disbursed_on"] = self.disbursed_on.isoformat()
-        return doc
+    pass

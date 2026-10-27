@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +23,18 @@ class FormInfo(Model):
     title: str
     # Whether its status means anything: the others only show they were received
     tracks_status: bool
+
+
+class SubmitRequest(BaseModel):
+    """What our own form sends: its answers, checked against the form's model, and whether it's a test."""
+
+    answers: dict[str, Any]
+    test: bool = False
+
+
+class Submitted(Model):
+    id: str
+    response_number: int
 
 
 class SubmissionSummary(Model):

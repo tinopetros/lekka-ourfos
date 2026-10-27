@@ -9,10 +9,21 @@ from google.cloud import firestore
 import store
 from forms import FORMS
 from integrations import gcs
+from submission import ID
 
+from . import submit as submitting
 from . import views
 from .auth import current_user
-from .models import FormInfo, JournalEntry, JournalEntryPage, Me, Submission, SubmissionPage
+from .models import (
+    FormInfo,
+    JournalEntry,
+    JournalEntryPage,
+    Me,
+    Submission,
+    SubmissionPage,
+    SubmitRequest,
+    Submitted,
+)
 
 # Each route's operation named by its function: the generated TypeScript's names
 router = APIRouter(prefix="/api", generate_unique_id_function=lambda route: route.name)
@@ -77,6 +88,16 @@ def submission(form: str, id: str, _: User) -> Submission:
     return views.submission(
         form, id, data, runs, [views.journal_entry(i, entries[i].to_dict()) for i in ids if i in entries]
     )
+
+
+@router.post("/forms/{form}/submissions/{id}/submit")
+def submit(form: str, id: str, body: SubmitRequest, user: User) -> Submitted:
+    """Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    doc = submitting.submit(form, id, body.answers, body.test, user)
+    return Submitted(id=id, response_number=doc["response_number"])
 
 
 @router.get("/journal_entries")

@@ -72,6 +72,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/forms/{form}/submissions/{id}/submit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit
+     * @description Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once
+     */
+    post: operations['submit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/journal_entries': {
     parameters: {
       query?: never;
@@ -515,6 +535,28 @@ export interface components {
       live_entry: string | null;
     };
     /**
+     * SubmitRequest
+     * @description What our own form sends: its answers, checked against the form's model, and whether it's a test.
+     */
+    SubmitRequest: {
+      /** Answers */
+      answers: {
+        [key: string]: unknown;
+      };
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+    };
+    /** Submitted */
+    Submitted: {
+      /** Id */
+      id: string;
+      /** Response Number */
+      response_number: number;
+    };
+    /**
      * UnknownRun
      * @description A run of a workflow this API doesn't know yet: how it ended, and what the store calls it.
      */
@@ -662,6 +704,42 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Submission'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  submit: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubmitRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Submitted'];
         };
       };
       /** @description Validation Error */

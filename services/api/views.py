@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from common import log
 from forms import FORMS
 from requisition import Files, Requisition, RequisitionForm
+from submission import kinds
 
 from .models import (
     Answer,
@@ -64,6 +65,8 @@ def answers(form: str, doc: dict) -> list[Answer]:
         return []
     if form == "requisition":
         return requisition_answers(values)
+    if values.get("source") == "ourfos":
+        return form_answers(form, values)
     spec, rows = FORMS[form].google_form, []
     for key, label in spec.labels.items():
         value = values.get(key)
@@ -75,6 +78,25 @@ def answers(form: str, doc: dict) -> list[Answer]:
             rows.append(Answer(label=label, link=str(value).strip()))
         else:
             rows.append(Answer(label=label, text=str(value)))
+    return rows
+
+
+def form_answers(form: str, values: dict) -> list[Answer]:
+    """Our own form's, in its order, titled as it asks them. As stored, unchecked: a field it no longer asks is left out"""
+    model, rows = FORMS[form].model, []
+    for key, field in model.model_fields.items():
+        value = values.get(key)
+        if value in (None, "", []):
+            continue
+        kind = kinds(model)[key]
+        if kind == "files":
+            rows.append(Answer(label=field.title or key, files=files(value)))
+        elif kind == "amount":
+            rows.append(Answer(label=field.title or key, text=f"${value:,.2f}"))
+        elif str(value).startswith(("http://", "https://")) and " " not in str(value).strip():
+            rows.append(Answer(label=field.title or key, link=str(value).strip()))
+        else:
+            rows.append(Answer(label=field.title or key, text=str(value)))
     return rows
 
 

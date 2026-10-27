@@ -42,9 +42,20 @@ class Form:
     # The answers the subject names, after the form's name, joined by a space: whichever a submission has, ours or
     # its Google Form's
     subject: tuple[str, ...]
+    # What ours stores: what the form asks, and who sent it when
+    submission: type[Submission] | None = None
     # Only a form whose status ourfos tracks shows it. The others show they were received: the rest is in their
     # email threads
     tracks_status: bool = False
+
+    def __post_init__(self):
+        if self.submission is None:
+            ours = create_model(self.model.__name__.removesuffix("Form"), __base__=(self.model, Submission))
+            object.__setattr__(self, "submission", ours)
+
+    def stored(self, source: str | None) -> type[Submission]:
+        """The model a stored submission reads as: ours, or what its Google Form sent."""
+        return self.submission if source == "ourfos" else self.google_form.model
 
 
 def text_form(name: str, labels: dict[str, str], required: tuple[str, ...], files: tuple[str, ...] = ()):
@@ -218,6 +229,7 @@ FORMS = {
         collection="requisitions",
         workflow="expense",
         model=RequisitionForm,
+        submission=Requisition,
         google_form=GoogleForm(model=Requisition),
         title="Requisitions",
         noun="requisition",

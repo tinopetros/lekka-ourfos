@@ -18,7 +18,8 @@ One PR, a commit per step.
 2. **Submitting** (ADR 1, 5)
    - `POST /api/forms/{form}/submissions/{id}/submit`: the strict model, then one transaction: `received_at`, the response number from `counters/{form}`, `source: ourfos`, `submitted_by`. Then the workflow, with the argument the trigger gives it
    - The workflows save a submission that exists already, a draft's, as they do a new one
-   - `ourfos-api@` starts the four workflows
+   - `ourfos-api@` starts each form's workflow, posting as `mifos.post` in each env's tfvars has it: off on prod
+   - Submitting twice is submitting once: the second answers with the first's number, and starts the workflow only if the first couldn't
    - `counters/{form}`, seeded by the first submit that finds none
 3. **Permissions** (ADR 9)
    - Every route declares its permission; a policy in code grants them. `forms:{form}:submit` to everyone, `forms:{form}:test` to those named
@@ -95,5 +96,5 @@ Amounts are USD, to 2 decimal places.
 
 ## Bootstrapped, once
 
-- Infra: `ourfos-api@` writes to the attachments bucket, with tinopetros/lekka-ourfos-infra#21's read
+- Infra: `ourfos-api@` starts workflows, and writes to the attachments bucket beside #21's read (tinopetros/lekka-ourfos-infra#22)
 - Each Google Form closed, its counter seeded, once its UI form has launched well

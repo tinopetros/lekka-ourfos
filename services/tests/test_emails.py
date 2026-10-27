@@ -315,3 +315,27 @@ def test_reply_to_is_a_header_only_when_there_is_one():
         "Reply-To"
     ] == ("d@lekkacredit.com")
     assert parsed(gmail.message(["a@lekkacredit.com"], "L", "s", "", ""))["Reply-To"] is None
+
+
+def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
+    s = SPECS["loan_approval"].submission(
+        response_number=-1,
+        response_id="t",
+        submitted_by="a@lekkacredit.com",
+        submitted_at="2026-10-27T10:00:00Z",
+        source="ourfos",
+        applicant_first_name="Ada",
+        applicant_last_name="Moyo",
+        loan_amount=1500,
+        tenure=6,
+        client_folder="https://drive.google.com/drive/folders/1AbC",
+    )
+    _, text = emails.acknowledgement("loan_approval", s)
+    assert text.splitlines()[2:] == [
+        "Email address: a@lekkacredit.com",
+        "Applicant's first name: Ada",
+        "Applicant's last name: Moyo",
+        "Loan amount: $1,500",
+        "Tenure: 6",
+        "Client folder: https://drive.google.com/drive/folders/1AbC",
+    ]
