@@ -1,7 +1,7 @@
 project_id = "ourfos-dev"
 region     = "africa-south1"
 api_region = "europe-west1"
-api_domain = "test-ourfos.lekkacredit.com"
+api_domain = "test-ourfos.lekkacredit.tech"
 simulate   = true
 notify_to = {
   requisition   = ["lekkai@lekkacredit.com"]
