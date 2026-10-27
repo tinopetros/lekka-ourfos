@@ -13,6 +13,8 @@ from common import log
 from forms import FORMS
 from integrations import workflows
 
+from . import drafts
+
 COUNTERS = "counters"
 
 
@@ -49,9 +51,9 @@ def record(tx, form: str, id: str, answers: BaseModel, user: str, test: bool) ->
     collection = db.collection(spec.collection)
     ref, counter = collection.document(id), db.collection(COUNTERS).document(form)
     doc = ref.get(transaction=tx).to_dict()
+    if doc and doc.get("submitted_by") != user:
+        raise HTTPException(409, f"{id} is someone else's")
     if doc and doc.get("status") != "draft":
-        if doc.get("submitted_by") != user:
-            raise HTTPException(409, f"{id} is someone else's")
         return doc
     count = counter.get(transaction=tx).to_dict()
     number = count["next"] if count else seed(tx, collection, up)
@@ -75,6 +77,7 @@ def record(tx, form: str, id: str, answers: BaseModel, user: str, test: bool) ->
 
 def submit(form: str, id: str, answers: dict, test: bool, user: str) -> dict:
     spec, checked = FORMS[form], check(form, answers)
+    drafts.check_files(form, id, checked.model_dump())
     doc = transactional(record)(store.client().transaction(), form, id, checked, user, test)
     if not doc.get("execution_id"):
         # Again, if starting it failed last time: the trigger's argument, with posting as this environment has it

@@ -223,4 +223,5 @@ def submission(form: str, id: str, doc: dict, runs: list[Run], entries: list[Jou
         raw=None if shown else doc.get("raw"),
         runs=sorted(runs, key=lambda r: (r.started_at is not None, r.started_at), reverse=True),
         journal_entries=entries,
+        draft=doc.get("draft") if doc.get("status") == "draft" else None,
     )

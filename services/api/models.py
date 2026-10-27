@@ -34,6 +34,23 @@ class SubmitRequest(BaseModel):
     test: bool = False
 
 
+class DraftRequest(BaseModel):
+    """Our own form as it's being filled in: anything, as typed. The form's model is the submit's."""
+
+    values: dict[str, Any]
+    test: bool = False
+
+
+class Draft(Model):
+    id: str
+    title: str | None = None
+    updated_at: datetime | None = None
+
+
+class Uploaded(Model):
+    ref: str
+
+
 class Submitted(Model):
     id: str
     response_number: int
@@ -188,6 +205,8 @@ class Submission(SubmissionSummary):
     """What a row opens: the answers, every run on it, and the entries it posted."""
 
     answers: list[Answer] = []
+    # A draft's answers as they were typed, for its form to pick up again. Only its author ever sees one
+    draft: dict[str, Any] | None = None
     # The webhook's body, when the answers never validated: all there is to see
     raw: dict | None = None
     runs: list[Run] = []

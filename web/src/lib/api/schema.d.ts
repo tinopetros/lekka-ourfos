@@ -64,6 +64,54 @@ export interface paths {
     };
     /** Submission */
     get: operations['submission'];
+    /**
+     * Save Draft
+     * @description A draft, saved whole as it's filled in. Refused once it's submitted, or if it's someone else's
+     */
+    put: operations['save_draft'];
+    post?: never;
+    /**
+     * Discard Draft
+     * @description A draft, and its files, gone
+     */
+    delete: operations['discard_draft'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/submissions/{id}/files': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upload File
+     * @description A file for a draft, its bytes the body, its name the query: stored under the draft, its gs:// ref back
+     */
+    post: operations['upload_file'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/drafts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * My Drafts
+     * @description Yours, the latest first
+     */
+    get: operations['my_drafts'];
     put?: never;
     post?: never;
     delete?: never;
@@ -254,6 +302,30 @@ export interface components {
        * @default []
        */
       posted: components['schemas']['Line'][];
+    };
+    /** Draft */
+    Draft: {
+      /** Id */
+      id: string;
+      /** Title */
+      title: string | null;
+      /** Updated At */
+      updated_at: string | null;
+    };
+    /**
+     * DraftRequest
+     * @description Our own form as it's being filled in: anything, as typed. The form's model is the submit's.
+     */
+    DraftRequest: {
+      /** Values */
+      values: {
+        [key: string]: unknown;
+      };
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
     };
     /** Email */
     Email: {
@@ -476,6 +548,10 @@ export interface components {
        * @default []
        */
       answers: components['schemas']['Answer'][];
+      /** Draft */
+      draft: {
+        [key: string]: unknown;
+      } | null;
       /** Raw */
       raw: {
         [key: string]: unknown;
@@ -590,6 +666,11 @@ export interface components {
       workflow: 'unknown';
       /** Name */
       name: string | null;
+    };
+    /** Uploaded */
+    Uploaded: {
+      /** Ref */
+      ref: string;
     };
     /** ValidationError */
     ValidationError: {
@@ -706,6 +787,141 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Submission'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  save_draft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DraftRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Draft'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  discard_draft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  upload_file: {
+    parameters: {
+      query: {
+        name: string;
+      };
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/octet-stream': string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Uploaded'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  my_drafts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Draft'][];
         };
       };
       /** @description Validation Error */

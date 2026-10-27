@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { FilePen } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
 import { CreateButton } from '@/components/CreateButton';
 import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
@@ -8,13 +9,37 @@ import { TableSkeleton } from '@/components/Skeletons';
 import { SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useForms } from '@/lib/api/queries';
+import { useDrafts } from '@/features/forms/api';
+import { useCan, useForms } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
 import { money, when } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
 import { submissionQueries, useSubmissions } from './api';
+
+// Yours alone, unsubmitted, above the list: a draft is in no list until it's submitted
+function YourDrafts({ form }: { form: string }) {
+  const can = useCan();
+  const { data: drafts = [] } = useDrafts(form, can(`forms:${form}:submit`));
+  if (!drafts.length) return null;
+  return (
+    <div className="rounded-md border border-dashed p-3 text-sm">
+      <h2 className="mb-2 font-medium">Your drafts</h2>
+      <ul className="space-y-1">
+        {drafts.map((d) => (
+          <li key={d.id} className="flex items-center gap-2">
+            <FilePen className="size-4 shrink-0 text-muted-foreground" />
+            <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
+              {d.title ?? 'Untitled'}
+            </Link>
+            <span className="ml-auto shrink-0 text-muted-foreground">{when(d.updated_at)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // A row peeks after the pointer rests on it, not as it passes, and starts loading the record so a click is quick
 function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boolean; children: ReactElement }) {
@@ -65,6 +90,7 @@ export function SubmissionsPage() {
           <CreateButton form={form} noun={(spec?.title ?? 'one').toLowerCase().replace(/s$/, '')} />
         </div>
       </div>
+      <YourDrafts form={form} />
       {!data ? (
         <QueryState error={error} loading={<TableSkeleton columns={amounts ? 5 : 4} />} />
       ) : (

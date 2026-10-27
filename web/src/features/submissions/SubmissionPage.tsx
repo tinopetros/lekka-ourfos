@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
 import { FileDialog } from '@/components/FileDialog';
@@ -11,6 +12,7 @@ import { useCan, useForms } from '@/lib/api/queries';
 import type { Answer, Run, Submission } from '@/lib/api/types';
 import { money, when } from '@/lib/format';
 import { useNeighbours } from '@/lib/useNeighbours';
+import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
 
 function AnswerValue({ answer }: { answer: Answer }) {
@@ -151,9 +153,31 @@ function History({ s }: { s: Submission }) {
   );
 }
 
-// A submission on its own page: where it stands, and its history
+/** A submission on its own page. Its form while it's new or a draft, the same page throughout: what's typed stays
+ * where it is when the URL becomes the draft's */
 export function SubmissionPage() {
   const { form = '', id = '' } = useParams();
+  // A new one's id, made here: while this page is open, its URL becoming the draft's keeps it the same form. Opened
+  // again, or reloaded, a draft comes from the API
+  const [minted] = useState(() => crypto.randomUUID());
+  // Submitted, it's the record
+  const [submitted, setSubmitted] = useState(false);
+  if (!submitted && (id === 'new' || id === minted))
+    return (
+      <SubmissionForm
+        key={minted}
+        form={form}
+        id={minted}
+        onSubmitted={() => {
+          setSubmitted(true);
+        }}
+      />
+    );
+  return <Record form={form} id={id} />;
+}
+
+// Where it stands, and its history. A draft opened again is its form
+function Record({ form, id }: { form: string; id: string }) {
   const { data: forms } = useForms();
   const neighbours = useNeighbours({
     id,
@@ -165,6 +189,8 @@ export function SubmissionPage() {
   const spec = forms?.find((f) => f.key === form);
   const list = spec?.title ?? 'Back';
   const current = s ? `${s.response_number !== null ? `#${s.response_number} ` : ''}${s.title ?? id}` : id;
+  if (s?.status === 'draft' && !isPlaceholderData)
+    return <SubmissionForm key={id} form={form} id={id} draft={s.draft} draftTest={s.test} />;
 
   return (
     <div className="mx-auto max-w-5xl">

@@ -2,7 +2,8 @@ import os
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from google.cloud import firestore
 
@@ -11,10 +12,12 @@ from forms import FORMS
 from integrations import gcs
 from submission import ID
 
+from . import drafts, views
 from . import submit as submitting
-from . import views
 from .auth import current_user
 from .models import (
+    Draft,
+    DraftRequest,
     FormInfo,
     JournalEntry,
     JournalEntryPage,
@@ -23,6 +26,7 @@ from .models import (
     SubmissionPage,
     SubmitRequest,
     Submitted,
+    Uploaded,
 )
 from .permissions import allowed, granted, needs
 
@@ -78,13 +82,14 @@ def submissions(
 
 
 @router.get("/forms/{form}/submissions/{id}")
-def submission(form: str, id: str, _: Annotated[str, needs("forms:{form}:read")]) -> Submission:
+def submission(form: str, id: str, user: Annotated[str, needs("forms:{form}:read")]) -> Submission:
     known(form)
     ref = store.client().collection(FORMS[form].collection).document(id)
     doc = ref.get()
-    if not doc.exists:
+    data = doc.to_dict() if doc.exists else None
+    # Someone else's draft is as good as not there
+    if data is None or (data.get("status") == drafts.DRAFT and data.get("submitted_by") != user):
         raise HTTPException(404, f"No {FORMS[form].noun} {id}")
-    data = doc.to_dict()
     runs = [views.run(r.id, r.to_dict()) for r in ref.collection("runs").stream()]
     ids = data.get("journal_entries") or []
     refs = [store.client().collection(JOURNAL).document(i) for i in ids]
@@ -92,6 +97,54 @@ def submission(form: str, id: str, _: Annotated[str, needs("forms:{form}:read")]
     return views.submission(
         form, id, data, runs, [views.journal_entry(i, entries[i].to_dict()) for i in ids if i in entries]
     )
+
+
+@router.put("/forms/{form}/submissions/{id}")
+def save_draft(form: str, id: str, body: DraftRequest, user: Annotated[str, needs("forms:{form}:submit")]) -> Draft:
+    """A draft, saved whole as it's filled in. Refused once it's submitted, or if it's someone else's"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if body.test and not allowed(user, f"forms:{form}:test"):
+        raise HTTPException(403, f"You don't have forms:{form}:test")
+    drafts.save(form, id, body.values, body.test, user)
+    return Draft(id=id, title=drafts.title(form, body.values))
+
+
+@router.delete("/forms/{form}/submissions/{id}", status_code=204)
+def discard_draft(form: str, id: str, user: Annotated[str, needs("forms:{form}:submit")]) -> None:
+    """A draft, and its files, gone"""
+    known(form)
+    drafts.discard(form, id, user)
+
+
+@router.post(
+    "/forms/{form}/submissions/{id}/files",
+    openapi_extra={"requestBody": {"content": {"application/octet-stream": {"schema": {"type": "string"}}}}},
+)
+async def upload_file(
+    form: str, id: str, name: str, request: Request, user: Annotated[str, needs("forms:{form}:submit")]
+) -> Uploaded:
+    """A file for a draft, its bytes the body, its name the query: stored under the draft, its gs:// ref back"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if int(request.headers.get("content-length") or 0) > drafts.MAX_FILE:
+        raise HTTPException(413, "Files of up to 25 MB")
+    data = await request.body()
+    content_type = request.headers.get("content-type", "application/octet-stream")
+    ref = await run_in_threadpool(drafts.upload, form, id, name, data, content_type, user)
+    return Uploaded(ref=ref)
+
+
+@router.get("/forms/{form}/drafts")
+def my_drafts(form: str, user: Annotated[str, needs("forms:{form}:submit")]) -> list[Draft]:
+    """Yours, the latest first"""
+    known(form)
+    return [
+        Draft(id=id, title=drafts.title(form, doc.get("draft") or {}), updated_at=doc.get("updated_at"))
+        for id, doc in drafts.list_mine(form, user)
+    ]
 
 
 @router.post("/forms/{form}/submissions/{id}/submit")

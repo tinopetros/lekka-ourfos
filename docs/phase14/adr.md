@@ -43,24 +43,26 @@
 
 ### 6. One page, from new to the record
 
-- `/forms/{form}/new` mints the submission's id in the browser. The first save makes it `/forms/{form}/{id}`: the same page, now the record's, a draft or submitted
+- `/forms/{form}/new` mints the submission's id in the browser. The first save makes it `/forms/{form}/{id}`: the same page, now the draft's, and the record's once it's submitted
+- While that page is open, it stays the form you're typing in as its URL changes. Opened again, or reloaded, a draft comes from the API: never a blank form over a saved draft
 - An id from the browser makes every save safe to retry: a double click or a flaky connection never makes two. It's what an offline queue needs (#30)
 - Single page forms for now. Steps, or a form in a modal, later
 
 ### 7. Drafts, saved as you go
 
-- A draft is a submission with `status: draft` and no `received_at`: lists order by `received_at`, and Firestore leaves out what lacks it, so drafts keep out of lists on their own
-- Saved when you leave a field you've changed: the whole draft each time, one record's saves in order (TanStack Query's mutation `scope`), so a slow save never overwrites a later one. "Saving…", "Saved" by the button
+- A draft is a submission with `status: draft`, its answers as typed in `draft`, and no `received_at`: lists order by `received_at`, and Firestore leaves out what lacks it, so drafts keep out of lists on their own
+- Saved when you leave a question you've changed, or pick a choice or a file: the whole draft each time, one record's saves in order (TanStack Query's mutation `scope`), so a slow save never overwrites a later one. "Saving…", "Draft saved" by the title. A new form's own prefilled answers aren't worth a draft
 - A draft takes anything, every field optional. The strict model is the submit's: you see what's wrong as you go, and it never stops a save
-- Only its author sees a draft, above the list as **Your drafts**, and may discard it. The first list that depends on who's asking
+- Only its author sees a draft, above the list as **Your drafts**, and may discard it, its files too. Anyone else gets a 404. The first list that depends on who's asking
 - Submitting is once: a transaction that turns the draft into a submission, numbers it and sets `received_at`, then starts the workflow. A save after that is refused
 - Not taken: **drafts in the browser only**. Cheap, but lost with the browser, and never the page that becomes the record
 
 ### 8. Uploads through the API
 
-- A file is uploaded as soon as it's picked, not on submit: the browser sends it to the API, which writes it to the attachments bucket under its submission's id and returns its `gs://` ref, saved into the draft. The browser never talks to GCS: the API does, behind IAP, as it does reading them back (phase 13 ADR 14)
-- A draft's files stay until it's discarded; a lifecycle rule clears an old draft's
-- The cost: a file through Cloud Run, 32 MB at most. Photos and PDFs are well under
+- A file is uploaded as soon as it's picked, not on submit: the browser sends it to the API, its bytes the body, which writes it to the attachments bucket under `{form}/{id}/` and returns its `gs://` ref, saved into the draft. The first file makes the draft, if nothing else has The browser never talks to GCS: the API does, behind IAP, as it does reading them back (phase 13 ADR 14)
+- A submission names only files uploaded to it: never another's, nor Drive's
+- A draft's files stay until it's discarded. One left forever keeps its files: a clean-up of old drafts, when there are enough to matter. A bucket lifecycle rule can't tell a draft's files from a submission's
+- The cost: a file through Cloud Run, 25 MB at most, under Cloud Run's 32. Photos and PDFs are well under
 - Not taken: **signed URLs**, phase 13 ADR 11's plan. The browser writes to GCS itself, through a link the API signs. A link that writes for anyone holding it, and the API's account able to sign as itself
 
 ### 9. Permissions start here, by group

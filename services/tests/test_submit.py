@@ -7,6 +7,7 @@ import store
 from api import submit
 from api.main import app
 from integrations import workflows
+from tests.firestore import Db
 
 TRIP = {
     "vehicle": "White Nissan Note | AGO8747",
@@ -15,62 +16,6 @@ TRIP = {
     "odometer_start": 100,
     "odometer_end": 140,
 }
-
-
-class Snap:
-    def __init__(self, data):
-        self.data = data
-
-    def to_dict(self):
-        return None if self.data is None else dict(self.data)
-
-
-class Ref:
-    def __init__(self, db, path):
-        self.db, self.path = db, path
-
-    def get(self, transaction=None):
-        return Snap(self.db.docs.get(self.path))
-
-    def set(self, data, merge=False):
-        self.db.docs[self.path] = (self.db.docs.get(self.path, {}) if merge else {}) | data
-
-
-class Collection:
-    def __init__(self, db, name):
-        self.db, self.name, self.field, self.descending, self.n = db, name, None, False, None
-
-    def document(self, id):
-        return Ref(self.db, (self.name, id))
-
-    def order_by(self, field, direction):
-        self.field, self.descending = field, direction == "DESCENDING"
-        return self
-
-    def limit(self, n):
-        self.n = n
-        return self
-
-    def get(self, transaction=None):
-        docs = [d for (c, _), d in self.db.docs.items() if c == self.name and self.field in d]
-        docs.sort(key=lambda d: d[self.field], reverse=self.descending)
-        return [Snap(d) for d in docs[: self.n]]
-
-
-class Transaction:
-    def set(self, ref, data):
-        ref.set(data)
-
-
-class Db:
-    def __init__(self):
-        self.docs = {}
-
-    def collection(self, name):
-        return Collection(self, name)
-
-    def transaction(self):
-        return Transaction()
 
 
 @pytest.fixture

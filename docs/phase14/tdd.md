@@ -36,13 +36,13 @@ One PR, a commit per step.
    - Submitted, it's the record's page, as any other
    - Toasts for an action that fails: `MutationCache`'s `onError`, shadcn's Sonner
 5. **Drafts** (ADR 7, 8)
-   - `PUT /api/forms/{form}/submissions/{id}`: the whole draft, every field optional. Refused once submitted, or someone else's
+   - `PUT /api/forms/{form}/submissions/{id}`: the whole draft, as typed. Refused once submitted, or someone else's. `GET` of someone else's draft is a 404
    - `DELETE` the same: discards a draft, and its files
-   - `POST /api/forms/{form}/submissions/{id}/files`: an upload, to `gs://<attachments>/{form}/{id}/`
+   - `POST /api/forms/{form}/submissions/{id}/files?name=`: an upload, its bytes the body, to `gs://<attachments>/{form}/{id}/`, 25 MB at most. A submission names only its own
    - `GET /api/forms/{form}/drafts`: yours, newest first
-   - Saved when you leave a changed field; the URL becomes the record's on the first. "Saving…", "Saved"
+   - Saved when you leave a changed question, or pick a choice or a file; the URL becomes the draft's on the first. "Saving…", "Draft saved"
+   - Opened again, a draft is its form; submitted, the record; **Discard** asks first
    - **Your drafts** above each list
-   - A lifecycle rule on the bucket clears a discarded draft's files
 
 ## The forms
 
