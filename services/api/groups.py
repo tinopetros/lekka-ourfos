@@ -3,6 +3,7 @@ it in the Admin console. Nested groups count, walked up one level at a time: the
 only. Kept 5 minutes a person, so a change in a group shows within 5 minutes."""
 
 import functools
+import os
 import threading
 import time
 
@@ -14,8 +15,6 @@ from google.auth.transport.requests import AuthorizedSession
 from common import log
 
 DIRECT = "https://cloudidentity.googleapis.com/v1/groups/-/memberships:searchDirectGroups"
-# Every Google Group, the kind with an email
-LABEL = "cloudidentity.googleapis.com/groups.discussion_forum"
 TTL = 300
 # A lookup that failed is tried again sooner
 RETRY = 30
@@ -28,7 +27,12 @@ _lock = threading.Lock()
 
 @functools.cache
 def session() -> AuthorizedSession:
-    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-identity.groups.readonly"])
+    credentials, project = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-identity.groups.readonly"]
+    )
+    # Locally, your own account's: Cloud Identity bills a quota project, which user credentials don't have by default
+    if not getattr(credentials, "quota_project_id", None) and hasattr(credentials, "with_quota_project"):
+        credentials = credentials.with_quota_project(os.environ.get("GOOGLE_CLOUD_PROJECT", project))
     return AuthorizedSession(credentials)
 
 
@@ -36,9 +40,8 @@ def direct(member: str) -> set[str]:
     """The groups a person or group is directly in, by email."""
     groups, token = set(), None
     while True:
-        params = {"query": f"member_key_id == '{member}' && '{LABEL}' in labels"} | (
-            {"pageToken": token} if token else {}
-        )
+        # The member alone: the API refuses the label its docs ask for alongside
+        params = {"query": f"member_key_id == '{member}'"} | ({"pageToken": token} if token else {})
         response = session().get(DIRECT, params=params, timeout=TIMEOUT)
         response.raise_for_status()
         body = response.json()
