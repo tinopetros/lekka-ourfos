@@ -18,7 +18,7 @@ One PR, a commit per step.
 2. **Submitting** (ADR 1, 5)
    - `POST /api/forms/{form}/submissions/{id}/submit`: the strict model, then one transaction: `received_at`, the response number from `counters/{form}`, `source: ourfos`, `submitted_by`. Then the workflow, with the argument the trigger gives it
    - The workflows save a submission that exists already, a draft's, as they do a new one
-   - `ourfos-api@` starts the four workflows. `post_to_mifos` in each env's tfvars (ADR 10)
+   - `ourfos-api@` starts the four workflows
    - `counters/{form}`, seeded by the first submit that finds none
 3. **Permissions** (ADR 9)
    - Every route declares its permission; a policy in code grants them. `forms:{form}:submit` to everyone, `forms:{form}:test` to those named
@@ -67,7 +67,7 @@ Amounts are USD, to 2 decimal places.
 - Referred by
 - Recommendation (approve or decline): "Yours, personally"
 - Overall assessment: "Anything else the approvers should know?"
-- Client folder (a Drive folder's link): "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link", with a picture of where, on hover. The picture is redrawn without clients' names. Client folders in ourfos later: #40
+- Client folder (a Drive folder's link): "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link", with a picture of where, on hover. Client folders in ourfos later: #40
 
 **Write-off**
 - Client's first name\*, last name\*, other names, as a loan approval's
