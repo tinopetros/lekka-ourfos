@@ -63,11 +63,13 @@
 - The cost: a file through Cloud Run, 32 MB at most. Photos and PDFs are well under
 - Not taken: **signed URLs**, phase 13 ADR 11's plan. The browser writes to GCS itself, through a link the API signs. A link that writes for anyone holding it, and the API's account able to sign as itself
 
-### 9. Permissions start here, for test submissions
+### 9. Permissions start here, by group
 
-- Every route declares what it needs, e.g. `forms:requisition:submit`, granted to everyone. `forms:{form}:test` is granted only to whom the policy names
-- The policy is code in the repo: a permission to people, `user:…`, and to groups, `group:…`. Groups count once their members are synced from Workspace's directory (phase 15); people until then
-- `/me` lists your permissions: the UI offers **Test** only to those who have it. The API checks either way
+- Every route declares what it needs, e.g. `forms:requisition:submit`. Everyone at lekkacredit.com reads and submits forms; `tech@` sends tests; `directors@` reads every journal entry. A submission's page still shows its own entries to whoever may read the form
+- The policy is code in the repo: a permission to people, `user:…`, a domain, `domain:…`, or groups, `group:…`
+- Groups come from Cloud Identity as you're seen, nested ones too, kept 5 minutes. `ourfos-api@` reads them as **Groups Reader**, an admin role assigned in the Admin console. Walked up a level at a time: the one call that finds nested groups is Enterprise only. A lookup that fails grants nothing, and is tried again in 30 seconds
+- Not taken: **syncing groups onto `users`** (phase 13 ADR 11). A job to run and a copy to go stale, for what a lookup a person every 5 minutes does
+- `/me` lists your permissions: the UI offers only what you may, **Test** and the journal among it, and a section with nothing left in it goes. The API checks either way
 - A test submission is as a test from a Google Form's link: no posting, and marked in its emails and the UI
 - Not taken, yet: **editing the policy in the UI**. It moves to Firestore then, with every change recorded, and loses a PR's review
 

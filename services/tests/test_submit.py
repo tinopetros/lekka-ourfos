@@ -144,9 +144,9 @@ def test_someone_elses_id_is_refused(db, started):
 def test_what_doesnt_fit_the_form_is_refused_by_its_field(db, started):
     got = post(answers=TRIP | {"odometer_end": 99, "vehicle": "A bicycle"})
     assert got.status_code == 422
-    assert [e["loc"] for e in got.json()["detail"]] == [["vehicle"]]
+    assert [e["loc"] for e in got.json()["detail"]] == [["vehicle"], ["odometer_end"]]
     got = post(answers=TRIP | {"odometer_end": 99})
-    assert "below the start" in got.json()["detail"][0]["msg"] and not started
+    assert "Below the odometer at start" in got.json()["detail"][0]["msg"] and not started
 
 
 def test_an_id_firestore_cant_take_is_refused(db, started):

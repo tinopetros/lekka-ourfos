@@ -67,7 +67,7 @@
     "additionalProperties": false,
     "properties": {
       "vehicle": { "const": "White Nissan Note | AGO8747", "title": "Vehicle", "type": "string" },
-      "date": { "format": "date", "title": "Date", "type": "string" },
+      "date": { "format": "date", "prefill": "today", "title": "Date", "type": "string" },
       "purpose": { "description": "Where to, and why", "minLength": 1, "title": "Purpose", "type": "string" },
       "odometer_start": { "minimum": 0, "title": "Odometer at start", "type": "integer" },
       "odometer_end": { "minimum": 0, "title": "Odometer at end", "type": "integer" },

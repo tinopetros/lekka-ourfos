@@ -12,14 +12,26 @@ const ICONS: Record<string, LucideIcon> = {
   write_off: FileX,
 };
 
-function Card({ to, title, icon: Icon, noun }: { to: string; title: string; icon: LucideIcon; noun?: string }) {
+function Card({
+  to,
+  title,
+  icon: Icon,
+  form,
+  noun,
+}: {
+  to: string;
+  title: string;
+  icon: LucideIcon;
+  form?: string;
+  noun?: string;
+}) {
   return (
     <div className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-accent">
       <Link to={to} className="flex min-w-0 flex-1 items-center gap-2 font-medium">
         <Icon className="size-4 shrink-0" /> <span className="truncate">{title}</span>
         <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
       </Link>
-      {noun && <CreateButton noun={noun} />}
+      {form && noun && <CreateButton form={form} noun={noun} />}
     </div>
   );
 }
@@ -54,6 +66,7 @@ export function HomePage() {
                 to={`/forms/${f.key}`}
                 title={f.title}
                 icon={ICONS[f.key] ?? ClipboardList}
+                form={f.key}
                 noun={f.title.toLowerCase().replace(/s$/, '')}
               />
             ))}

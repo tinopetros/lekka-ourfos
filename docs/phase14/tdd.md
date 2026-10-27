@@ -22,12 +22,16 @@ One PR, a commit per step.
    - Submitting twice is submitting once: the second answers with the first's number, and starts the workflow only if the first couldn't
    - `counters/{form}`, seeded by the first submit that finds none
 3. **Permissions** (ADR 9)
-   - Every route declares its permission; a policy in code grants them. `forms:{form}:submit` to everyone, `forms:{form}:test` to those named
-   - `/me` lists yours
+   - Every route declares its permission; a policy in code grants them, to people, the domain and groups
+   - `forms:{form}:read` and `:submit` to everyone, `forms:*:test` to `tech@`, `journal_entries:read` to `directors@`
+   - Groups from Cloud Identity, nested too, kept 5 minutes
+   - `/me` lists yours; the UI hides what you can't do
 4. **The form page** (ADR 6)
    - `/forms/{form}/new`, from **Create** on each list and on home
    - Drawn from the schema: a field per kind, its title and description, required ones marked. react-hook-form, zod's resolver, shadcn's form fields
    - **Test**, a switch, for those allowed
+   - A question with one answer has it already; a trip's date starts at today; a client folder's question has a picture of where to find it
+   - Files wait for step 5: they're uploaded as they're picked, under the draft's id
    - Errors by each field, and a summary at the top on submit
    - Submitted, it's the record's page, as any other
    - Toasts for an action that fails: `MutationCache`'s `onError`, shadcn's Sonner
@@ -96,5 +100,6 @@ Amounts are USD, to 2 decimal places.
 
 ## Bootstrapped, once
 
-- Infra: `ourfos-api@` starts workflows, and writes to the attachments bucket beside #21's read (tinopetros/lekka-ourfos-infra#22)
+- Infra: `ourfos-api@` starts workflows, and writes to the attachments bucket beside #21's read (tinopetros/lekka-ourfos-infra#22); Cloud Identity's API (#23)
+- Admin console: **Groups Reader** for `ourfos-api@` in each project. Done Oct 27
 - Each Google Form closed, its counter seeded, once its UI form has launched well

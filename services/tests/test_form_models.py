@@ -33,7 +33,7 @@ def test_a_requisition_as_stored_is_its_answers_and_who_sent_them():
 
 def test_a_trip_goes_forwards():
     assert FORMS["vehicle_log"].model(**TRIP, odometer_start=100, odometer_end=100).odometer_end == 100
-    with pytest.raises(ValidationError, match="below the start"):
+    with pytest.raises(ValidationError, match="Below the odometer at start"):
         FORMS["vehicle_log"].model(**TRIP, odometer_start=100, odometer_end=99)
 
 

@@ -11,7 +11,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, create_model, field_validator
 
 from requisition import Requisition, RequisitionForm
 from submission import Amount, DriveFolder, FileRefs, LongText, Months, Submission
@@ -80,7 +80,8 @@ class VehicleLogForm(BaseModel):
     model_config = ConfigDict(extra="forbid", title="Vehicle log")
 
     vehicle: Literal[VEHICLES] = Field(title="Vehicle")
-    date: dt.date = Field(title="Date")
+    # The form starts it at today
+    date: dt.date = Field(title="Date", json_schema_extra={"prefill": "today"})
     purpose: str = Field(min_length=1, title="Purpose", description="Where to, and why")
     odometer_start: int = Field(ge=0, title="Odometer at start")
     odometer_end: int = Field(ge=0, title="Odometer at end")
@@ -97,11 +98,14 @@ class VehicleLogForm(BaseModel):
         ),
     )
 
-    @model_validator(mode="after")
-    def forwards(self):
-        if self.odometer_end < self.odometer_start:
-            raise ValueError("the odometer at the end is below the start")
-        return self
+    # On the end's own field, so the form shows it there
+    @field_validator("odometer_end")
+    @classmethod
+    def forwards(cls, end: int, info: ValidationInfo) -> int:
+        start = info.data.get("odometer_start")
+        if start is not None and end < start:
+            raise ValueError("Below the odometer at start")
+        return end
 
 
 class LoanApprovalForm(BaseModel):

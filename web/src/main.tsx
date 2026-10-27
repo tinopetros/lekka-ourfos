@@ -1,13 +1,22 @@
 import '@/index.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { router } from '@/app/router';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 
 const queryClient = new QueryClient({
+  // An action that fails says so, wherever you are. Not what's wrong with a form's answers: it shows that by each field
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof ApiError && error.problems.length > 0) return;
+      toast.error(error.message);
+    },
+  }),
   defaultOptions: {
     queries: {
       // A list a minute old is fresh enough; coming back to the tab refetches it
@@ -32,6 +41,7 @@ createRoot(root).render(
       <TooltipProvider delayDuration={300}>
         <RouterProvider router={router} />
       </TooltipProvider>
+      <Toaster richColors />
       <Suspense>
         <Devtools />
       </Suspense>

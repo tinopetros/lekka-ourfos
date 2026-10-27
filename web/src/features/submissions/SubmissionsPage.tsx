@@ -62,7 +62,7 @@ export function SubmissionsPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold">{spec?.title ?? ''}</h1>
         <div className="ml-auto">
-          <CreateButton noun={(spec?.title ?? 'one').toLowerCase().replace(/s$/, '')} />
+          <CreateButton form={form} noun={(spec?.title ?? 'one').toLowerCase().replace(/s$/, '')} />
         </div>
       </div>
       {!data ? (
