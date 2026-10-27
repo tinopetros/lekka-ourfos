@@ -100,17 +100,17 @@ def test_money(amount, want):
 def test_an_acknowledgement_is_the_forms_answers():
     html, text = emails.acknowledgement(R, REQUISITION)
     assert "<strong>Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com:</strong>" in html
-    assert f"{emails.QUESTION}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
+    assert f"{emails.QUESTION}Disbursed on</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
     assert "Invoice(s)" not in html
-    assert "Total Amount: $60" in text
-    assert "Receipt(s): File 1 https://drive.google.com/open?id=B2, File 2" in text
-    assert "Reference Number" not in text
+    assert "Amount: $60" in text
+    assert "Receipts: File 1 https://drive.google.com/open?id=B2, File 2" in text
+    assert "Reference number" not in text
 
 
 def test_a_reference_number_is_shown_when_the_form_has_one():
     _, text = emails.acknowledgement(R, REQUISITION.model_copy(update={"reference_number": "REQ-0482"}))
-    assert "Reference Number: REQ-0482" in text
+    assert "Reference number: REQ-0482" in text
 
 
 def test_the_forms_values_are_escaped():
@@ -223,9 +223,10 @@ def submission(form: str, **changes):
     """A form's happy fixture, as the trigger cleans it: text, empty answers dropped, uploads as Drive ids."""
     raw = json.loads((FIXTURES / form / "happy.json").read_text())
     spec = SPECS[form]
-    answers = {k: raw[k] for k in spec.labels if raw.get(k) and k not in spec.files}
-    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in spec.files if raw.get(k)}
-    return spec.model(**IDENTITY, **answers | changes)
+    google_form = spec.google_form
+    answers = {k: raw[k] for k in google_form.labels if raw.get(k) and k not in google_form.files}
+    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in google_form.files if raw.get(k)}
+    return google_form.model(**IDENTITY, **answers | changes)
 
 
 def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():

@@ -12,7 +12,7 @@ from html import escape
 
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
-from requisition import Files, Requisition
+from requisition import Files, Requisition, RequisitionForm
 from submission import Submission
 
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
@@ -124,7 +124,7 @@ def submitter_row(s: Submission) -> tuple[str, str, str]:
 
 def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
     """The form's questions in its order, empty ones left out. A line break stays one, and a lone link is linked."""
-    spec, rows = FORMS[form], [submitter_row(s)]
+    spec, rows = FORMS[form].google_form, [submitter_row(s)]
     for key, label in spec.labels.items():
         value = getattr(s, key)
         if not value:
@@ -138,17 +138,22 @@ def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
     return rows
 
 
+def title(field: str) -> str:
+    return RequisitionForm.model_fields[field].title or field
+
+
 def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     rows = [
         submitter_row(r),
-        *([("Reference Number", escape(r.reference_number), r.reference_number)] if r.reference_number else []),
-        ("Payable To", escape(r.payable_to), r.payable_to),
-        ("Total Amount", f"${money(r.amount)}", f"${money(r.amount)}"),
+        (title("payable_to"), escape(r.payable_to), r.payable_to),
+        (title("amount"), f"${money(r.amount)}", f"${money(r.amount)}"),
     ]
     if r.disbursed_on:
-        rows.append(("Date Disbursed", day(r.disbursed_on), day(r.disbursed_on)))
+        rows.append((title("disbursed_on"), day(r.disbursed_on), day(r.disbursed_on)))
+    if r.reference_number:
+        rows.append((title("reference_number"), escape(r.reference_number), r.reference_number))
     if r.comment:
-        rows.append(("Comment", escape(r.comment), r.comment))
+        rows.append((title("comment"), escape(r.comment), r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
             rows.append((Files.label(field), *file_links(refs)))

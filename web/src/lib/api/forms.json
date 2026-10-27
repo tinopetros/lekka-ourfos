@@ -1,0 +1,249 @@
+{
+  "requisition": {
+    "$defs": {
+      "Files": {
+        "additionalProperties": false,
+        "properties": {
+          "signed_requisition_form": {
+            "default": [],
+            "items": { "type": "string" },
+            "kind": "files",
+            "title": "Signed requisition form",
+            "type": "array"
+          },
+          "receipts": {
+            "default": [],
+            "items": { "type": "string" },
+            "kind": "files",
+            "title": "Receipts",
+            "type": "array"
+          },
+          "invoices": {
+            "default": [],
+            "items": { "type": "string" },
+            "kind": "files",
+            "title": "Invoices",
+            "type": "array"
+          }
+        },
+        "title": "Files",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "payable_to": { "minLength": 1, "title": "Payable to", "type": "string" },
+      "amount": {
+        "exclusiveMinimum": 0,
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Amount",
+        "type": "number"
+      },
+      "disbursed_on": {
+        "anyOf": [{ "format": "date", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Disbursed on"
+      },
+      "reference_number": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "The number on the paper requisition, if it has one",
+        "title": "Reference number"
+      },
+      "comment": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Comment"
+      },
+      "files": { "$ref": "#/$defs/Files", "default": { "signed_requisition_form": [], "receipts": [], "invoices": [] } }
+    },
+    "required": ["payable_to", "amount"],
+    "title": "Requisition",
+    "type": "object"
+  },
+  "vehicle_log": {
+    "additionalProperties": false,
+    "properties": {
+      "vehicle": { "const": "White Nissan Note | AGO8747", "title": "Vehicle", "type": "string" },
+      "date": { "format": "date", "title": "Date", "type": "string" },
+      "purpose": { "description": "Where to, and why", "minLength": 1, "title": "Purpose", "type": "string" },
+      "odometer_start": { "minimum": 0, "title": "Odometer at start", "type": "integer" },
+      "odometer_end": { "minimum": 0, "title": "Odometer at end", "type": "integer" },
+      "odometer_photos": {
+        "default": [],
+        "items": { "type": "string" },
+        "kind": "files",
+        "title": "Odometer photos",
+        "type": "array"
+      },
+      "vehicle_photos": {
+        "default": [],
+        "description": "Of anything worth a record: damage, a warning light",
+        "items": { "type": "string" },
+        "kind": "files",
+        "title": "Vehicle photos",
+        "type": "array"
+      },
+      "comment": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Anything else: refuelling, fuel readings, repairs or checks, issues with the vehicle, other drivers, a trip over more than a day. Fuel and repairs that cost money go in a requisition",
+        "title": "Comment"
+      }
+    },
+    "required": ["vehicle", "date", "purpose", "odometer_start", "odometer_end"],
+    "title": "Vehicle log",
+    "type": "object"
+  },
+  "loan_approval": {
+    "additionalProperties": false,
+    "properties": {
+      "applicant_first_name": { "minLength": 1, "title": "Applicant's first name", "type": "string" },
+      "applicant_last_name": { "minLength": 1, "title": "Applicant's last name", "type": "string" },
+      "applicant_other_names": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Applicant's other names"
+      },
+      "character": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "What's your assessment of the client's character?",
+        "title": "Character"
+      },
+      "purpose": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "What is the facility for?",
+        "title": "Purpose"
+      },
+      "loan_amount": {
+        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
+        "default": null,
+        "title": "Loan amount"
+      },
+      "tenure": {
+        "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
+        "default": null,
+        "description": "In months",
+        "title": "Tenure"
+      },
+      "monthly_repayment": {
+        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
+        "default": null,
+        "title": "Monthly repayment"
+      },
+      "ability_to_repay": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Include cover ratio, salary, profit details, etc.",
+        "title": "Ability to repay"
+      },
+      "borrowing_status": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Other loans, with us or elsewhere: tenor, amount, disbursement date, etc.",
+        "title": "Borrowing status"
+      },
+      "security_vetted": {
+        "anyOf": [{ "enum": ["Yes", "No"], "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Has the security been vetted, and does it meet the assessment guidelines?",
+        "title": "Security vetted"
+      },
+      "referred_by": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "title": "Referred by" },
+      "recommendation": {
+        "anyOf": [{ "enum": ["Approve", "Decline"], "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Yours, personally",
+        "title": "Recommendation"
+      },
+      "overall_assessment": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Anything else the approvers should know?",
+        "title": "Overall assessment"
+      },
+      "client_folder": {
+        "anyOf": [
+          { "pattern": "^https://drive\\.google\\.com/drive/(u/\\d+/)?folders/[A-Za-z0-9_-]+", "type": "string" },
+          { "type": "null" }
+        ],
+        "default": null,
+        "description": "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link",
+        "help_image": "client-folder.png",
+        "title": "Client folder"
+      }
+    },
+    "required": ["applicant_first_name", "applicant_last_name"],
+    "title": "Loan approval",
+    "type": "object"
+  },
+  "write_off": {
+    "additionalProperties": false,
+    "properties": {
+      "client_first_name": { "minLength": 1, "title": "Client's first name", "type": "string" },
+      "client_last_name": { "minLength": 1, "title": "Client's last name", "type": "string" },
+      "client_other_names": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Client's other names"
+      },
+      "client_number": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Client number"
+      },
+      "loan_account_number": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }],
+        "default": null,
+        "title": "Loan account number"
+      },
+      "original_principal": {
+        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
+        "default": null,
+        "title": "Original principal"
+      },
+      "total_recovered": {
+        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
+        "default": null,
+        "title": "Total recovered"
+      },
+      "current_balance": {
+        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
+        "default": null,
+        "title": "Current balance"
+      },
+      "loan_term": {
+        "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
+        "default": null,
+        "description": "In months",
+        "title": "Loan term"
+      },
+      "outstanding_instalments": {
+        "anyOf": [{ "minimum": 0, "type": "integer" }, { "type": "null" }],
+        "default": null,
+        "title": "Outstanding instalments"
+      },
+      "reason": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "title": "Reason" },
+      "justification": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Why should it be written off?",
+        "title": "Justification"
+      },
+      "supporting_documents": {
+        "default": [],
+        "items": { "type": "string" },
+        "kind": "files",
+        "title": "Supporting documents",
+        "type": "array"
+      }
+    },
+    "required": ["client_first_name", "client_last_name"],
+    "title": "Write-off",
+    "type": "object"
+  }
+}

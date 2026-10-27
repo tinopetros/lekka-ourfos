@@ -144,7 +144,7 @@ def test_a_requisitions_row_and_answers():
     assert row.response_number == 7 and row.received_at is not None
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
     answers = views.answers("requisition", doc)
-    assert [(a.label, a.text) for a in answers[:2]] == [("Payable To", "Acme"), ("Total Amount", "$1,234.50")]
+    assert [(a.label, a.text) for a in answers[:2]] == [("Payable to", "Acme"), ("Amount", "$1,234.50")]
     assert [(f.name, f.drive_id, f.ref) for f in answers[2].files] == [
         ("File 1", "drive-id", None),
         ("File 2", None, "gs://bucket/x.pdf"),

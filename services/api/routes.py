@@ -51,7 +51,7 @@ def me(email: User) -> Me:
 
 @router.get("/forms")
 def forms(_: User) -> list[FormInfo]:
-    return [FormInfo(key=form, title=spec.title) for form, spec in FORMS.items()]
+    return [FormInfo(key=form, title=spec.title, tracks_status=spec.tracks_status) for form, spec in FORMS.items()]
 
 
 @router.get("/forms/{form}/submissions")

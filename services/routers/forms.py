@@ -31,7 +31,7 @@ def known(form: str):
 @router.post("")
 def receive(form: str, id: str, body: dict):
     known(form)
-    submission = FORMS[form].model.model_validate(body["submission"])
+    submission = FORMS[form].google_form.model.model_validate(body["submission"])
     test = bool(body.get("test"))
     store.submission(form, id).save(
         form=form,
@@ -68,7 +68,7 @@ def acknowledge(form: str, id: str, body: dict):
     sent = doc.get("emails", {}).get("acknowledgement")
     if not sent:
         simulate("acknowledge", body.get("simulate"))
-        submission = FORMS[form].model.model_validate(doc["answers"])
+        submission = FORMS[form].google_form.model.model_validate(doc["answers"])
         test = doc.get("test")
         html, text = emails.acknowledgement(form, submission)
         sent = send(

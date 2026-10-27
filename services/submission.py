@@ -4,6 +4,7 @@ Copied into the trigger's zip by `make package`, with requisition.py and forms.p
 """
 
 import re
+from typing import Annotated
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
@@ -28,3 +29,13 @@ class Submission(BaseModel):
     def to_firestore(self) -> dict:
         """submitted_at as a Timestamp."""
         return self.model_dump(exclude_none=True)
+
+
+# What an answer is, for the forms we draw: the type checks it, `kind` tells the UI how to ask. USD only, so an
+# amount is a number to the cent
+Amount = Annotated[float, Field(ge=0, multiple_of=0.01, json_schema_extra={"kind": "amount"})]
+LongText = Annotated[str, Field(json_schema_extra={"kind": "long"})]
+# Drive ids, or gs:// refs into our attachments bucket
+FileRefs = Annotated[list[str], Field(json_schema_extra={"kind": "files"})]
+Months = Annotated[int, Field(ge=1)]
+DriveFolder = Annotated[str, Field(pattern=r"^https://drive\.google\.com/drive/(u/\d+/)?folders/[A-Za-z0-9_-]+")]

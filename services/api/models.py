@@ -21,6 +21,8 @@ class Me(Model):
 class FormInfo(Model):
     key: str
     title: str
+    # Whether its status means anything: the others only show they were received
+    tracks_status: bool
 
 
 class SubmissionSummary(Model):

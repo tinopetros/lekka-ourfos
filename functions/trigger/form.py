@@ -38,8 +38,8 @@ def clean(raw: dict, form: str = "requisition") -> Submission:
         parsers, files = REQUISITION, FILE_FIELDS
     else:
         # Text, bar the identity fields (docs/phase10/adr.md 4)
-        parsers = IDENTITY | {key: (key, str) for key in spec.labels if key not in spec.files}
-        files = spec.files
+        parsers = IDENTITY | {key: (key, str) for key in spec.google_form.labels if key not in spec.google_form.files}
+        files = spec.google_form.files
     errors = []
     fields = {}
 
@@ -72,7 +72,7 @@ def clean(raw: dict, form: str = "requisition") -> Submission:
     if errors:
         raise Invalid(errors)
     try:
-        return spec.model(**fields)
+        return spec.google_form.model(**fields)
     except ValidationError as e:
         # Named as the form names them, since that's who reads the 400
         form_key = {into: key for key, (into, _) in parsers.items()}

@@ -5,7 +5,7 @@ import { CreateButton } from '@/components/CreateButton';
 import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
-import { StatusBadge, TestBadge } from '@/components/StatusBadge';
+import { SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useForms } from '@/lib/api/queries';
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { submissionQueries, useSubmissions } from './api';
 
 // A row peeks after the pointer rests on it, not as it passes, and starts loading the record so a click is quick
-function Peek({ row, children }: { row: SubmissionSummary; children: ReactElement }) {
+function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boolean; children: ReactElement }) {
   const queryClient = useQueryClient();
   return (
     <HoverCard
@@ -30,7 +30,7 @@ function Peek({ row, children }: { row: SubmissionSummary; children: ReactElemen
       <HoverCardContent align="start" className="w-80 text-sm">
         <div className="flex items-center gap-2">
           <span className="font-medium">{row.title ?? 'No answers'}</span>
-          <StatusBadge status={row.status} />
+          <SubmissionStatus status={row.status} tracked={tracked} />
         </div>
         <div className="mt-1 text-muted-foreground">
           {row.response_number !== null && `#${row.response_number} · `}
@@ -54,6 +54,7 @@ export function SubmissionsPage() {
   const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor);
   const spec = forms?.find((f) => f.key === form);
   const amounts = form === 'requisition';
+  const tracked = spec?.tracks_status ?? false;
   const open = (id: string) => void navigate(`/forms/${form}/${id}`, { state: { from: search } satisfies FromList });
 
   return (
@@ -82,7 +83,7 @@ export function SubmissionsPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((s) => (
-                  <Peek key={s.id} row={s}>
+                  <Peek key={s.id} row={s} tracked={tracked}>
                     <TableRow
                       className="cursor-pointer"
                       tabIndex={0}
@@ -104,7 +105,7 @@ export function SubmissionsPage() {
                       <TableCell className="hidden md:table-cell">{s.submitted_by ?? '—'}</TableCell>
                       <TableCell className="hidden sm:table-cell">{when(s.submitted_at)}</TableCell>
                       <TableCell>
-                        <StatusBadge status={s.status} />
+                        <SubmissionStatus status={s.status} tracked={tracked} />
                       </TableCell>
                     </TableRow>
                   </Peek>

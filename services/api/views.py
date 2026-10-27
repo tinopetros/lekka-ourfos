@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from common import log
 from forms import FORMS
-from requisition import Files, Requisition
+from requisition import Files, Requisition, RequisitionForm
 
 from .models import (
     Answer,
@@ -64,7 +64,7 @@ def answers(form: str, doc: dict) -> list[Answer]:
         return []
     if form == "requisition":
         return requisition_answers(values)
-    spec, rows = FORMS[form], []
+    spec, rows = FORMS[form].google_form, []
     for key, label in spec.labels.items():
         value = values.get(key)
         if not value:
@@ -78,18 +78,26 @@ def answers(form: str, doc: dict) -> list[Answer]:
     return rows
 
 
+def title(field: str) -> str:
+    return RequisitionForm.model_fields[field].title or field
+
+
 def requisition_answers(values: dict) -> list[Answer]:
     try:
         r = Requisition.model_validate(values)
     except ValidationError:
         # A shape from before the model was what it is now: every answer as it was kept
         return [Answer(label=k, text=str(v)) for k, v in values.items() if v not in (None, "", [], {})]
-    rows = [Answer(label="Reference Number", text=r.reference_number)] if r.reference_number else []
-    rows += [Answer(label="Payable To", text=r.payable_to), Answer(label="Total Amount", text=f"${r.amount:,.2f}")]
+    rows = [
+        Answer(label=title("payable_to"), text=r.payable_to),
+        Answer(label=title("amount"), text=f"${r.amount:,.2f}"),
+    ]
     if r.disbursed_on:
-        rows.append(Answer(label="Date Disbursed", text=r.disbursed_on.isoformat()))
+        rows.append(Answer(label=title("disbursed_on"), text=r.disbursed_on.isoformat()))
+    if r.reference_number:
+        rows.append(Answer(label=title("reference_number"), text=r.reference_number))
     if r.comment:
-        rows.append(Answer(label="Comment", text=r.comment))
+        rows.append(Answer(label=title("comment"), text=r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
             rows.append(Answer(label=Files.label(field), files=files(refs)))

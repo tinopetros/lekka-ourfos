@@ -21,6 +21,11 @@ export function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
+/** A submission's status, where ourfos tracks it. Elsewhere only that it was received: the rest is in its emails */
+export function SubmissionStatus({ status, tracked }: { status: string | null; tracked: boolean }) {
+  return tracked ? <StatusBadge status={status} /> : <Badge variant="secondary">received</Badge>;
+}
+
 /** A test submission, in prod as anywhere: never a real one. */
 export function TestBadge() {
   return (

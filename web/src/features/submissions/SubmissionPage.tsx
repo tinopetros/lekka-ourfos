@@ -5,7 +5,7 @@ import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
 import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
-import { StatusBadge, TestBadge } from '@/components/StatusBadge';
+import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useForms } from '@/lib/api/queries';
 import type { Answer, Run, Submission } from '@/lib/api/types';
@@ -159,7 +159,8 @@ export function SubmissionPage() {
     pathOf: (row) => `/forms/${form}/${row.id}`,
   });
   const { data: s, error, isPlaceholderData } = useSubmission(form, id);
-  const list = forms?.find((f) => f.key === form)?.title ?? 'Back';
+  const spec = forms?.find((f) => f.key === form);
+  const list = spec?.title ?? 'Back';
   const current = s ? `${s.response_number !== null ? `#${s.response_number} ` : ''}${s.title ?? id}` : id;
 
   return (
@@ -178,7 +179,7 @@ export function SubmissionPage() {
         <>
           <div className="mb-1 flex flex-wrap items-center gap-3">
             <h1 className="text-lg font-semibold">{s.title ?? id}</h1>
-            <StatusBadge status={s.status} />
+            <SubmissionStatus status={s.status} tracked={spec?.tracks_status ?? false} />
             {s.test && <TestBadge />}
             {s.amount !== null && <span className="ml-auto text-lg font-semibold">{money(s.amount)}</span>}
           </div>

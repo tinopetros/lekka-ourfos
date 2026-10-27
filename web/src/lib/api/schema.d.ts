@@ -300,6 +300,8 @@ export interface components {
       key: string;
       /** Title */
       title: string;
+      /** Tracks Status */
+      tracks_status: boolean;
     };
     /** HTTPValidationError */
     HTTPValidationError: {

@@ -13,7 +13,7 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "types": "openapi-typescript ../.build/openapi.json -o src/lib/api/schema.d.ts && prettier --write src/lib/api/schema.d.ts"
+    "types": "openapi-typescript ../.build/openapi.json -o src/lib/api/schema.d.ts && prettier --write src/lib/api/schema.d.ts src/lib/api/forms.json"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
