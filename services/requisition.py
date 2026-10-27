@@ -37,4 +37,4 @@ class RequisitionForm(BaseModel):
 
 
 class Requisition(RequisitionForm, Submission):
-    pass
+    """A requisition as stored: what the form asks, and who sent it when. Nothing of its own."""

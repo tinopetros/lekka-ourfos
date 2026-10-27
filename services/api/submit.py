@@ -30,8 +30,16 @@ def counts_up() -> bool:
 
 
 def first(numbers: list[int], up: bool) -> int:
-    """Where a form's count starts, when it has none: past the furthest number it has, on its side of zero."""
+    """Past the furthest number a form has, on its side of zero."""
     return max([0, *numbers]) + 1 if up else min([0, *numbers]) - 1
+
+
+def seed(tx, collection, up: bool) -> int:
+    """A form's first number from ourfos, when it has no counter yet: one past the highest it has on prod, carrying on
+    from its Google Form's, or below the lowest elsewhere. No seeding script."""
+    direction = Query.DESCENDING if up else Query.ASCENDING
+    last = collection.order_by("response_number", direction=direction).limit(1).get(transaction=tx)
+    return first([d.to_dict()["response_number"] for d in last], up)
 
 
 def record(tx, form: str, id: str, answers: BaseModel, user: str, test: bool) -> dict:
@@ -46,12 +54,7 @@ def record(tx, form: str, id: str, answers: BaseModel, user: str, test: bool) ->
             raise HTTPException(409, f"{id} is someone else's")
         return doc
     count = counter.get(transaction=tx).to_dict()
-    if count:
-        number = count["next"]
-    else:
-        direction = Query.DESCENDING if up else Query.ASCENDING
-        last = collection.order_by("response_number", direction=direction).limit(1).get(transaction=tx)
-        number = first([d.to_dict()["response_number"] for d in last], up)
+    number = count["next"] if count else seed(tx, collection, up)
 
     now = datetime.now(UTC)
     identity = {"response_number": number, "response_id": id, "submitted_by": user, "submitted_at": now}
