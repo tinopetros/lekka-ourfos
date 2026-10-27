@@ -164,3 +164,11 @@ test('Save draft saves what changed, without leaving a question', async () => {
   });
   expect(await screen.findByText('draft')).toBeInTheDocument();
 });
+
+test('a form you give up on asks first if you typed anything, and saves nothing', async () => {
+  const sent = open(['forms:vehicle_log:submit'], ok);
+  fireEvent.change(screen.getByLabelText(/^Purpose/), { target: { value: 'Client visit' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+  expect(await screen.findByText('Discard this vehicle log?')).toBeInTheDocument();
+  expect(sent.saves).toHaveLength(0);
+});

@@ -20,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { FieldGroup } from '@/components/ui/field';
 import { Label } from '@/components/ui/label';
@@ -115,6 +114,7 @@ export function SubmissionForm({
   // A draft until it's submitted: one there already, or one made by the first save
   const [isDraft, setIsDraft] = useState(Boolean(draft));
   const [saved, setSaved] = useState<'idle' | 'saving' | 'saved' | 'failed'>(draft ? 'saved' : 'idle');
+  const [confirming, setConfirming] = useState(false);
 
   const resolver = useMemo<Resolver<Values>>(() => {
     const check = zodResolver(validator(form) as never, { error: message } as never) as unknown as Resolver<Values>;
@@ -192,6 +192,12 @@ export function SubmissionForm({
   if (!fs.length) return <p className="p-6 text-muted-foreground">There's no form {form}</p>;
   const list = spec?.title ?? form;
   const noun = list.toLowerCase().replace(/s$/, '');
+
+  // Giving up on it: back to the list, saving nothing more on the way out
+  const leave = () => {
+    submitted.current = true;
+    void navigate(`/forms/${form}`, { replace: true });
+  };
 
   const onValid = (answers: Values) => {
     submitted.current = true;
@@ -307,38 +313,50 @@ export function SubmissionForm({
               <span />
             )}
             <div className="flex items-center gap-2">
-              {isDraft && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button type="button" variant="destructive">
+              <Dialog open={confirming} onOpenChange={setConfirming}>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  // The question you're on keeps its focus: leaving it would save a draft you're about to discard
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                  }}
+                  onClick={() => {
+                    // Nothing typed, nothing saved: there's nothing to lose, so no asking
+                    if (!isDraft && JSON.stringify({ values: getValues(), test }) === last.current) leave();
+                    else setConfirming(true);
+                  }}
+                >
+                  Discard
+                </Button>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Discard this {isDraft ? 'draft' : noun}?</DialogTitle>
+                    <DialogDescription>
+                      {isDraft ? 'Its answers and any files added to it go for good.' : "What you've typed goes."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Keep it</Button>
+                    </DialogClose>
+                    <Button
+                      variant="destructive"
+                      disabled={discard.isPending}
+                      onClick={() => {
+                        if (!isDraft) {
+                          leave();
+                          return;
+                        }
+                        submitted.current = true;
+                        discard.mutate(undefined, { onSuccess: leave });
+                      }}
+                    >
                       Discard
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Discard this draft?</DialogTitle>
-                      <DialogDescription>Its answers and any files added to it go for good.</DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Keep it</Button>
-                      </DialogClose>
-                      <Button
-                        variant="destructive"
-                        disabled={discard.isPending}
-                        onClick={() => {
-                          submitted.current = true;
-                          discard.mutate(undefined, {
-                            onSuccess: () => void navigate(`/forms/${form}`, { replace: true }),
-                          });
-                        }}
-                      >
-                        Discard
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Button
                 type="button"
                 variant="outline"
