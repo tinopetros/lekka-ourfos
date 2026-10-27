@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -71,6 +72,18 @@ function Saved({ state }: { state: 'idle' | 'saving' | 'saved' | 'failed' }) {
     >
       {text}
     </span>
+  );
+}
+
+// Amber, as drafts are everywhere: waiting on you, to submit or discard
+function DraftBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+    >
+      draft
+    </Badge>
   );
 }
 
@@ -148,6 +161,34 @@ export function SubmissionForm({
     [test, getValues, isDraft, save, navigate, form, id],
   );
 
+  // Leaving the page: what's in the question you're on, if it changed, is saved as the page goes. keepalive, so the
+  // browser sends it even after the tab's closed. Hidden, on a phone, it's saved the usual way: the page may not
+  // come back
+  useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') keep();
+    };
+    const leaving = () => {
+      if (submitted.current) return;
+      const values = getValues();
+      const now = JSON.stringify({ values, test });
+      if (now === last.current) return;
+      last.current = now;
+      void fetch(`/api/forms/${form}/submissions/${id}`, {
+        method: 'PUT',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values, test }),
+      });
+    };
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', leaving);
+    return () => {
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', leaving);
+    };
+  }, [keep, getValues, test, form, id]);
+
   if (!fs.length) return <p className="p-6 text-muted-foreground">There's no form {form}</p>;
   const list = spec?.title ?? form;
   const noun = list.toLowerCase().replace(/s$/, '');
@@ -195,7 +236,10 @@ export function SubmissionForm({
         </BreadcrumbList>
       </Breadcrumb>
       <div className="mb-6 flex items-baseline justify-between gap-4">
-        <h1 className="text-lg font-semibold">New {noun}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold">New {noun}</h1>
+          {isDraft && <DraftBadge />}
+        </div>
         <Saved state={saved} />
       </div>
       {!can(`forms:${form}:submit`) ? (
@@ -266,7 +310,7 @@ export function SubmissionForm({
               {isDraft && (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button type="button" variant="ghost">
+                    <Button type="button" variant="destructive">
                       Discard
                     </Button>
                   </DialogTrigger>
@@ -295,7 +339,16 @@ export function SubmissionForm({
                   </DialogContent>
                 </Dialog>
               )}
-              <Button type="submit" disabled={submit.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  keep();
+                }}
+              >
+                Save draft
+              </Button>
+              <Button type="submit" variant="success" disabled={submit.isPending}>
                 {submit.isPending ? 'Submitting…' : 'Submit'}
               </Button>
             </div>

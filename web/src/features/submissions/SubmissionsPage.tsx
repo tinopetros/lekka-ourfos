@@ -24,12 +24,13 @@ function YourDrafts({ form }: { form: string }) {
   const { data: drafts = [] } = useDrafts(form, can(`forms:${form}:submit`));
   if (!drafts.length) return null;
   return (
-    <div className="rounded-md border border-dashed p-3 text-sm">
-      <h2 className="mb-2 font-medium">Your drafts</h2>
+    // Amber: not wrong, but waiting on you, to submit or discard
+    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+      <h2 className="mb-2 font-medium text-amber-900 dark:text-amber-200">Your drafts</h2>
       <ul className="space-y-1">
         {drafts.map((d) => (
           <li key={d.id} className="flex items-center gap-2">
-            <FilePen className="size-4 shrink-0 text-muted-foreground" />
+            <FilePen className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
             <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
               {d.title ?? 'Untitled'}
             </Link>

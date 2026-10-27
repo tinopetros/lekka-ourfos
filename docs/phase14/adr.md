@@ -52,6 +52,8 @@
 
 - A draft is a submission with `status: draft`, its answers as typed in `draft`, and no `received_at`: lists order by `received_at`, and Firestore leaves out what lacks it, so drafts keep out of lists on their own
 - Saved when you leave a question you've changed, or pick a choice or a file: the whole draft each time, one record's saves in order (TanStack Query's mutation `scope`), so a slow save never overwrites a later one. "Saving…", "Draft saved" by the title. A new form's own prefilled answers aren't worth a draft
+- And on **Save draft**, and as the page goes: hidden, saved the usual way; closed, sent with `keepalive`, which the browser finishes after the tab's gone. Not as you type: a save a keystroke is too much
+- Actions are coloured by what they do: Submit green, Discard red, Save draft neither. Drafts are amber, waiting on you to submit or discard them
 - A draft takes anything, every field optional. The strict model is the submit's: you see what's wrong as you go, and it never stops a save
 - Only its author sees a draft, above the list as **Your drafts**, and may discard it, its files too. Anyone else gets a 404. The first list that depends on who's asking
 - Submitting is once: a transaction that turns the draft into a submission, numbers it and sets `received_at`, then starts the workflow. A save after that is refused

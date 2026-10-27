@@ -9,10 +9,10 @@ export function CreateButton({ form, noun, size = 'sm' }: { form: string; noun: 
   const can = useCan();
   if (!can(`forms:${form}:submit`)) return null;
   return (
-    <Tip label={`A new ${noun}`}>
+    <Tip label={`Start a new ${noun}`}>
       <Button variant="outline" size={size} asChild>
         <Link to={`/forms/${form}/new`}>
-          <Plus /> New
+          <Plus /> New {noun}
         </Link>
       </Button>
     </Tip>

@@ -154,3 +154,13 @@ test('a draft opened again, or reloaded, is its form with its answers', async ()
   expect(screen.getByDisplayValue('100')).toBeInTheDocument();
   expect(screen.getByText('Draft saved')).toBeInTheDocument();
 });
+
+test('Save draft saves what changed, without leaving a question', async () => {
+  const sent = open(['forms:vehicle_log:submit'], ok);
+  fireEvent.change(screen.getByLabelText(/^Purpose/), { target: { value: 'Client visit' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => {
+    expect(sent.saves).toHaveLength(1);
+  });
+  expect(await screen.findByText('draft')).toBeInTheDocument();
+});
