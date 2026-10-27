@@ -13,7 +13,7 @@ from html import escape
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
 from requisition import Files, Requisition, RequisitionForm
-from submission import Submission, kinds
+from submission import Submission, file_name, kinds
 
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
 # Where Lekkai stops on a requisition, so a deferral says it as the handover does
@@ -77,12 +77,13 @@ def day(d: date) -> str:
 
 
 def file_links(refs: list[str]) -> tuple[str, str]:
-    """File 1, File 2: Drive's linked. A gs:// file has nowhere to open yet (ADR 4), so it's named only."""
+    """File 1, File 2: Drive's linked. A gs:// file has nowhere to open yet (ADR 4), so it's named only: by its own
+    name, if it was added from our own form."""
     html, text = [], []
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            html.append(f"File {n}")
-            text.append(f"File {n}")
+            html.append(escape(file_name(ref, n)))
+            text.append(file_name(ref, n))
         else:
             url = f"https://drive.google.com/open?id={ref}"
             html.append(f'<a href="{escape(url)}">File {n}</a>')

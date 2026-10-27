@@ -241,3 +241,8 @@ def test_a_write_off_is_named_as_either_form_names_its_client():
     assert views.summary("write_off", "w", {"answers": {"client_full_name": "Ada Moyo"}}).title == "Ada Moyo"
     named = {"client_first_name": "Ada", "client_last_name": "Moyo"}
     assert views.summary("write_off", "w", {"answers": named}).title == "Ada Moyo"
+
+
+def test_a_file_added_from_our_own_form_is_named_as_it_was_picked():
+    refs = ["gs://b/write_off/w1/0a1b2c3d-bank-statement.pdf", "gs://b/r/receipts/0f", "drive-id"]
+    assert [f.name for f in views.files(refs)] == ["bank-statement.pdf", "File 2", "File 3"]
