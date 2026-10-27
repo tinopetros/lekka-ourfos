@@ -2,6 +2,8 @@ ENV ?= dev
 VALID_ENVS := dev prod
 PROJECT := ourfos-$(ENV)
 REGION := africa-south1
+# ourfos-api alone, for its domain (terraform/variables.tf, api_region)
+API_REGION := europe-west1
 TF_DIR := terraform
 FORM ?= requisition
 FIXTURE ?= happy
@@ -44,7 +46,7 @@ SUBMISSION ?=
 # The trigger's bearer token, read when used and never echoed
 TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --project $(PROJECT))
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
-API_URL = $$(gcloud run services describe ourfos-api --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
+API_URL = $$(gcloud run services describe ourfos-api --region $(API_REGION) --project $(PROJECT) --format 'value(status.url)')
 # What the UI says it's on: the commit, from Cloud Build's SHORT_SHA or git, so a bug report names its build
 VERSION ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 # make web: the API's port beside Vite's 5173, and who to be instead of your ADC account

@@ -1,5 +1,7 @@
 project_id = "ourfos-prod"
 region     = "africa-south1"
+api_region = "europe-west1"
+api_domain = "ourfos.lekkacredit.com"
 notify_to = {
   requisition = [
     "lekkai@lekkacredit.com",
