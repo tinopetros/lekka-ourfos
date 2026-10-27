@@ -7,6 +7,18 @@ variable "region" {
   type = string
 }
 
+# ourfos-api's region and domain. Cloud Run maps a domain in europe-west1 but not yet in africa-south1, and a load
+# balancer costs more than ourfos can spend: until then, only ourfos-api runs there (#41)
+variable "api_region" {
+  type = string
+}
+
+variable "api_domain" {
+  description = "Mapped to ourfos-api once verified in Search Console. None: only its run.app URL"
+  type        = string
+  default     = null
+}
+
 variable "services_image" {
   description = "Built by `make build`, tagged with a hash of services/"
   type        = string
