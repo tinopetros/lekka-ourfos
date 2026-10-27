@@ -82,11 +82,8 @@ def test_locally_who_you_are_is_acted_as_or_your_adc(monkeypatch):
     monkeypatch.setenv("AUTH", "local")
     monkeypatch.setenv("ACT_AS", "Someone@lekkacredit.com")
     monkeypatch.delenv("K_SERVICE", raising=False)
-    assert TestClient(app).get("/api/me").json() == {
-        "email": "someone@lekkacredit.com",
-        "environment": "local",
-        "version": "local",
-    }
+    me = TestClient(app).get("/api/me").json()
+    assert (me["email"], me["environment"], me["version"]) == ("someone@lekkacredit.com", "local", "local")
 
 
 def test_local_sign_in_is_refused_on_cloud_run(monkeypatch):

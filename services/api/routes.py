@@ -24,6 +24,7 @@ from .models import (
     SubmitRequest,
     Submitted,
 )
+from .permissions import allowed, granted, needs
 
 # Each route's operation named by its function: the generated TypeScript's names
 router = APIRouter(prefix="/api", generate_unique_id_function=lambda route: route.name)
@@ -57,6 +58,7 @@ def me(email: User) -> Me:
         email=email,
         environment=os.environ.get("ENVIRONMENT", "local"),
         version=os.environ.get("VERSION", "local"),
+        permissions=granted(email),
     )
 
 
@@ -66,7 +68,9 @@ def forms(_: User) -> list[FormInfo]:
 
 
 @router.get("/forms/{form}/submissions")
-def submissions(form: str, _: User, cursor: str | None = None, limit: Limit = 25) -> SubmissionPage:
+def submissions(
+    form: str, _: Annotated[str, needs("forms:{form}:read")], cursor: str | None = None, limit: Limit = 25
+) -> SubmissionPage:
     known(form)
     collection = store.client().collection(FORMS[form].collection)
     docs, next = page(collection, "received_at", cursor, limit)
@@ -74,7 +78,7 @@ def submissions(form: str, _: User, cursor: str | None = None, limit: Limit = 25
 
 
 @router.get("/forms/{form}/submissions/{id}")
-def submission(form: str, id: str, _: User) -> Submission:
+def submission(form: str, id: str, _: Annotated[str, needs("forms:{form}:read")]) -> Submission:
     known(form)
     ref = store.client().collection(FORMS[form].collection).document(id)
     doc = ref.get()
@@ -91,24 +95,28 @@ def submission(form: str, id: str, _: User) -> Submission:
 
 
 @router.post("/forms/{form}/submissions/{id}/submit")
-def submit(form: str, id: str, body: SubmitRequest, user: User) -> Submitted:
+def submit(form: str, id: str, body: SubmitRequest, user: Annotated[str, needs("forms:{form}:submit")]) -> Submitted:
     """Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once"""
     known(form)
     if not ID.match(id):
         raise HTTPException(400, "Not an id we can store")
+    if body.test and not allowed(user, f"forms:{form}:test"):
+        raise HTTPException(403, f"You don't have forms:{form}:test")
     doc = submitting.submit(form, id, body.answers, body.test, user)
     return Submitted(id=id, response_number=doc["response_number"])
 
 
 @router.get("/journal_entries")
-def journal_entries(_: User, cursor: str | None = None, limit: Limit = 25) -> JournalEntryPage:
+def journal_entries(
+    _: Annotated[str, needs("journal_entries:read")], cursor: str | None = None, limit: Limit = 25
+) -> JournalEntryPage:
     collection = store.client().collection(JOURNAL)
     docs, next = page(collection, "recorded_at", cursor, limit)
     return JournalEntryPage(items=[views.journal_entry(d.id, d.to_dict()) for d in docs], next=next)
 
 
 @router.get("/journal_entries/{transaction_id}")
-def journal_entry(transaction_id: str, _: User) -> JournalEntry:
+def journal_entry(transaction_id: str, _: Annotated[str, needs("journal_entries:read")]) -> JournalEntry:
     doc = store.client().collection(JOURNAL).document(transaction_id).get()
     if not doc.exists:
         raise HTTPException(404, f"No journal entry {transaction_id}")
@@ -116,7 +124,7 @@ def journal_entry(transaction_id: str, _: User) -> JournalEntry:
 
 
 @router.get("/files", response_class=StreamingResponse, responses={200: {"content": {"application/octet-stream": {}}}})
-def file(ref: str, _: User):
+def file(ref: str, _: Annotated[str, needs("files:read")]):
     """A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
     Drive's own preview instead"""
     try:

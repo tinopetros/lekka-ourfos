@@ -16,6 +16,8 @@ class Me(Model):
     environment: Literal["local", "dev", "prod"]
     # The commit the image was built from, for bug reports
     version: str
+    # What you may do, from the policy: the UI offers only these, and the API checks either way
+    permissions: list[str]
 
 
 class FormInfo(Model):

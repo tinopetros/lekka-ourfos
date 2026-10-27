@@ -151,3 +151,10 @@ def test_what_doesnt_fit_the_form_is_refused_by_its_field(db, started):
 
 def test_an_id_firestore_cant_take_is_refused(db, started):
     assert post("a.b").status_code == 400
+
+
+def test_a_test_needs_its_permission(db, started, monkeypatch):
+    assert post(test=True).status_code == 403 and not started
+    monkeypatch.setenv("ACT_AS", "tpetros@lekkacredit.com")
+    assert post(test=True).status_code == 200
+    assert started[0][1]["test"] is True and db.docs[("vehicle_logs", "t1")]["test"] is True

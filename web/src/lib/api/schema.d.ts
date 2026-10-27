@@ -436,6 +436,8 @@ export interface components {
       environment: 'local' | 'dev' | 'prod';
       /** Version */
       version: string;
+      /** Permissions */
+      permissions: string[];
     };
     /**
      * Submission
