@@ -1,5 +1,5 @@
 # ourfos-api: what the UI reads, and the UI itself, behind IAP. Its own image, and its own account, which can read
-# the database and post nothing
+# the database and post nothing. In its own region, for its own domain: the rest of ourfos stays in var.region
 data "google_project" "this" {}
 
 locals {
@@ -9,7 +9,7 @@ locals {
 
 resource "google_cloud_run_v2_service" "api" {
   name                = "ourfos-api"
-  location            = var.region
+  location            = var.api_region
   deletion_protection = false
   # Anyone can reach it, and IAP turns away whoever it can't sign in, or who isn't in ui_access
   ingress     = "INGRESS_TRAFFIC_ALL"
@@ -35,11 +35,12 @@ resource "google_cloud_run_v2_service" "api" {
           ATTACHMENTS_BUCKET   = "${var.project_id}-attachments"
           ENVIRONMENT          = trimprefix(var.project_id, "ourfos-")
           VERSION              = var.build_version
+          # Where the workflows it starts run: the rest of ourfos's region, not its own
           REGION               = var.region
           # A submission's workflow posts to Mifos only where this environment does
           POST_TO_MIFOS = tostring(var.mifos.post)
           # What IAP's signed header must be for: this service, and no other
-          IAP_AUDIENCE = "/projects/${data.google_project.this.number}/locations/${var.region}/services/ourfos-api"
+          IAP_AUDIENCE = "/projects/${data.google_project.this.number}/locations/${var.api_region}/services/ourfos-api"
         }
         content {
           name  = env.key
@@ -52,7 +53,7 @@ resource "google_cloud_run_v2_service" "api" {
 
 resource "google_cloud_run_v2_service_iam_member" "iap_invokes_api" {
   name     = google_cloud_run_v2_service.api.name
-  location = var.region
+  location = var.api_region
   role     = "roles/run.invoker"
   member   = "serviceAccount:${local.iap_agent}"
 }
@@ -61,8 +62,23 @@ resource "google_cloud_run_v2_service_iam_member" "iap_invokes_api" {
 resource "google_iap_web_cloud_run_service_iam_member" "ui_access" {
   for_each = toset(var.ui_access)
 
-  location               = var.region
+  location               = var.api_region
   cloud_run_service_name = google_cloud_run_v2_service.api.name
   role                   = "roles/iap.httpsResourceAccessor"
   member                 = each.value
+}
+
+# The UI at its own address, with a certificate Google keeps. Needs the domain verified in Search Console with
+# ourfos-app-deployer@ourfos-prod as an owner, and a CNAME to ghs.googlehosted.com at the DNS provider (api_dns)
+resource "google_cloud_run_domain_mapping" "api" {
+  count = var.api_domain == null ? 0 : 1
+
+  location = var.api_region
+  name     = var.api_domain
+  metadata {
+    namespace = var.project_id
+  }
+  spec {
+    route_name = google_cloud_run_v2_service.api.name
+  }
 }
