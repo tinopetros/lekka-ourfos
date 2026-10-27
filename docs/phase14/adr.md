@@ -16,10 +16,11 @@
 
 ### 3. Strict types, from Pydantic to the form
 
-- Each form's model says what it takes: money, whole numbers, dates, choices, links, files. The text forms were all text since phase 10, strict only where the subject needs it; no longer
+- Each form's model says what it takes: amounts, whole numbers, dates, choices, links, files. The text forms were all text since phase 10, strict only where the subject needs it; no longer
 - Each field has a short **title**, and a **description** where it needs more: the long questions become descriptions, and keep their short titles. Both on the Pydantic field, which the emails, the record's page and the form all read
-- Pydantic → OpenAPI → zod, generated like the types: the form checks what the API will, and CI fails when they drift
-- The form is drawn from the schema: a field per kind (text, long text, money, number, date, choice, link, files), in the model's order. Adding a question is a backend change only. A form that needs more gets its own component
+- An amount is USD, at least 0, to 2 decimal places: a number, as a requisition's is today. Another currency is its own change
+- Pydantic → OpenAPI → zod, generated like the types: the form checks what the API will, and CI fails when they drift. TypeScript's types are gone at runtime; zod checks what's typed into the form, and react-hook-form shows its errors by each field
+- The form is drawn from the schema: a field per kind (text, long text, amount, number, date, choice, link, files), in the model's order. Adding a question is a backend change only. A form that needs more gets its own component
 - Old submissions keep their answers as they were: the view keeps every label they've had
 - Not taken: **a zod schema per form by hand**, a second definition to drift; **a form per page by hand**, for questions that are all one of a few kinds
 
@@ -35,7 +36,8 @@
 - Google Forms numbered them; nothing else does now. A counter per form, taken in the submit's transaction, so no two share a number
 - Prod counts up from the highest it holds. Dev counts down from -1: a dev submission in an inbox is plain to see
 - A draft has no number until it's submitted: it sends no emails
-- A form's counter is seeded when its Google Form closes. Before, the two would hand out the same numbers
+- `counters/{form}` in Firestore, `{next}`. Seeded by the first submit that finds none, in its transaction: one past prod's highest, -1 on dev. No script
+- So a form's Google Form closes before its first submission from the UI on prod. Before, the two would hand out the same numbers
 
 ### 6. One page, from new to the record
 
@@ -54,10 +56,10 @@
 
 ### 8. Uploads through the API
 
-- A file goes to the API as it's picked, which writes it to the attachments bucket under its submission's id. Behind IAP, like reading them back (phase 13 ADR 14)
+- A file is uploaded as soon as it's picked, not on submit: the browser sends it to the API, which writes it to the attachments bucket under its submission's id and returns its `gs://` ref, saved into the draft. The browser never talks to GCS: the API does, behind IAP, as it does reading them back (phase 13 ADR 14)
 - A draft's files stay until it's discarded; a lifecycle rule clears an old draft's
 - The cost: a file through Cloud Run, 32 MB at most. Photos and PDFs are well under
-- Not taken: **signed URLs**, phase 13 ADR 11's plan. A link that writes for anyone holding it, and the API's account able to sign as itself
+- Not taken: **signed URLs**, phase 13 ADR 11's plan. The browser writes to GCS itself, through a link the API signs. A link that writes for anyone holding it, and the API's account able to sign as itself
 
 ### 9. Permissions start here, for test submissions
 
@@ -67,12 +69,7 @@
 - A test submission is as a test from a Google Form's link: no posting, and marked in its emails and the UI
 - Not taken, yet: **editing the policy in the UI**. It moves to Firestore then, with every change recorded, and loses a PR's review
 
-### 10. Posting to Mifos is the environment's
-
-- The API starts each workflow with `mifos` from its own setting, `post_to_mifos` in each env's tfvars: off on prod until corrections are made from the UI, as a Google Form's link has it today
-- Not taken: **asking per submission**. Not the submitter's to choose
-
-### 11. What comes after
+### 10. What comes after
 
 - Multi-page forms, and forms in a modal
 - Each form's status in ourfos, and actions on it: approving a loan, a write-off

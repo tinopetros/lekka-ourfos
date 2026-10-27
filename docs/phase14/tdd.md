@@ -19,7 +19,7 @@ One PR, a commit per step.
    - `POST /api/forms/{form}/submissions/{id}/submit`: the strict model, then one transaction: `received_at`, the response number from `counters/{form}`, `source: ourfos`, `submitted_by`. Then the workflow, with the argument the trigger gives it
    - The workflows save a submission that exists already, a draft's, as they do a new one
    - `ourfos-api@` starts the four workflows. `post_to_mifos` in each env's tfvars (ADR 10)
-   - Counters seeded: prod's from its highest number, dev's at -1
+   - `counters/{form}`, seeded by the first submit that finds none
 3. **Permissions** (ADR 9)
    - Every route declares its permission; a policy in code grants them. `forms:{form}:submit` to everyone, `forms:{form}:test` to those named
    - `/me` lists yours
@@ -43,7 +43,9 @@ One PR, a commit per step.
 
 Titles first; a description after, where there is one. Required ones marked *.
 
-**Requisition**: Payable to\*, Amount\* (money), Disbursed on (date), Reference number ("The number on the paper requisition, if it has one"), Comment, Signed requisition form, Receipts, Invoices (files)
+Amounts are USD, to 2 decimal places.
+
+**Requisition**: Payable to\*, Amount\*, Disbursed on (date), Reference number ("The number on the paper requisition, if it has one"), Comment, Signed requisition form, Receipts, Invoices (files)
 
 **Vehicle log**
 - Vehicle\* (a choice, the Google Form's list)
@@ -58,18 +60,19 @@ Titles first; a description after, where there is one. Required ones marked *.
 - Applicant's first name\*, last name\*, other names
 - Character: "What's your assessment of the client's character?"
 - Purpose: "What is the facility for?"
-- Loan amount (money), Tenure (months), Monthly repayment (money)
+- Loan amount, Tenure (months), Monthly repayment (worked out by ourfos later: #39)
 - Ability to repay: "Include cover ratio, salary, profit details, etc."
 - Borrowing status: "Other loans, with us or elsewhere: tenor, amount, disbursement date, etc."
 - Security vetted (yes or no): "Has the security been vetted, and does it meet the assessment guidelines?"
 - Referred by
 - Recommendation (approve or decline): "Yours, personally"
 - Overall assessment: "Anything else the approvers should know?"
-- Client folder (a link)
+- Client folder (a Drive folder's link): "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link", with a picture of where, on hover. The picture is redrawn without clients' names. Client folders in ourfos later: #40
 
 **Write-off**
-- Client's full name\*, Client number, Loan account number
-- Original principal, Total recovered, Current balance (money)
+- Client's first name\*, last name\*, other names, as a loan approval's
+- Client number, Loan account number
+- Original principal, Total recovered, Current balance (amounts)
 - Loan term (months), Outstanding instalments (a whole number)
 - Reason
 - Justification: "Why should it be written off?"
@@ -83,6 +86,12 @@ Titles first; a description after, where there is one. Required ones marked *.
 
 - The API: submit numbers once and starts once, a draft's save after submitting is refused, someone else's draft is refused, test needs its permission, uploads only under their submission
 - The UI: a form drawn from a schema, errors by the field, saves on leaving a field and in order, the URL becoming the record's
+
+## Smoke
+
+- Unchanged this phase: the trigger, with `?test=true`, starts real workflows on dev
+- Once the Google Forms close, smoke submits through the API instead, the path people use: a test submission, as a smoke account the policy lets submit tests. It waits on a build signing in to IAP (phase 13); until then, smoke starts the workflows directly
+- Unit tests stay as they are, against fakes. Smoke checks the deployed whole
 
 ## Bootstrapped, once
 
