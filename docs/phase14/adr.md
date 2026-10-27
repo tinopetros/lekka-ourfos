@@ -1,0 +1,79 @@
+# Phase 14: decisions and shortcuts
+
+### 1. Our own forms, and Google Forms retired
+
+- Every form is submitted from the UI. Each Google Form closes once its UI form has launched well, then the trigger goes
+- One path in: the API saves the submission, then starts the workflow the trigger would, with the same argument
+- `source` on each submission: `ourfos` or `google-form`. `submitted_by` is who's signed in, never the request body
+- The cost: the risk sits with us. Google Forms took the uploads, the validation and the numbering, and never went down. Running both a while is the fallback, one form at a time
+- Not taken: **keeping Google Forms beside ours**. Two ways in, two sets of rules, and response numbers that collide (ADR 5)
+
+### 2. Only requisitions show a status
+
+- Every other form shows a grey **Received**: all ourfos knows of it. Where it stands happens in its email thread
+- Display only. Firestore keeps `status`, the intake run's own (`done`: acknowledged; `handed_over`: not), which is true of the run, not of the request
+- Requisitions keep theirs, a reminder that each form's status belongs in ourfos. A form's badge comes back when ourfos tracks where it stands
+
+### 3. Strict types, from Pydantic to the form
+
+- Each form's model says what it takes: money, whole numbers, dates, choices, links, files. The text forms were all text since phase 10, strict only where the subject needs it; no longer
+- Each field has a short **title**, and a **description** where it needs more: the long questions become descriptions, and keep their short titles. Both on the Pydantic field, which the emails, the record's page and the form all read
+- Pydantic → OpenAPI → zod, generated like the types: the form checks what the API will, and CI fails when they drift
+- The form is drawn from the schema: a field per kind (text, long text, money, number, date, choice, link, files), in the model's order. Adding a question is a backend change only. A form that needs more gets its own component
+- Old submissions keep their answers as they were: the view keeps every label they've had
+- Not taken: **a zod schema per form by hand**, a second definition to drift; **a form per page by hand**, for questions that are all one of a few kinds
+
+### 4. The vehicle log, as short as a requisition
+
+- Vehicle, date, purpose, odometer at the start and the end, their photos, the vehicle's photos, and a comment
+- Driver is who's signed in. A trip is one day. Distance is worked out
+- Fuel readings, refuelling, repairs, issues and other drivers go in the comment, and its description says so. Fuel and repairs that cost money are requisitions
+- From 21 questions to 8
+
+### 5. ourfos numbers its submissions, when they're submitted
+
+- Google Forms numbered them; nothing else does now. A counter per form, taken in the submit's transaction, so no two share a number
+- Prod counts up from the highest it holds. Dev counts down from -1: a dev submission in an inbox is plain to see
+- A draft has no number until it's submitted: it sends no emails
+- A form's counter is seeded when its Google Form closes. Before, the two would hand out the same numbers
+
+### 6. One page, from new to the record
+
+- `/forms/{form}/new` mints the submission's id in the browser. The first save makes it `/forms/{form}/{id}`: the same page, now the record's, a draft or submitted
+- An id from the browser makes every save safe to retry: a double click or a flaky connection never makes two. It's what an offline queue needs (#30)
+- Single page forms for now. Steps, or a form in a modal, later
+
+### 7. Drafts, saved as you go
+
+- A draft is a submission with `status: draft` and no `received_at`: lists order by `received_at`, and Firestore leaves out what lacks it, so drafts keep out of lists on their own
+- Saved when you leave a field you've changed: the whole draft each time, one record's saves in order (TanStack Query's mutation `scope`), so a slow save never overwrites a later one. "Saving…", "Saved" by the button
+- A draft takes anything, every field optional. The strict model is the submit's: you see what's wrong as you go, and it never stops a save
+- Only its author sees a draft, above the list as **Your drafts**, and may discard it. The first list that depends on who's asking
+- Submitting is once: a transaction that turns the draft into a submission, numbers it and sets `received_at`, then starts the workflow. A save after that is refused
+- Not taken: **drafts in the browser only**. Cheap, but lost with the browser, and never the page that becomes the record
+
+### 8. Uploads through the API
+
+- A file goes to the API as it's picked, which writes it to the attachments bucket under its submission's id. Behind IAP, like reading them back (phase 13 ADR 14)
+- A draft's files stay until it's discarded; a lifecycle rule clears an old draft's
+- The cost: a file through Cloud Run, 32 MB at most. Photos and PDFs are well under
+- Not taken: **signed URLs**, phase 13 ADR 11's plan. A link that writes for anyone holding it, and the API's account able to sign as itself
+
+### 9. Permissions start here, for test submissions
+
+- Every route declares what it needs, e.g. `forms:requisition:submit`, granted to everyone. `forms:{form}:test` is granted only to whom the policy names
+- The policy is code in the repo: a permission to people, `user:…`, and to groups, `group:…`. Groups count once their members are synced from Workspace's directory (phase 15); people until then
+- `/me` lists your permissions: the UI offers **Test** only to those who have it. The API checks either way
+- A test submission is as a test from a Google Form's link: no posting, and marked in its emails and the UI
+- Not taken, yet: **editing the policy in the UI**. It moves to Firestore then, with every change recorded, and loses a PR's review
+
+### 10. Posting to Mifos is the environment's
+
+- The API starts each workflow with `mifos` from its own setting, `post_to_mifos` in each env's tfvars: off on prod until corrections are made from the UI, as a Google Form's link has it today
+- Not taken: **asking per submission**. Not the submitter's to choose
+
+### 11. What comes after
+
+- Multi-page forms, and forms in a modal
+- Each form's status in ourfos, and actions on it: approving a loan, a write-off
+- Permissions by group, and editing them in the UI (phase 15)
