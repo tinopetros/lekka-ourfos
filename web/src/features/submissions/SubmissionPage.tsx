@@ -7,7 +7,7 @@ import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
 import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useForms } from '@/lib/api/queries';
+import { useCan, useForms } from '@/lib/api/queries';
 import type { Answer, Run, Submission } from '@/lib/api/types';
 import { money, when } from '@/lib/format';
 import { useNeighbours } from '@/lib/useNeighbours';
@@ -31,7 +31,10 @@ function AnswerValue({ answer }: { answer: Answer }) {
   return <>{answer.text}</>;
 }
 
+// A link to the entry's own page, for whoever may read the journal. Its lines show here either way
 function EntryLink({ id }: { id: string }) {
+  const can = useCan();
+  if (!can('journal_entries:read')) return <span className="font-mono text-xs">{id}</span>;
   return (
     <Link to={`/journal/${id}`} className="font-mono text-xs underline underline-offset-2">
       {id}

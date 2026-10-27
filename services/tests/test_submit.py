@@ -153,8 +153,8 @@ def test_an_id_firestore_cant_take_is_refused(db, started):
     assert post("a.b").status_code == 400
 
 
-def test_a_test_needs_its_permission(db, started, monkeypatch):
+def test_a_test_needs_its_permission(db, started, groups_of):
     assert post(test=True).status_code == 403 and not started
-    monkeypatch.setenv("ACT_AS", "tpetros@lekkacredit.com")
+    groups_of["driver@lekkacredit.com"] = {"tech@lekkacredit.com"}
     assert post(test=True).status_code == 200
     assert started[0][1]["test"] is True and db.docs[("vehicle_logs", "t1")]["test"] is True

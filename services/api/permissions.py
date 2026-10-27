@@ -2,8 +2,7 @@
 a PR and its review.
 
 A permission is `<what>:<action>`, a form's `forms:<form>:<action>`. A grant may use `*` for any part. Who is a
-`user:` (an email), a `domain:` (everyone at it) or a `group:` (a Workspace group's members). Groups count once
-their members are synced from Workspace's directory: until then a group grants no one.
+`user:` (an email), a `domain:` (everyone at it) or a `group:` (a Workspace group's members, nested groups' too).
 """
 
 from fnmatch import fnmatchcase
@@ -13,16 +12,19 @@ from fastapi import Depends, HTTPException, Request
 
 from forms import FORMS
 
+from . import groups
 from .auth import current_user
 
 EVERYONE = "domain:lekkacredit.com"
 
 POLICY: dict[str, list[str]] = {
+    # A submission's page shows what was posted for it, its own journal entries: forms:<form>:read is enough for that
     "forms:*:read": [EVERYONE],
     "forms:*:submit": [EVERYONE],
     # A test submission never posts, but it emails and numbers like any other: only for whoever is testing ourfos
-    "forms:*:test": ["user:tpetros@lekkacredit.com"],
-    "journal_entries:read": [EVERYONE],
+    "forms:*:test": ["group:tech@lekkacredit.com"],
+    # Every journal entry, whatever it was for
+    "journal_entries:read": ["group:directors@lekkacredit.com"],
     "files:read": [EVERYONE],
 }
 
@@ -40,7 +42,8 @@ def holds(email: str, who: str) -> bool:
         return email == name.lower()
     if kind == "domain":
         return email.endswith(f"@{name.lower()}")
-    # group: once memberships are synced
+    if kind == "group":
+        return name.lower() in groups.of(email)
     return False
 
 

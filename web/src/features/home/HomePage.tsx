@@ -2,7 +2,7 @@ import { ArrowRight, BookOpen, Car, ClipboardList, FileX, HandCoins, Search, typ
 import { Link } from 'react-router';
 import { CreateButton } from '@/components/CreateButton';
 import { Input } from '@/components/ui/input';
-import { useForms, useMe } from '@/lib/api/queries';
+import { useCan, useMe, useReadableForms } from '@/lib/api/queries';
 import { firstName } from '@/lib/greeting';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -27,7 +27,8 @@ function Card({ to, title, icon: Icon, noun }: { to: string; title: string; icon
 // Where everything starts: a greeting, a search, and a way into each list, or straight to creating one
 export function HomePage() {
   const { data: me } = useMe();
-  const { data: forms = [] } = useForms();
+  const forms = useReadableForms();
+  const can = useCan();
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-4">
       <h1 className="text-2xl font-semibold">Hi {me ? firstName(me.email) : ''}</h1>
@@ -43,26 +44,30 @@ export function HomePage() {
           <Input className="pl-8" placeholder="Search by #482, an ID, or a subject: coming soon" disabled />
         </div>
       </div>
-      <section className="space-y-3">
-        <h2 className="text-sm text-muted-foreground">Workflows</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {forms.map((f) => (
-            <Card
-              key={f.key}
-              to={`/forms/${f.key}`}
-              title={f.title}
-              icon={ICONS[f.key] ?? ClipboardList}
-              noun={f.title.toLowerCase().replace(/s$/, '')}
-            />
-          ))}
-        </div>
-      </section>
-      <section className="space-y-3">
-        <h2 className="text-sm text-muted-foreground">Accounts</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Card to="/journal" title="Journal entries" icon={BookOpen} />
-        </div>
-      </section>
+      {forms.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm text-muted-foreground">Workflows</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {forms.map((f) => (
+              <Card
+                key={f.key}
+                to={`/forms/${f.key}`}
+                title={f.title}
+                icon={ICONS[f.key] ?? ClipboardList}
+                noun={f.title.toLowerCase().replace(/s$/, '')}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      {can('journal_entries:read') && (
+        <section className="space-y-3">
+          <h2 className="text-sm text-muted-foreground">Accounts</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Card to="/journal" title="Journal entries" icon={BookOpen} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
