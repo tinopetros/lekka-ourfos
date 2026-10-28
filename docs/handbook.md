@@ -75,7 +75,7 @@ The trigger wants `Authorization: Bearer <token>`, from Secret Manager's `trigge
 
 Every email is ours, from `lekkai@`: the first on receipt, then replies in its thread. They go to the form's `notify_to` in `terraform/env/<env>.tfvars` and whoever submitted, in our domain only. A loan request's replies go to `directors@` and `lekkai@`. On dev that's `lekkai@`, and every fixture submits as `lekkai@`, so smoke never mails anyone else. A form the trigger can't clean still answers 400, and its run hands over. See [phase 9](phase9/tdd.md).
 
-`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@`, and whoever submitted if `test_to` lists them, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](release1/adr.md).
+`?test=true` beside `?workflow=`, on dev or prod, makes a real run that emails only `lekkai@` and whoever submitted it, with `[TEST]` subjects, and is stored with `test: true`: `make run TEST=1`. See [release 1 ADR 3](release1/adr.md).
 
 `make evals` runs ADK's own `adk eval` on expenser against 36 real requisitions, with `agents/expenser/.env`: `CASE=<eval_id>[,<eval_id>]` for some (`make eval-cases` lists them), `RUNS=3` to see its variance, `DETAIL=1` for ADK's tables. It ends with the cases that failed which metric. By hand only: a run of every case costs about 20 cents. See [phase 7](phase7/tdd.md).
 

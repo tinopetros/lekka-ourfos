@@ -27,5 +27,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - `true` or `false` only: anything else is a 400, as the cleaner guesses nothing
 - The token still guards the trigger, so only whoever holds it can make a run a test
 - Not `simulate`: that forces failures, on dev only. A test run fails only as a real one would
+
+**Closed** by phase 14 ADR 9: who may send a test is a permission now, so a test also tells its submitter, whoever they are. `test_to` is gone
 - **Revisit** with Mifos: a test run must never post. Until then `post` is a stub, and a test run goes through it like any other
   - **Closed** by [phase 11](../phase11/tdd.md): a test run never posts, and its last email says so

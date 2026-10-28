@@ -45,7 +45,6 @@ resource "google_cloud_run_v2_service" "services" {
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
           FORMS                     = jsonencode(local.forms)
-          TEST_TO                   = join(",", var.test_to)
           MIFOS_BASE_URL            = var.mifos.base_url
           MIFOS_TENANT_ID           = var.mifos.tenant_id
           MIFOS_OFFICE_ID           = tostring(var.mifos.office_id)

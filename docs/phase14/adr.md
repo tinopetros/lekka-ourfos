@@ -76,7 +76,7 @@
 - Groups come from Cloud Identity as you're seen, nested ones too, kept 5 minutes. `ourfos-api@` reads them as **Groups Reader**, an admin role assigned in the Admin console. Walked up a level at a time: the one call that finds nested groups is Enterprise only. A lookup that fails grants nothing, and is tried again in 30 seconds
 - Not taken: **syncing groups onto `users`** (phase 13 ADR 11). A job to run and a copy to go stale, for what a lookup a person every 5 minutes does
 - `/me` lists your permissions: the UI offers only what you may, **Test** and the journal among it, and a section with nothing left in it goes. The API checks either way
-- A test submission is as a test from a Google Form's link: no posting, and marked in its emails and the UI
+- A test submission is as a test from a Google Form's link: no posting, and marked in its emails and the UI. It tells lekkai@ and its submitter: the permission says who may send one, so `test_to` goes (release 1 ADR 3)
 - Not taken, yet: **editing the policy in the UI**. It moves to Firestore then, with every change recorded, and loses a PR's review
 
 ### 10. What comes after

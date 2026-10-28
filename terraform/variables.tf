@@ -56,12 +56,6 @@ variable "notify_to" {
   }
 }
 
-variable "test_to" {
-  description = "Who of the submitters a test run also emails, beside lekkai@ (docs/release1/adr.md 3)"
-  type        = list(string)
-  default     = []
-}
-
 variable "reply_to" {
   description = "Per form, only where replies shouldn't go to lekkai@ alone"
   type        = map(list(string))
