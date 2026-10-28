@@ -262,7 +262,11 @@ export function FormField({
             <div className="flex items-center gap-2">
               <FieldLabel htmlFor={id}>
                 {field.title}
-                {field.required && <span className="text-destructive">*</span>}
+                {field.required ? (
+                  <span className="text-destructive">*</span>
+                ) : (
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                )}
               </FieldLabel>
               {field.helpImage && <Help image={field.helpImage} title={field.title} />}
             </div>

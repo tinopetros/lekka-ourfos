@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
+import { Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -227,11 +229,20 @@ export function SubmissionForm({
   if (!fs.length) return <p className="p-6 text-muted-foreground">There's no form {form}</p>;
   const list = spec?.title ?? form;
   const noun = list.toLowerCase().replace(/s$/, '');
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+  const record = `/forms/${form}/${id}`;
 
-  // Giving up on it: back to the list, saving nothing more on the way out
-  const leave = () => {
+  // Done with it, one way or another: back to the list, saving nothing more on the way out, and a toast saying
+  // what happened, with a way back to it where there's something to go back to
+  const leave = (said?: string, open?: string) => {
     submitted.current = true;
     void navigate(`/forms/${form}`, { replace: true });
+    // Long enough to reach for its link
+    if (said)
+      toast.success(
+        said,
+        open ? { duration: 10_000, action: { label: 'View', onClick: () => void navigate(open) } } : undefined,
+      );
   };
 
   const onValid = (answers: Values) => {
@@ -239,9 +250,9 @@ export function SubmissionForm({
     submit.mutate(
       { answers, test },
       {
-        onSuccess: () => {
+        onSuccess: (done) => {
           onSubmitted?.();
-          void navigate(`/forms/${form}/${id}`, { replace: true });
+          leave(`${Noun} #${String(done.response_number)} submitted`, record);
         },
         onError: (error) => {
           submitted.current = false;
@@ -382,11 +393,15 @@ export function SubmissionForm({
                       disabled={discard.isPending}
                       onClick={() => {
                         if (!isDraft) {
-                          leave();
+                          leave(`${Noun} discarded`);
                           return;
                         }
                         submitted.current = true;
-                        discard.mutate(undefined, { onSuccess: leave });
+                        discard.mutate(undefined, {
+                          onSuccess: () => {
+                            leave(`${Noun} draft discarded`);
+                          },
+                        });
                       }}
                     >
                       {discard.isPending ? 'Discarding…' : 'Discard'}
@@ -399,12 +414,15 @@ export function SubmissionForm({
                 variant="outline"
                 // Saved, and back to the list: drafts wait there, in Your drafts
                 onClick={() => {
-                  keep(test, () => void navigate(`/forms/${form}`));
+                  keep(test, () => {
+                    leave(`${Noun} saved as a draft`, record);
+                  });
                 }}
               >
                 Save draft
               </Button>
               <Button type="submit" variant="success" disabled={submit.isPending}>
+                {submit.isPending && <Loader2 className="animate-spin" />}
                 {submit.isPending ? 'Submitting…' : 'Submit'}
               </Button>
             </div>

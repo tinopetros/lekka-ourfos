@@ -112,13 +112,13 @@ test("what's missing is said by its question, and nothing is sent", async () => 
   expect(sent).toHaveLength(0);
 });
 
-test('a filled-in form is sent as typed answers, and becomes its record', async () => {
+test('a filled-in form is sent as typed answers, and takes you back to the list', async () => {
   const sent = open(['forms:vehicle_log:submit'], ok);
   fill('Purpose', 'Client visit');
   fill('Odometer at start', '100');
   fill('Odometer at end', '140');
   fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
-  expect(await screen.findByText('The record')).toBeInTheDocument();
+  expect(await screen.findByText('The list')).toBeInTheDocument();
   expect(sent[0]).toMatchObject({
     answers: {
       vehicle: 'White Nissan Note | AGO8747',
