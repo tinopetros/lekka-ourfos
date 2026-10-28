@@ -15,7 +15,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Field, Values } from './schema';
+import { padded, type Field, type Values } from './schema';
 
 // Files, sent as they're picked, each listed by the name it was picked with, with a way to take it off again. On a
 // phone, the camera is one way in. The button stands in for the browser's own picker, which says "No file chosen"
@@ -214,6 +214,22 @@ export function FormField({
             break;
           case 'date':
             asked = <Input id={id} {...input} value={value} aria-invalid={invalid} type="date" />;
+            break;
+          case 'account':
+            // Padded as you leave it, so what's kept is what you see
+            asked = (
+              <Input
+                id={id}
+                {...input}
+                value={value}
+                aria-invalid={invalid}
+                inputMode="numeric"
+                onBlur={() => {
+                  if (value !== padded(value)) input.onChange(padded(value));
+                  input.onBlur();
+                }}
+              />
+            );
             break;
           case 'link':
             asked = <Input id={id} {...input} value={value} aria-invalid={invalid} type="url" inputMode="url" />;

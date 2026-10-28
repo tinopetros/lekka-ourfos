@@ -15,6 +15,17 @@ LOAN = {
     "monthly_repayment": 290,
     "recommendation": "Approve",
 }
+WRITE_OFF = {
+    "client_first_name": "Ada",
+    "client_last_name": "Moyo",
+    "client_number": "000123",
+    "loan_account_number": "000000456",
+    "original_principal": 600,
+    "loan_term": 12,
+    "total_recovered": 1110,
+    "current_balance": 212.52,
+    "justification": "No longer employed",
+}
 TRIP = {"vehicle": VEHICLES[0], "date": "2026-10-27", "purpose": "Client visit, Chitungwiza"}
 
 
@@ -95,3 +106,19 @@ def test_how_the_ui_asks_is_in_the_schema():
 def test_a_requisition_needs_its_signed_form():
     with pytest.raises(ValidationError, match="signed_requisition_form"):
         FORMS["requisition"].model(payable_to="Acme", amount=60, files={"receipts": ["gs://b/x.pdf"]})
+
+
+@pytest.mark.parametrize("typed, kept", [("428", "000000428"), (" 000000428 ", "000000428"), (428, "000000428")])
+def test_a_loan_account_number_is_padded_as_mifos_has_it(typed, kept):
+    answers = {**WRITE_OFF, "loan_account_number": typed}
+    assert FORMS["write_off"].model(**answers).loan_account_number == kept
+
+
+@pytest.mark.parametrize("typed", ["42a", "1234567890", ""])
+def test_a_loan_account_number_is_up_to_9_digits(typed):
+    with pytest.raises(ValidationError):
+        FORMS["write_off"].model(**{**WRITE_OFF, "loan_account_number": typed})
+
+
+def test_a_client_number_is_padded_too():
+    assert FORMS["write_off"].model(**{**WRITE_OFF, "client_number": "123"}).client_number == "000000123"

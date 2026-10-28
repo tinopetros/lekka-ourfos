@@ -8,7 +8,7 @@ import re
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, BeforeValidator, ConfigDict, Field
 
 # The form's response_id names the submission's document (docs/phase10/adr.md 3), so only what Firestore takes as an id
 ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
@@ -55,4 +55,22 @@ LongText = Annotated[str, Field(json_schema_extra={"kind": "long"})]
 # Drive ids, or gs:// refs into our attachments bucket
 FileRefs = Annotated[list[str], Field(json_schema_extra={"kind": "files"})]
 Months = Annotated[int, Field(ge=1)]
+
+
+def padded(value):
+    """Mifos's account numbers are 9 digits, zero padded: 428 is 000000428. What's typed is taken either way."""
+    if isinstance(value, int):
+        value = str(value)
+    if isinstance(value, str) and value.strip().isdigit() and len(value.strip()) <= 9:
+        return value.strip().zfill(9)
+    return value
+
+
+# The form pads it as you leave the question; the API, whatever's sent
+# With a validator before it, Pydantic leaves the pattern out of the schema: it's said again for the form
+AccountNumber = Annotated[
+    str,
+    BeforeValidator(padded),
+    Field(pattern=r"^\d{9}$", json_schema_extra={"kind": "account", "pattern": r"^\d{9}$"}),
+]
 DriveFolder = Annotated[str, Field(pattern=r"^https://drive\.google\.com/drive/(u/\d+/)?folders/[A-Za-z0-9_-]+")]

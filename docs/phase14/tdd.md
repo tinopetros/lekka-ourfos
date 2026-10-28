@@ -76,7 +76,7 @@ Amounts are USD, to 2 decimal places.
 
 **Write-off**
 - Client's first name\*, last name\*, other names, as a loan approval's
-- Client number\*: "As it is in Mifos"; Loan account number\*: "The loan's account number in Mifos"
+- Client number\*: "The client's account number in Mifos, e.g. 000000123"; Loan account number\*: "The loan's account number in Mifos, e.g. 000000428". Up to 9 digits, padded to Mifos's 9 as you leave the question
 - Original principal\*: "What was lent, before interest and fees"
 - Loan term\* (months)
 - Total recovered\*: "Everything received on the loan so far, interest and fees included"

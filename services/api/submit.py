@@ -25,16 +25,20 @@ SAID = {
     "too_short": "Add at least one file",
     "multiple_of": "To the cent: at most 2 decimal places",
     "literal_error": "Choose one of the options",
-    "string_pattern_mismatch": "That's not the link it asks for",
 }
+
+
+def said(err: dict) -> str:
+    """In the form's words, where it has them. A pattern's, by what it asks for: a link, or an account number."""
+    if err["type"] == "string_pattern_mismatch":
+        pattern = (err.get("ctx") or {}).get("pattern", "")
+        return "Up to 9 digits, e.g. 428 or 000000428" if "\\d{9}" in pattern else "That's not the link it asks for"
+    return SAID.get(err["type"], err["msg"].removeprefix("Value error, "))
 
 
 def problems(error: ValidationError) -> list[dict]:
     """Each problem by its field, for the form to show by it, in the form's own words where it has them."""
-    return [
-        {"loc": list(err["loc"]), "msg": SAID.get(err["type"], err["msg"].removeprefix("Value error, "))}
-        for err in error.errors()
-    ]
+    return [{"loc": list(err["loc"]), "msg": said(err)} for err in error.errors()]
 
 
 def check(form: str, answers: dict) -> BaseModel:

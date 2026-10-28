@@ -1,4 +1,4 @@
-import { blank, fields, message, toAnswers, validator } from './schema';
+import { blank, fields, message, padded, toAnswers, validator } from './schema';
 
 test("a form's questions come in its order, each as its kind asks it", () => {
   const fs = fields('vehicle_log');
@@ -46,4 +46,13 @@ test("what's wrong is said for whoever's filling it in", () => {
       ['amount', 'To the cent: at most 2 decimal places'],
     ]),
   );
+});
+
+test("an account number is padded as Mifos has it, and what can't be is said plainly", () => {
+  expect(padded('428')).toBe('000000428');
+  expect(padded(' 000000428 ')).toBe('000000428');
+  expect(padded('42a')).toBe('42a');
+  const result = validator('write_off').safeParse({ loan_account_number: '42a' }, { error: message });
+  const wrong = result.error?.issues.find((i) => i.path.join('.') === 'loan_account_number');
+  expect(wrong?.message).toBe('Up to 9 digits, e.g. 428 or 000000428');
 });

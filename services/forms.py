@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, create_model, field_validator
 
 from requisition import Requisition, RequisitionForm
-from submission import Amount, DriveFolder, FileRefs, LongText, Months, Submission
+from submission import AccountNumber, Amount, DriveFolder, FileRefs, LongText, Months, Submission
 
 
 @dataclass(frozen=True)
@@ -153,9 +153,11 @@ class WriteOffForm(BaseModel):
     client_first_name: str = Field(min_length=1, title="Client's first name")
     client_last_name: str = Field(min_length=1, title="Client's last name")
     client_other_names: str | None = Field(None, title="Client's other names")
-    client_number: str = Field(min_length=1, title="Client number", description="As it is in Mifos")
-    loan_account_number: str = Field(
-        min_length=1, title="Loan account number", description="The loan's account number in Mifos"
+    client_number: AccountNumber = Field(
+        title="Client number", description="The client's account number in Mifos, e.g. 000000123"
+    )
+    loan_account_number: AccountNumber = Field(
+        title="Loan account number", description="The loan's account number in Mifos, e.g. 000000428"
     )
     # In the order a request makes its case: what was lent, over how long, what's come back, what's left
     original_principal: Amount = Field(

@@ -4,7 +4,7 @@ import schemas from '@/lib/api/forms.json';
 // A form's questions, from the JSON Schema its Pydantic model makes (make types). The form is drawn from these, and
 // checked by zod made from the same schema: what the API will check, before it's sent
 
-export type Kind = 'text' | 'long' | 'amount' | 'integer' | 'date' | 'choice' | 'link' | 'files' | 'group';
+export type Kind = 'text' | 'long' | 'amount' | 'integer' | 'date' | 'choice' | 'link' | 'account' | 'files' | 'group';
 
 export interface Field {
   key: string;
@@ -52,7 +52,7 @@ function answered(prop: Schema): Schema {
 
 function kindOf(prop: Schema, inner: Schema): Kind {
   const kind = prop.kind ?? inner.kind;
-  if (kind === 'long' || kind === 'amount' || kind === 'files') return kind;
+  if (kind === 'long' || kind === 'amount' || kind === 'files' || kind === 'account') return kind;
   if (inner.properties) return 'group';
   if (inner.enum ?? inner.const) return 'choice';
   if (inner.format === 'date') return 'date';
@@ -113,6 +113,13 @@ export function blank(fs: Field[]): Values {
   );
 }
 
+/** Mifos's account numbers are 9 digits, zero padded: what's typed, 428, is 000000428. Anything else is left as it
+ * is, for the check to say what's wrong with it */
+export function padded(value: string): string {
+  const digits = value.trim();
+  return /^\d{1,9}$/.test(digits) ? digits.padStart(9, '0') : value;
+}
+
 /** What was typed, as the API takes it: numbers as numbers, and an answer left empty left out */
 export function toAnswers(fs: Field[], values: Values): Values {
   const answers: Values = {};
@@ -122,6 +129,7 @@ export function toAnswers(fs: Field[], values: Values): Values {
     else if (f.kind === 'files') answers[f.key] = value ?? [];
     else if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) continue;
     else if (f.kind === 'amount' || f.kind === 'integer') answers[f.key] = Number(value);
+    else if (f.kind === 'account' && typeof value === 'string') answers[f.key] = padded(value);
     else answers[f.key] = typeof value === 'string' ? value.trim() : value;
   }
   return answers;
@@ -144,7 +152,10 @@ export function message(issue: z.core.$ZodRawIssue): string | undefined {
     case 'invalid_value':
       return 'Choose one of the options';
     case 'invalid_format':
-      return issue.format === 'regex' ? "That's not the link it asks for" : 'Not a date';
+      if (issue.format !== 'regex') return 'Not a date';
+      return 'pattern' in issue && String(issue.pattern).includes('\\d{9}')
+        ? 'Up to 9 digits, e.g. 428 or 000000428'
+        : "That's not the link it asks for";
     case 'invalid_type':
       return issue.expected === 'number' || issue.expected === 'int' ? 'A number' : undefined;
     default:

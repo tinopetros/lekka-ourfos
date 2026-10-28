@@ -201,14 +201,16 @@
         "title": "Client's other names"
       },
       "client_number": {
-        "description": "As it is in Mifos",
-        "minLength": 1,
+        "description": "The client's account number in Mifos, e.g. 000000123",
+        "kind": "account",
+        "pattern": "^\\d{9}$",
         "title": "Client number",
         "type": "string"
       },
       "loan_account_number": {
-        "description": "The loan's account number in Mifos",
-        "minLength": 1,
+        "description": "The loan's account number in Mifos, e.g. 000000428",
+        "kind": "account",
+        "pattern": "^\\d{9}$",
         "title": "Loan account number",
         "type": "string"
       },
