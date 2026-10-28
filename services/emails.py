@@ -9,7 +9,7 @@ import re
 from datetime import date
 from functools import cache
 from html import escape
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
@@ -77,25 +77,18 @@ def day(d: date) -> str:
     return f"{d:%b} {d.day}, {d.year}"
 
 
-def file_links(refs: list[str]) -> tuple[str, str]:
-    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. Without the
-    UI's address, ours is named only"""
+def file_links(refs: list[str], form: str, id: str) -> tuple[str, str]:
+    """File 1, File 2, each linked: Drive's to Drive, ours to its submission's page in the UI, which opens it there,
+    behind its sign-in. Without the UI's address, ours is named only"""
     html, text = [], []
     ui = os.environ.get("UI_URL")
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            name = f"File {n}"
-            if ui:
-                url = f"{ui}/api/files?{urlencode({'ref': ref})}"
-                html.append(f'<a href="{escape(url)}">{escape(name)}</a>')
-                text.append(f"{name} {url}")
-            else:
-                html.append(escape(name))
-                text.append(name)
+            url = f"{ui}/forms/{form}/{quote(id)}?{urlencode({'file': ref.rsplit('/', 1)[-1]})}" if ui else None
         else:
             url = f"https://drive.google.com/open?id={ref}"
-            html.append(f'<a href="{escape(url)}">File {n}</a>')
-            text.append(f"File {n} {url}")
+        html.append(f'<a href="{escape(url)}">File {n}</a>' if url else f"File {n}")
+        text.append(f"File {n} {url}" if url else f"File {n}")
     return ", ".join(html), ", ".join(text)
 
 
@@ -144,7 +137,7 @@ def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
         if not value:
             continue
         if key in spec.files:
-            rows.append((label, *file_links(value)))
+            rows.append((label, *file_links(value, form, s.response_id)))
         elif URL.match(value):
             rows.append((label, f'<a href="{escape(value)}">{escape(value)}</a>', value))
         else:
@@ -165,7 +158,7 @@ def form_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
             continue
         kind = kinds(model)[key]
         if kind == "files":
-            rows.append((field.title, *file_links(value)))
+            rows.append((field.title, *file_links(value, form, s.response_id)))
         elif kind == "amount":
             rows.append((field.title, f"${money(value)}", f"${money(value)}"))
         elif isinstance(value, date):
@@ -191,7 +184,7 @@ def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
         rows.append((title("comment"), escape(r.comment), r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
-            rows.append((Files.label(field), *file_links(refs)))
+            rows.append((Files.label(field), *file_links(refs, "requisition", r.response_id)))
     return rows
 
 

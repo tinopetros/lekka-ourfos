@@ -100,7 +100,7 @@ def test_a_file_goes_under_its_draft_named_afresh_its_extension_kept(db, bucket)
         headers={"content-type": "application/pdf"},
     )
     ref = got.json()["ref"]
-    assert re.fullmatch(rf"gs://{BUCKET}/write_off/w1/[0-9a-f]{{32}}\.pdf", ref)
+    assert re.fullmatch(rf"gs://{BUCKET}/write_off/w1/[0-9a-f]{{8}}\.pdf", ref)
     # The first thing done on it makes the draft
     assert db.docs[("write_offs", "w1")]["status"] == "draft"
     assert list(bucket.values()) == [(b"%PDF", "application/pdf")]

@@ -22,10 +22,11 @@ function urls(file: File): { view: string; open: string } {
   return { view: ours, open: ours };
 }
 
-export function FileDialog({ file }: { file: File }) {
+/** A file, opened in a modal over the page. `open`: open as the page loads, as a link from an email asks */
+export function FileDialog({ file, open: atFirst = false }: { file: File; open?: boolean }) {
   const { view, open } = urls(file);
   return (
-    <Dialog>
+    <Dialog defaultOpen={atFirst}>
       <DialogTrigger className="inline-flex items-center gap-1 underline underline-offset-2">
         <FileText className="size-3.5" /> {file.name}
       </DialogTrigger>

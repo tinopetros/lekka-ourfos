@@ -66,7 +66,8 @@ def discard(form: str, id: str, user: str):
 
 
 def upload(form: str, id: str, name: str, data: bytes, content_type: str, user: str) -> str:
-    """A file for a draft, under the draft's own prefix, named afresh with its extension. The draft is made, if this
+    """A file for a draft, under the draft's own prefix, named afresh with its extension: 8 characters, unique within
+    its submission, keep a link to it short. The draft is made, if this
     is the first thing done on it."""
     if len(data) > MAX_FILE:
         raise HTTPException(413, "Files of up to 25 MB")
@@ -76,7 +77,7 @@ def upload(form: str, id: str, name: str, data: bytes, content_type: str, user: 
         save(form, id, {}, False, user)
     extension = match.group(0).lower() if (match := EXTENSION.search(name)) else ""
     return gcs.upload(
-        f"{prefix(form, id)}{uuid.uuid4().hex}{extension}", data, content_type or "application/octet-stream"
+        f"{prefix(form, id)}{uuid.uuid4().hex[:8]}{extension}", data, content_type or "application/octet-stream"
     )
 
 
