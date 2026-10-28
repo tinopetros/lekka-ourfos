@@ -26,6 +26,7 @@ import {
 import { FieldGroup } from '@/components/ui/field';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import type { KeepScroll } from '@/app/useScrollArea';
 import { ApiError, type Problem } from '@/lib/api/client';
 import { useCan, useForms } from '@/lib/api/queries';
 import { upload, useDiscard, useSaveDraft, useSubmit } from './api';
@@ -184,7 +185,10 @@ export function SubmissionForm({
             if (!isDraft) {
               setIsDraft(true);
               // The same page, now the draft's: a link to it opens it again
-              void navigate(`/forms/${form}/${id}`, { replace: true });
+              void navigate(`/forms/${form}/${id}`, {
+                replace: true,
+                state: { keepScroll: true } satisfies KeepScroll,
+              });
             }
             then?.();
           },
@@ -237,12 +241,7 @@ export function SubmissionForm({
   const leave = (said?: string, open?: string) => {
     submitted.current = true;
     void navigate(`/forms/${form}`, { replace: true });
-    // Long enough to reach for its link
-    if (said)
-      toast.success(
-        said,
-        open ? { duration: 10_000, action: { label: 'View', onClick: () => void navigate(open) } } : undefined,
-      );
+    if (said) toast.success(said, open ? { action: { label: 'View', onClick: () => void navigate(open) } } : undefined);
   };
 
   const onValid = (answers: Values) => {

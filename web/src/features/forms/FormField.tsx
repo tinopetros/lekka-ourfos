@@ -40,7 +40,8 @@ function Files({
       {(refs.length > 0 || sending.length > 0) && (
         <ul className="space-y-1 text-sm">
           {refs.map((ref, i) => (
-            <li key={ref} className="flex items-center gap-2">
+            // Shaded, each its own row: easy to count, and to see which one a ✕ takes off
+            <li key={ref} className="flex items-center gap-2 rounded-md bg-muted px-2.5 py-1.5">
               <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 truncate">{names[ref] ?? `File ${String(i + 1)}`}</span>
               <button
@@ -262,6 +263,14 @@ export function FormField({
             <div className="flex items-center gap-2">
               <FieldLabel htmlFor={id}>
                 {field.title}
+                {field.kind === 'files' && Array.isArray(input.value) && input.value.length > 0 && (
+                  <span
+                    className="rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums"
+                    aria-label={`${String(input.value.length)} added`}
+                  >
+                    {input.value.length}
+                  </span>
+                )}
                 {field.required ? (
                   <span className="text-destructive">*</span>
                 ) : (

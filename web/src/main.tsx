@@ -41,7 +41,9 @@ createRoot(root).render(
       <TooltipProvider delayDuration={300}>
         <RouterProvider router={router} />
       </TooltipProvider>
-      <Toaster richColors />
+      {/* Top right, below the header, so it covers neither the banner nor who you are; long enough to read and
+          reach for its link, and closed any time */}
+      <Toaster richColors position="top-right" offset={{ top: '4.5rem' }} duration={15_000} closeButton />
       <Suspense>
         <Devtools />
       </Suspense>
