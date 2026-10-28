@@ -387,7 +387,7 @@ export function SubmissionForm({
                         discard.mutate(undefined, { onSuccess: leave });
                       }}
                     >
-                      Discard
+                      {discard.isPending ? 'Discarding…' : 'Discard'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
