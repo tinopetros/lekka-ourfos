@@ -103,3 +103,14 @@ def test_a_test_needs_its_permission(db, started, groups_of):
     groups_of["driver@lekkacredit.com"] = {"tech@lekkacredit.com"}
     assert post(test=True).status_code == 200
     assert started[0][1]["test"] is True and db.docs[("vehicle_logs", "t1")]["test"] is True
+
+
+def test_on_prod_a_test_counts_down_on_its_own_and_a_real_one_carries_on_from_the_google_form(
+    db, started, monkeypatch, groups_of
+):
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    groups_of["driver@lekkacredit.com"] = {"tech@lekkacredit.com"}
+    db.docs[("vehicle_logs", "google")] = {"response_number": 630}
+    assert post("t1", test=True).json()["response_number"] == -1
+    assert post("t2", test=True).json()["response_number"] == -2
+    assert post("r1").json()["response_number"] == 631

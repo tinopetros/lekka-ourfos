@@ -63,6 +63,15 @@ def counts_up() -> bool:
     return os.environ.get("ENVIRONMENT") == "prod"
 
 
+def counter_of(form: str, test: bool, up: bool) -> tuple[str, bool]:
+    """Which count a submission takes its number from, and which way it goes. On prod a test has a count of its own,
+    below zero: it never takes a number a form's Google Form, still open while ours is tried, will also give out.
+    Elsewhere every number is below zero already, so tests and the rest share one count."""
+    if up and test:
+        return f"{form}-test", False
+    return form, up
+
+
 def first(numbers: list[int], up: bool) -> int:
     """Past the furthest number a form has, on its side of zero."""
     return max([0, *numbers]) + 1 if up else min([0, *numbers]) - 1
@@ -79,9 +88,10 @@ def seed(tx, collection, up: bool) -> int:
 def record(tx, form: str, id: str, answers: BaseModel, user: str, test: bool) -> dict:
     """The submission as stored: the one there already, if it was submitted, or a new one, numbered. Every read
     before any write, as a transaction must."""
-    spec, db, up = FORMS[form], store.client(), counts_up()
+    spec, db = FORMS[form], store.client()
+    name, up = counter_of(form, test, counts_up())
     collection = db.collection(spec.collection)
-    ref, counter = collection.document(id), db.collection(COUNTERS).document(form)
+    ref, counter = collection.document(id), db.collection(COUNTERS).document(name)
     doc = ref.get(transaction=tx).to_dict()
     if doc and doc.get("submitted_by") != user:
         raise HTTPException(409, f"{id} is someone else's")

@@ -39,7 +39,8 @@
 - Prod counts up from the highest it holds. Dev counts down from -1: a dev submission in an inbox is plain to see
 - A draft has no number until it's submitted: it sends no emails
 - `counters/{form}` in Firestore, `{next}`. Seeded by the first submit that finds none, in its transaction: one past prod's highest, -1 on dev. No script
-- So a form's Google Form closes before its first submission from the UI on prod. Before, the two would hand out the same numbers
+- On prod a test has a count of its own, `counters/{form}-test`, down from -1: a form can be tried on prod while its Google Form is still open, and never take a number that form will give out
+- So a form's Google Form closes before its first real submission from the UI on prod. Before, the two would hand out the same numbers. Reopened after, it would again: move ourfos's counter well ahead first
 
 ### 6. One page, from new to the record
 
