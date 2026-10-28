@@ -13,6 +13,18 @@ from tests.firestore import Db
 
 BUCKET = "ourfos-dev-attachments"
 URL = "/api/forms/write_off/submissions/w1"
+# A write-off with every answer it needs
+ANSWERS = {
+    "client_first_name": "Ada",
+    "client_last_name": "Moyo",
+    "client_number": "000123",
+    "loan_account_number": "000456",
+    "original_principal": 600,
+    "loan_term": 12,
+    "total_recovered": 1110,
+    "current_balance": 212.52,
+    "justification": "No longer employed: deductions stopped",
+}
 
 
 @pytest.fixture
@@ -84,8 +96,7 @@ def test_your_drafts_are_yours(db, monkeypatch):
 
 def test_a_draft_once_submitted_is_no_longer_one(db):
     client().put(URL, json={"values": {"client_first_name": "Ada"}})
-    answers = {"client_first_name": "Ada", "client_last_name": "Moyo"}
-    assert client().post(f"{URL}/submit", json={"answers": answers}).status_code == 200
+    assert client().post(f"{URL}/submit", json={"answers": ANSWERS}).status_code == 200
     doc = db.docs[("write_offs", "w1")]
     assert doc["status"] == "received" and "draft" not in doc and doc["response_number"] == -1
     assert client().put(URL, json={"values": {}}).status_code == 409
@@ -108,7 +119,7 @@ def test_a_file_goes_under_its_draft_named_afresh_its_extension_kept(db, bucket)
 
 def test_a_submission_names_only_its_own_files(db, bucket):
     ref = client().post(f"{URL}/files", params={"name": "a.pdf"}, content=b"x").json()["ref"]
-    answers = {"client_first_name": "Ada", "client_last_name": "Moyo"}
+    answers = ANSWERS
     stray = answers | {"supporting_documents": [f"gs://{BUCKET}/write_off/w9/x-a.pdf"]}
     got = client().post(f"{URL}/submit", json={"answers": stray})
     assert got.status_code == 422 and got.json()["detail"][0]["loc"] == ["supporting_documents"]
@@ -128,7 +139,7 @@ def test_a_draft_cant_be_a_test_without_its_permission(db):
 
 
 def test_a_draft_is_looked_over_as_its_saved_and_saved_whatever_it_finds(db):
-    answers = {"client_first_name": "Ada", "total_recovered": 12.345}
+    answers = {k: v for k, v in ANSWERS.items() if k != "client_last_name"} | {"total_recovered": 12.345}
     got = client().put(
         URL, json={"values": {"client_first_name": "Ada", "total_recovered": "12.345"}, "answers": answers}
     )

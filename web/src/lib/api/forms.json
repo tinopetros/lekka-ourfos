@@ -201,57 +201,71 @@
         "title": "Client's other names"
       },
       "client_number": {
-        "anyOf": [{ "type": "string" }, { "type": "null" }],
-        "default": null,
-        "title": "Client number"
+        "description": "As it is in Mifos",
+        "minLength": 1,
+        "title": "Client number",
+        "type": "string"
       },
       "loan_account_number": {
-        "anyOf": [{ "type": "string" }, { "type": "null" }],
-        "default": null,
-        "title": "Loan account number"
+        "description": "The loan's account number in Mifos",
+        "minLength": 1,
+        "title": "Loan account number",
+        "type": "string"
       },
       "original_principal": {
-        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
-        "default": null,
-        "title": "Original principal"
+        "description": "What was lent, before interest and fees",
+        "exclusiveMinimum": 0,
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Original principal",
+        "type": "number"
       },
+      "loan_term": { "description": "In months", "minimum": 1, "title": "Loan term", "type": "integer" },
       "total_recovered": {
-        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
-        "default": null,
-        "title": "Total recovered"
+        "description": "Everything received on the loan so far, interest and fees included",
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Total recovered",
+        "type": "number"
       },
       "current_balance": {
-        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
-        "default": null,
-        "title": "Current balance"
+        "description": "What's still owed: the amount to be written off",
+        "exclusiveMinimum": 0,
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Current balance",
+        "type": "number"
       },
-      "loan_term": {
-        "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
-        "default": null,
-        "description": "In months",
-        "title": "Loan term"
-      },
-      "outstanding_instalments": {
-        "anyOf": [{ "minimum": 0, "type": "integer" }, { "type": "null" }],
-        "default": null,
-        "title": "Outstanding instalments"
-      },
-      "reason": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "title": "Reason" },
       "justification": {
-        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
-        "default": null,
-        "description": "Why should it be written off?",
-        "title": "Justification"
+        "description": "What changed for the client, and why the rest can't be recovered",
+        "kind": "long",
+        "minLength": 1,
+        "title": "Justification",
+        "type": "string"
       },
       "supporting_documents": {
         "default": [],
+        "description": "Mifos screenshots, statements, letters: anything that backs it up",
         "items": { "type": "string" },
         "kind": "files",
         "title": "Supporting documents",
         "type": "array"
       }
     },
-    "required": ["client_first_name", "client_last_name"],
+    "required": [
+      "client_first_name",
+      "client_last_name",
+      "client_number",
+      "loan_account_number",
+      "original_principal",
+      "loan_term",
+      "total_recovered",
+      "current_balance",
+      "justification"
+    ],
     "title": "Write-off",
     "type": "object"
   }

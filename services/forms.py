@@ -153,16 +153,31 @@ class WriteOffForm(BaseModel):
     client_first_name: str = Field(min_length=1, title="Client's first name")
     client_last_name: str = Field(min_length=1, title="Client's last name")
     client_other_names: str | None = Field(None, title="Client's other names")
-    client_number: str | None = Field(None, title="Client number")
-    loan_account_number: str | None = Field(None, title="Loan account number")
-    original_principal: Amount | None = Field(None, title="Original principal")
-    total_recovered: Amount | None = Field(None, title="Total recovered")
-    current_balance: Amount | None = Field(None, title="Current balance")
-    loan_term: Months | None = Field(None, title="Loan term", description="In months")
-    outstanding_instalments: int | None = Field(None, ge=0, title="Outstanding instalments")
-    reason: str | None = Field(None, title="Reason")
-    justification: LongText | None = Field(None, title="Justification", description="Why should it be written off?")
-    supporting_documents: FileRefs = Field([], title="Supporting documents")
+    client_number: str = Field(min_length=1, title="Client number", description="As it is in Mifos")
+    loan_account_number: str = Field(
+        min_length=1, title="Loan account number", description="The loan's account number in Mifos"
+    )
+    # In the order a request makes its case: what was lent, over how long, what's come back, what's left
+    original_principal: Amount = Field(
+        gt=0, title="Original principal", description="What was lent, before interest and fees"
+    )
+    loan_term: Months = Field(title="Loan term", description="In months")
+    total_recovered: Amount = Field(
+        title="Total recovered", description="Everything received on the loan so far, interest and fees included"
+    )
+    current_balance: Amount = Field(
+        gt=0, title="Current balance", description="What's still owed: the amount to be written off"
+    )
+    justification: LongText = Field(
+        min_length=1,
+        title="Justification",
+        description="What changed for the client, and why the rest can't be recovered",
+    )
+    supporting_documents: FileRefs = Field(
+        [],
+        title="Supporting documents",
+        description="Mifos screenshots, statements, letters: anything that backs it up",
+    )
 
 
 # The Google Forms' questions

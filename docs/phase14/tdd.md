@@ -76,12 +76,13 @@ Amounts are USD, to 2 decimal places.
 
 **Write-off**
 - Client's first name\*, last name\*, other names, as a loan approval's
-- Client number, Loan account number
-- Original principal, Total recovered, Current balance (amounts)
-- Loan term (months), Outstanding instalments (a whole number)
-- Reason
-- Justification: "Why should it be written off?"
-- Supporting documents (files)
+- Client number\*: "As it is in Mifos"; Loan account number\*: "The loan's account number in Mifos"
+- Original principal\*: "What was lent, before interest and fees"
+- Loan term\* (months)
+- Total recovered\*: "Everything received on the loan so far, interest and fees included"
+- Current balance\*: "What's still owed: the amount to be written off"
+- Justification\*: "What changed for the client, and why the rest can't be recovered"
+- Supporting documents (files): "Mifos screenshots, statements, letters: anything that backs it up"
 
 ## Local
 

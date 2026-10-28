@@ -87,8 +87,8 @@ def test_a_loan_says_how_much_for_how_long_at_what_a_month_and_what_you_recommen
 
 def test_how_the_ui_asks_is_in_the_schema():
     props = FORMS["write_off"].model.model_json_schema()["properties"]
-    assert props["justification"]["anyOf"][0]["kind"] == "long"
-    assert props["original_principal"]["anyOf"][0]["kind"] == "amount"
+    assert props["justification"]["kind"] == "long"
+    assert props["original_principal"]["kind"] == "amount"
     assert props["supporting_documents"]["kind"] == "files"
 
 
