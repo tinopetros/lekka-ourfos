@@ -121,6 +121,9 @@ export function SubmissionForm({
   const [isDraft, setIsDraft] = useState(Boolean(draft));
   const [saved, setSaved] = useState<'idle' | 'saving' | 'saved' | 'failed'>(draft ? 'saved' : 'idle');
   const [confirming, setConfirming] = useState(false);
+  // The answers about to be submitted, while you're asked to confirm them
+  const [ready, setReady] = useState<Values | null>(null);
+  const summary = useRef<HTMLDivElement>(null);
 
   const resolver = useMemo<Resolver<Values>>(() => {
     const check = zodResolver(validator(form) as never, { error: message } as never) as unknown as Resolver<Values>;
@@ -245,10 +248,16 @@ export function SubmissionForm({
     if (said) toast.success(said, open ? { action: { label: 'View', onClick: () => void navigate(open) } } : undefined);
   };
 
+  // Checked and in order: asked once more before it goes
   const onValid = (answers: Values) => {
+    setReady(answers);
+  };
+
+  const send = () => {
+    if (!ready) return;
     submitted.current = true;
     submit.mutate(
-      { answers, test },
+      { answers: ready, test },
       {
         onSuccess: (done) => {
           onSubmitted?.();
@@ -256,6 +265,7 @@ export function SubmissionForm({
         },
         onError: (error) => {
           submitted.current = false;
+          setReady(null);
           // What only the API could check, like an odometer going backwards, by its field, or for the whole form
           if (!(error instanceof ApiError)) return;
           const known = new Set(names(fs));
@@ -266,7 +276,8 @@ export function SubmissionForm({
             if (known.has(name)) setError(name, { type: 'api', message: text }, { shouldFocus: i === 0 });
             else setError('root', { type: 'api', message: text });
           });
-          if (!error.problems.some((p) => known.has(p.loc.join('.')))) window.scrollTo({ top: 0, behavior: 'smooth' });
+          if (!error.problems.some((p) => known.has(p.loc.join('.'))))
+            summary.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         },
       },
     );
@@ -307,7 +318,7 @@ export function SubmissionForm({
           className="space-y-6"
         >
           {(wrong.length > 0 || whole) && formState.isSubmitted && (
-            <div role="alert" className="rounded-lg border border-destructive/50 p-4 text-sm">
+            <div ref={summary} role="alert" className="rounded-lg border border-destructive/50 p-4 text-sm">
               <p className="mb-2 font-medium text-destructive">Some answers need another look</p>
               <ul className="ml-4 list-disc space-y-1">
                 {whole && <li>{whole}</li>}
@@ -427,9 +438,35 @@ export function SubmissionForm({
                 Save draft
               </Button>
               <Button type="submit" variant="success" disabled={submit.isPending}>
-                {submit.isPending && <Loader2 className="animate-spin" />}
-                {submit.isPending ? 'Submitting…' : 'Submit'}
+                Submit
               </Button>
+              <Dialog
+                open={ready !== null}
+                onOpenChange={(open) => {
+                  if (!open && !submit.isPending) setReady(null);
+                }}
+              >
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Submit this {noun}?</DialogTitle>
+                    <DialogDescription>
+                      Once it's submitted it can't be changed here, and its emails go out.
+                      {test && ' As a test: never posted, and marked as a test in its emails.'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" disabled={submit.isPending}>
+                        Keep editing
+                      </Button>
+                    </DialogClose>
+                    <Button variant="success" disabled={submit.isPending} onClick={send}>
+                      {submit.isPending && <Loader2 className="animate-spin" />}
+                      {submit.isPending ? 'Submitting…' : 'Submit'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </form>

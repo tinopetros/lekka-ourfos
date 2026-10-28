@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { toast } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -82,6 +82,12 @@ function open(
 
 const ok = () => new Response(JSON.stringify({ id: 'x', response_number: -1 }), { status: 200 });
 
+// Submit, and confirm it in the dialog that asks
+async function submitAndConfirm() {
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit' }));
+}
+
 function fill(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(new RegExp(`^${label}`)), { target: { value } });
 }
@@ -118,7 +124,7 @@ test('a filled-in form is sent as typed answers, and takes you back to the list'
   fill('Purpose', 'Client visit');
   fill('Odometer at start', '100');
   fill('Odometer at end', '140');
-  fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+  await submitAndConfirm();
   expect(await screen.findByText('The list')).toBeInTheDocument();
   expect(sent[0]).toMatchObject({
     answers: {
@@ -138,7 +144,7 @@ test('what only the API can check comes back by its question', async () => {
   fill('Purpose', 'Client visit');
   fill('Odometer at start', '100');
   fill('Odometer at end', '140');
-  fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+  await submitAndConfirm();
   await waitFor(() => {
     expect(screen.getAllByText('Below the start').length).toBeGreaterThan(0);
   });
@@ -200,4 +206,19 @@ test('an untouched form saves nothing, and says so', async () => {
   expect(sent.saves).toHaveLength(0);
   expect(said).not.toHaveBeenCalled();
   expect(plain).toHaveBeenCalledWith("Nothing to save: an empty vehicle log isn't kept");
+});
+
+test('submitting asks once more, and keeping on editing sends nothing', async () => {
+  const sent = open(['forms:vehicle_log:submit'], ok);
+  fill('Purpose', 'Client visit');
+  fill('Odometer at start', '100');
+  fill('Odometer at end', '140');
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+  const asked = await screen.findByRole('dialog');
+  expect(asked).toHaveTextContent('Submit this vehicle log?');
+  fireEvent.click(within(asked).getByRole('button', { name: 'Keep editing' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  expect(sent).toHaveLength(0);
 });
