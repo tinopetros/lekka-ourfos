@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { toast } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { api } from '@/lib/api/client';
 import type { Submission } from '@/lib/api/types';
@@ -188,4 +189,15 @@ test('what the API finds as the draft saves shows on its question once you have 
   fireEvent.change(end, { target: { value: '1' } });
   fireEvent.blur(end);
   expect(await screen.findAllByText('Below the odometer at start')).not.toHaveLength(0);
+});
+
+test('an untouched form saves nothing, and says so', async () => {
+  const sent = open(['forms:vehicle_log:submit'], ok);
+  const said = vi.spyOn(toast, 'success');
+  const plain = vi.spyOn(toast, 'message');
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  expect(await screen.findByText('The list')).toBeInTheDocument();
+  expect(sent.saves).toHaveLength(0);
+  expect(said).not.toHaveBeenCalled();
+  expect(plain).toHaveBeenCalledWith("Nothing to save: an empty vehicle log isn't kept");
 });

@@ -166,12 +166,13 @@ export function SubmissionForm({
   );
 
   const keep = useCallback(
-    (nextTest = test, then?: () => void) => {
+    // then: told whether there's a draft to go back to. A new form that's still untouched is never saved
+    (nextTest = test, then?: (kept: boolean) => void) => {
       if (submitted.current) return;
       const values = snapshot();
       const now = JSON.stringify({ values, test: nextTest });
       if (now === last.current) {
-        then?.();
+        then?.(isDraft);
         return;
       }
       last.current = now;
@@ -190,7 +191,7 @@ export function SubmissionForm({
                 state: { keepScroll: true } satisfies KeepScroll,
               });
             }
-            then?.();
+            then?.(true);
           },
           onError: () => {
             setSaved('failed');
@@ -413,8 +414,13 @@ export function SubmissionForm({
                 variant="outline"
                 // Saved, and back to the list: drafts wait there, in Your drafts
                 onClick={() => {
-                  keep(test, () => {
-                    leave(`${Noun} saved as a draft`, record);
+                  keep(test, (kept) => {
+                    if (kept) {
+                      leave(`${Noun} saved as a draft`, record);
+                      return;
+                    }
+                    leave();
+                    toast.message(`Nothing to save: an empty ${noun} isn't kept`);
                   });
                 }}
               >
