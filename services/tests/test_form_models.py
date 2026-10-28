@@ -7,6 +7,14 @@ from forms import FORMS, VEHICLES
 from requisition import Requisition
 
 SIGNED = {"files": {"signed_requisition_form": ["gs://b/requisition/r/0a1b2c3d.pdf"]}}
+LOAN = {
+    "applicant_first_name": "Ada",
+    "applicant_last_name": "Moyo",
+    "loan_amount": 1500,
+    "tenure": 6,
+    "monthly_repayment": 290,
+    "recommendation": "Approve",
+}
 TRIP = {"vehicle": VEHICLES[0], "date": "2026-10-27", "purpose": "Client visit, Chitungwiza"}
 
 
@@ -53,7 +61,7 @@ def test_a_vehicle_is_one_of_ours():
     ],
 )
 def test_a_client_folder_is_a_drive_folders_link(link, ok):
-    names = {"applicant_first_name": "Ada", "applicant_last_name": "Moyo"}
+    names = LOAN
     if ok:
         assert FORMS["loan_approval"].model(**names, client_folder=link).client_folder == link
     else:
@@ -62,9 +70,19 @@ def test_a_client_folder_is_a_drive_folders_link(link, ok):
 
 
 def test_a_choice_is_one_of_its_options():
-    names = {"applicant_first_name": "Ada", "applicant_last_name": "Moyo"}
     with pytest.raises(ValidationError):
-        FORMS["loan_approval"].model(**names, recommendation="Maybe")
+        FORMS["loan_approval"].model(**LOAN | {"recommendation": "Maybe"})
+
+
+def test_a_loan_says_how_much_for_how_long_at_what_a_month_and_what_you_recommend():
+    with pytest.raises(ValidationError) as e:
+        FORMS["loan_approval"].model(applicant_first_name="Ada", applicant_last_name="Moyo")
+    assert {err["loc"][0] for err in e.value.errors()} == {
+        "loan_amount",
+        "tenure",
+        "monthly_repayment",
+        "recommendation",
+    }
 
 
 def test_how_the_ui_asks_is_in_the_schema():

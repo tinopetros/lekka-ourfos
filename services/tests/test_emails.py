@@ -328,6 +328,8 @@ def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
         applicant_last_name="Moyo",
         loan_amount=1500,
         tenure=6,
+        monthly_repayment=290,
+        recommendation="Approve",
         client_folder="https://drive.google.com/drive/folders/1AbC",
     )
     _, text = emails.acknowledgement("loan_approval", s)
@@ -337,6 +339,8 @@ def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
         "Applicant's last name: Moyo",
         "Loan amount: $1,500",
         "Tenure: 6",
+        "Monthly repayment: $290",
+        "Recommendation: Approve",
         "Client folder: https://drive.google.com/drive/folders/1AbC",
     ]
 

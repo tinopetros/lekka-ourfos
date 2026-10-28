@@ -121,20 +121,21 @@
         "title": "Purpose"
       },
       "loan_amount": {
-        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
-        "default": null,
-        "title": "Loan amount"
+        "exclusiveMinimum": 0,
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Loan amount",
+        "type": "number"
       },
-      "tenure": {
-        "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
-        "default": null,
-        "description": "In months",
-        "title": "Tenure"
-      },
+      "tenure": { "description": "In months", "minimum": 1, "title": "Tenure", "type": "integer" },
       "monthly_repayment": {
-        "anyOf": [{ "kind": "amount", "minimum": 0, "multipleOf": 0.01, "type": "number" }, { "type": "null" }],
-        "default": null,
-        "title": "Monthly repayment"
+        "exclusiveMinimum": 0,
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Monthly repayment",
+        "type": "number"
       },
       "ability_to_repay": {
         "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
@@ -149,23 +150,23 @@
         "title": "Borrowing status"
       },
       "security_vetted": {
-        "anyOf": [{ "enum": ["Yes", "No"], "type": "string" }, { "type": "null" }],
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
         "default": null,
         "description": "Has the security been vetted, and does it meet the assessment guidelines?",
         "title": "Security vetted"
-      },
-      "referred_by": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "title": "Referred by" },
-      "recommendation": {
-        "anyOf": [{ "enum": ["Approve", "Decline"], "type": "string" }, { "type": "null" }],
-        "default": null,
-        "description": "Yours, personally",
-        "title": "Recommendation"
       },
       "overall_assessment": {
         "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
         "default": null,
         "description": "Anything else the approvers should know?",
         "title": "Overall assessment"
+      },
+      "referred_by": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "title": "Referred by" },
+      "recommendation": {
+        "description": "Yours, personally",
+        "enum": ["Approve", "Decline"],
+        "title": "Recommendation",
+        "type": "string"
       },
       "client_folder": {
         "anyOf": [
@@ -178,7 +179,14 @@
         "title": "Client folder"
       }
     },
-    "required": ["applicant_first_name", "applicant_last_name"],
+    "required": [
+      "applicant_first_name",
+      "applicant_last_name",
+      "loan_amount",
+      "tenure",
+      "monthly_repayment",
+      "recommendation"
+    ],
     "title": "Loan approval",
     "type": "object"
   },

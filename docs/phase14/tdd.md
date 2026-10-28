@@ -65,13 +65,13 @@ Amounts are USD, to 2 decimal places.
 - Applicant's first name\*, last name\*, other names
 - Character: "What's your assessment of the client's character?"
 - Purpose: "What is the facility for?"
-- Loan amount, Tenure (months), Monthly repayment (worked out by ourfos later: #39)
+- Loan amount\*, Tenure\* (months), Monthly repayment\* (worked out by ourfos later: #39)
 - Ability to repay: "Include cover ratio, salary, profit details, etc."
 - Borrowing status: "Other loans, with us or elsewhere: tenor, amount, disbursement date, etc."
-- Security vetted (yes or no): "Has the security been vetted, and does it meet the assessment guidelines?"
-- Referred by
-- Recommendation (approve or decline): "Yours, personally"
+- Security vetted (long text): "Has the security been vetted, and does it meet the assessment guidelines?"
 - Overall assessment: "Anything else the approvers should know?"
+- Referred by
+- Recommendation\* (approve or decline): "Yours, personally"
 - Client folder (a Drive folder's link): "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link", with a picture of where, on hover. Client folders in ourfos later: #40
 
 **Write-off**

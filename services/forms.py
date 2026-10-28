@@ -118,9 +118,9 @@ class LoanApprovalForm(BaseModel):
         None, title="Character", description="What's your assessment of the client's character?"
     )
     purpose: LongText | None = Field(None, title="Purpose", description="What is the facility for?")
-    loan_amount: Amount | None = Field(None, title="Loan amount")
-    tenure: Months | None = Field(None, title="Tenure", description="In months")
-    monthly_repayment: Amount | None = Field(None, title="Monthly repayment")
+    loan_amount: Amount = Field(gt=0, title="Loan amount")
+    tenure: Months = Field(title="Tenure", description="In months")
+    monthly_repayment: Amount = Field(gt=0, title="Monthly repayment")
     ability_to_repay: LongText | None = Field(
         None, title="Ability to repay", description="Include cover ratio, salary, profit details, etc."
     )
@@ -129,18 +129,16 @@ class LoanApprovalForm(BaseModel):
         title="Borrowing status",
         description="Other loans, with us or elsewhere: tenor, amount, disbursement date, etc.",
     )
-    security_vetted: Literal["Yes", "No"] | None = Field(
+    security_vetted: LongText | None = Field(
         None,
         title="Security vetted",
         description="Has the security been vetted, and does it meet the assessment guidelines?",
     )
-    referred_by: str | None = Field(None, title="Referred by")
-    recommendation: Literal["Approve", "Decline"] | None = Field(
-        None, title="Recommendation", description="Yours, personally"
-    )
     overall_assessment: LongText | None = Field(
         None, title="Overall assessment", description="Anything else the approvers should know?"
     )
+    referred_by: str | None = Field(None, title="Referred by")
+    recommendation: Literal["Approve", "Decline"] = Field(title="Recommendation", description="Yours, personally")
     client_folder: DriveFolder | None = Field(
         None,
         title="Client folder",
