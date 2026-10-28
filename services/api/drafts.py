@@ -16,8 +16,8 @@ from integrations import gcs
 from submission import kinds
 
 DRAFT = "draft"
-# A file's name as stored: what's safe in a URL and a path, the rest made a dash
-UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
+# A file's extension, kept so it opens as what it is: its name isn't, picked names run long
+EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,8}$")
 MAX_FILE = 25 * 1024 * 1024
 
 
@@ -66,17 +66,17 @@ def discard(form: str, id: str, user: str):
 
 
 def upload(form: str, id: str, name: str, data: bytes, content_type: str, user: str) -> str:
-    """A file for a draft, under the draft's own prefix, its name kept readable after a short tag that keeps two
-    of the same name apart. The draft is made, if this is the first thing done on it."""
+    """A file for a draft, under the draft's own prefix, named afresh with its extension. The draft is made, if this
+    is the first thing done on it."""
     if len(data) > MAX_FILE:
         raise HTTPException(413, "Files of up to 25 MB")
     if not data:
         raise HTTPException(400, "An empty file")
     if mine(form, id, user) is None:
         save(form, id, {}, False, user)
-    safe = UNSAFE.sub("-", name).strip("-.")[:100] or "file"
+    extension = match.group(0).lower() if (match := EXTENSION.search(name)) else ""
     return gcs.upload(
-        f"{prefix(form, id)}{uuid.uuid4().hex[:8]}-{safe}", data, content_type or "application/octet-stream"
+        f"{prefix(form, id)}{uuid.uuid4().hex}{extension}", data, content_type or "application/octet-stream"
     )
 
 

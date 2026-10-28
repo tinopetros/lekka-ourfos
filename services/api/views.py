@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from common import log
 from forms import FORMS
 from requisition import Files, Requisition, RequisitionForm
-from submission import file_name, kinds
+from submission import kinds
 
 from .models import (
     Answer,
@@ -51,10 +51,9 @@ def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
 
 
 def files(refs: list[str]) -> list[File]:
-    """File 1, File 2, as the emails name them: Drive's by id, ours by gs:// ref. One added from our own form, by its
-    own name."""
+    """File 1, File 2, as the emails name them: Drive's by id, ours by gs:// ref."""
     return [
-        File(name=file_name(ref, n), ref=ref) if ref.startswith("gs://") else File(name=f"File {n}", drive_id=ref)
+        File(name=f"File {n}", ref=ref) if ref.startswith("gs://") else File(name=f"File {n}", drive_id=ref)
         for n, ref in enumerate(refs, 1)
     ]
 

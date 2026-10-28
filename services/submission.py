@@ -56,13 +56,3 @@ LongText = Annotated[str, Field(json_schema_extra={"kind": "long"})]
 FileRefs = Annotated[list[str], Field(json_schema_extra={"kind": "files"})]
 Months = Annotated[int, Field(ge=1)]
 DriveFolder = Annotated[str, Field(pattern=r"^https://drive\.google\.com/drive/(u/\d+/)?folders/[A-Za-z0-9_-]+")]
-
-
-# A file uploaded from our own form: its name as picked, after the tag that keeps two of the same name apart
-UPLOADED = re.compile(r"/[0-9a-f]{8}-([^/]+)$")
-
-
-def file_name(ref: str, n: int) -> str:
-    """What to call a file: its own name, if it was added from our own form; File 1, File 2 otherwise."""
-    uploaded = UPLOADED.search(ref)
-    return uploaded.group(1) if uploaded else f"File {n}"

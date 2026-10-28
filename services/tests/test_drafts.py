@@ -1,5 +1,7 @@
 """Drafts, against a store in memory: saved as they're filled in, only their author's, and submitted once."""
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -90,7 +92,7 @@ def test_a_draft_once_submitted_is_no_longer_one(db):
     assert client().delete(URL).status_code == 409
 
 
-def test_a_file_goes_under_its_draft_and_its_name_stays_readable(db, bucket):
+def test_a_file_goes_under_its_draft_named_afresh_its_extension_kept(db, bucket):
     got = client().post(
         f"{URL}/files",
         params={"name": "bank statement (1).pdf"},
@@ -98,7 +100,7 @@ def test_a_file_goes_under_its_draft_and_its_name_stays_readable(db, bucket):
         headers={"content-type": "application/pdf"},
     )
     ref = got.json()["ref"]
-    assert ref.startswith(f"gs://{BUCKET}/write_off/w1/") and ref.endswith("-bank-statement-1-.pdf")
+    assert re.fullmatch(rf"gs://{BUCKET}/write_off/w1/[0-9a-f]{{32}}\.pdf", ref)
     # The first thing done on it makes the draft
     assert db.docs[("write_offs", "w1")]["status"] == "draft"
     assert list(bucket.values()) == [(b"%PDF", "application/pdf")]

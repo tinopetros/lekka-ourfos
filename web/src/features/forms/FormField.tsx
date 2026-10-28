@@ -16,11 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import type { Field, Values } from './schema';
 
-// A file's name, as it was picked: its stored name has a short tag before it, to keep two of the same name apart
-function fileName(ref: string): string {
-  return (ref.split('/').pop() ?? ref).replace(/^[0-9a-f]{8}-/, '');
-}
-
 // Files, sent as they're picked, each listed with a way to take it off again. On a phone, the camera is one way in
 function Files({
   id,
@@ -38,13 +33,13 @@ function Files({
     <div className="space-y-2">
       {refs.length > 0 && (
         <ul className="space-y-1 text-sm">
-          {refs.map((ref) => (
+          {refs.map((ref, i) => (
             <li key={ref} className="flex items-center gap-2">
               <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{fileName(ref)}</span>
+              <span>File {i + 1}</span>
               <button
                 type="button"
-                aria-label={`Take off ${fileName(ref)}`}
+                aria-label={`Take off file ${String(i + 1)}`}
                 className="ml-auto text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   onChange(refs.filter((r) => r !== ref));
@@ -56,7 +51,7 @@ function Files({
           ))}
           {sending.map((name) => (
             <li key={name} className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> {name}
+              <Loader2 className="size-3.5 animate-spin" /> Sending…
             </li>
           ))}
         </ul>

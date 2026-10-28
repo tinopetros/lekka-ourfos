@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
 from requisition import Files, Requisition, RequisitionForm
-from submission import Submission, file_name, kinds
+from submission import Submission, kinds
 
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
 # Where Lekkai stops on a requisition, so a deferral says it as the handover does
@@ -78,13 +78,13 @@ def day(d: date) -> str:
 
 
 def file_links(refs: list[str]) -> tuple[str, str]:
-    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. Ours goes by
-    its own name, if it was added from our own form. Without the UI's address, ours is named only"""
+    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. Without the
+    UI's address, ours is named only"""
     html, text = [], []
     ui = os.environ.get("UI_URL")
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            name = file_name(ref, n)
+            name = f"File {n}"
             if ui:
                 url = f"{ui}/api/files?{urlencode({'ref': ref})}"
                 html.append(f'<a href="{escape(url)}">{escape(name)}</a>')
