@@ -341,9 +341,14 @@ def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
     ]
 
 
-def test_our_files_link_to_their_submissions_page_which_opens_them(monkeypatch):
+def test_our_files_link_to_the_ui_which_streams_them(monkeypatch):
     monkeypatch.setenv("UI_URL", "https://test-ourfos.lekkacredit.tech")
-    html, text = emails.file_links(["gs://ourfos-dev-attachments/write_off/w1/0a1b2c3d.png", "D1"], "write_off", "w1")
-    url = "https://test-ourfos.lekkacredit.tech/forms/write_off/w1?file=0a1b2c3d.png"
-    assert html.startswith(f'<a href="{url}">File 1</a>')
-    assert text == f"File 1 {url}, File 2 https://drive.google.com/open?id=D1"
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+    refs = ["gs://ourfos-dev-attachments/write_off/w1/0a1b2c3d.png", "gs://ourfos-dev-attachments/r/receipts/0f", "D1"]
+    _, text = emails.file_links(refs, "write_off", "w1")
+    ui = "https://test-ourfos.lekkacredit.tech/api/files"
+    assert text == (
+        f"File 1 {ui}/write_off/w1/0a1b2c3d.png, "
+        f"File 2 {ui}?ref=gs%3A%2F%2Fourfos-dev-attachments%2Fr%2Freceipts%2F0f, "
+        "File 3 https://drive.google.com/open?id=D1"
+    )

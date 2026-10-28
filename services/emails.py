@@ -78,13 +78,21 @@ def day(d: date) -> str:
 
 
 def file_links(refs: list[str], form: str, id: str) -> tuple[str, str]:
-    """File 1, File 2, each linked: Drive's to Drive, ours to its submission's page in the UI, which opens it there,
-    behind its sign-in. Without the UI's address, ours is named only"""
+    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. One added
+    to this submission from our own form by a short path; any other of ours by its ref. Without the UI's address,
+    ours is named only"""
     html, text = [], []
     ui = os.environ.get("UI_URL")
+    own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{form}/{id}/"
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            url = f"{ui}/forms/{form}/{quote(id)}?{urlencode({'file': ref.rsplit('/', 1)[-1]})}" if ui else None
+            short = ref.startswith(own) and "/" not in ref.removeprefix(own)
+            path = (
+                f"/api/files/{form}/{quote(id)}/{ref.removeprefix(own)}"
+                if short
+                else f"/api/files?{urlencode({'ref': ref})}"
+            )
+            url = f"{ui}{path}" if ui else None
         else:
             url = f"https://drive.google.com/open?id={ref}"
         html.append(f'<a href="{escape(url)}">File {n}</a>' if url else f"File {n}")

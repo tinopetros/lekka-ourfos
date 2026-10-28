@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
 import { FileDialog } from '@/components/FileDialog';
 import { Lines } from '@/components/Lines';
@@ -15,13 +15,7 @@ import { useNeighbours } from '@/lib/useNeighbours';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
 
-// A file's own name where it's stored, the one an email's link names in ?file=
-const stored = (ref: string | null) => ref?.split('/').pop() ?? '';
-
 function AnswerValue({ answer }: { answer: Answer }) {
-  // A link from an email opens its file, here, over its submission
-  const [search] = useSearchParams();
-  const wanted = search.get('file');
   if (answer.link)
     return (
       <a href={answer.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
@@ -32,7 +26,7 @@ function AnswerValue({ answer }: { answer: Answer }) {
     return (
       <span className="flex flex-wrap gap-3">
         {answer.files.map((f) => (
-          <FileDialog key={f.ref ?? f.drive_id ?? f.name} file={f} open={wanted !== null && stored(f.ref) === wanted} />
+          <FileDialog key={f.ref ?? f.drive_id ?? f.name} file={f} />
         ))}
       </span>
     );

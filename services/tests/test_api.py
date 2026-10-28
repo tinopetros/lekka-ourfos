@@ -241,3 +241,25 @@ def test_a_write_off_is_named_as_either_form_names_its_client():
     assert views.summary("write_off", "w", {"answers": {"client_full_name": "Ada Moyo"}}).title == "Ada Moyo"
     named = {"client_first_name": "Ada", "client_last_name": "Moyo"}
     assert views.summary("write_off", "w", {"answers": named}).title == "Ada Moyo"
+
+
+def test_a_submissions_own_file_streams_by_its_short_path(monkeypatch):
+    monkeypatch.setenv("AUTH", "local")
+    monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+
+    class Response:
+        ok, status_code, headers = True, 200, {"Content-Type": "image/png"}
+
+        def iter_content(self, size):
+            yield b"png"
+
+    asked = []
+    monkeypatch.setattr(
+        gcs, "session", lambda: type("S", (), {"get": lambda self, url, **kw: asked.append(url) or Response()})()
+    )
+    client = TestClient(app)
+    got = client.get("/api/files/vehicle_log/v1/989fb3b9.png")
+    assert got.content == b"png" and asked[0].endswith("/o/vehicle_log%2Fv1%2F989fb3b9.png")
+    assert client.get("/api/files/vehicle_log/v1/..%2Fx").status_code in (400, 404)
+    assert client.get("/api/files/nope/v1/a.png").status_code == 404

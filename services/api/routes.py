@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Annotated
 from urllib.parse import quote
 
@@ -176,18 +177,15 @@ def journal_entry(transaction_id: str, _: Annotated[str, needs("journal_entries:
     return views.journal_entry(doc.id, doc.to_dict())
 
 
-@router.get("/files", response_class=StreamingResponse, responses={200: {"content": {"application/octet-stream": {}}}})
-def file(ref: str, _: Annotated[str, needs("files:read")]):
-    """A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
-    Drive's own preview instead"""
-    try:
-        name_of_bucket, name = gcs.parse(ref)
-    except gcs.GcsError as e:
-        raise HTTPException(400, str(e)) from e
-    if name_of_bucket != gcs.bucket():
-        raise HTTPException(403, "Not our attachments bucket")
+FILES = {200: {"content": {"application/octet-stream": {}}}}
+# A file's stored name, as our own form names it: what's safe in a path
+NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+
+
+def stream(name: str) -> StreamingResponse:
+    """An object in our attachments bucket, streamed through, so it's behind IAP like the rest"""
     response = gcs.session().get(
-        gcs.OBJECTS.format(bucket=name_of_bucket, name=quote(name, safe="")),
+        gcs.OBJECTS.format(bucket=gcs.bucket(), name=quote(name, safe="")),
         params={"alt": "media"},
         timeout=gcs.TIMEOUT,
         stream=True,
@@ -202,3 +200,24 @@ def file(ref: str, _: Annotated[str, needs("files:read")]):
             "Cache-Control": "private, max-age=3600",
         },
     )
+
+
+@router.get("/files", response_class=StreamingResponse, responses=FILES)
+def file(ref: str, _: Annotated[str, needs("files:read")]):
+    """A file in our attachments bucket, by its gs:// ref. Drive's files open in Drive's own preview instead"""
+    try:
+        name_of_bucket, name = gcs.parse(ref)
+    except gcs.GcsError as e:
+        raise HTTPException(400, str(e)) from e
+    if name_of_bucket != gcs.bucket():
+        raise HTTPException(403, "Not our attachments bucket")
+    return stream(name)
+
+
+@router.get("/files/{form}/{id}/{name}", response_class=StreamingResponse, responses=FILES)
+def submission_file(form: str, id: str, name: str, _: Annotated[str, needs("files:read")]):
+    """A file added to a submission from our own form: a short link, for its emails"""
+    known(form)
+    if not (ID.match(id) and NAME.match(name)):
+        raise HTTPException(400, "Not a file of ours")
+    return stream(f"{form}/{id}/{name}")

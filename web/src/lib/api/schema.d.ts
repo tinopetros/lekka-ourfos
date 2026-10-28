@@ -183,10 +183,29 @@ export interface paths {
     };
     /**
      * File
-     * @description A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
-     *     Drive's own preview instead
+     * @description A file in our attachments bucket, by its gs:// ref. Drive's files open in Drive's own preview instead
      */
     get: operations['file'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/files/{form}/{id}/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Submission File
+     * @description A file added to a submission from our own form: a short link, for its emails
+     */
+    get: operations['submission_file'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1041,6 +1060,39 @@ export interface operations {
       };
       header?: never;
       path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/octet-stream': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  submission_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+        name: string;
+      };
       cookie?: never;
     };
     requestBody?: never;
