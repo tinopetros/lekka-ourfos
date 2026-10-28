@@ -34,6 +34,8 @@ function open(
   reply: (body: unknown) => Response,
   at = '/forms/vehicle_log/new',
   record = RECORD,
+  // What the API finds as a draft saves
+  found: (body: unknown) => { loc: string[]; msg: string }[] = () => [],
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   client.setQueryData(['me'], { ...ME, permissions });
@@ -51,7 +53,7 @@ function open(
   vi.spyOn(api, 'PUT').mockImplementation((_path: string, init: { body: unknown }) => {
     saves.push(init.body);
     return Promise.resolve({
-      data: { id: 'x', title: null, updated_at: null },
+      data: { id: 'x', title: null, updated_at: null, problems: found(init.body) },
       response: new Response(null, { status: 200 }),
     });
   });
@@ -171,4 +173,15 @@ test('a form you give up on asks first if you typed anything, and saves nothing'
   fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
   expect(await screen.findByText('Discard this vehicle log?')).toBeInTheDocument();
   expect(sent.saves).toHaveLength(0);
+});
+
+test('what the API finds as the draft saves shows on its question once you have been to it', async () => {
+  open(['forms:vehicle_log:submit'], ok, '/forms/vehicle_log/new', RECORD, () => [
+    { loc: ['odometer_end'], msg: 'Below the odometer at start' },
+  ]);
+  const end = screen.getByLabelText(/^Odometer at end/);
+  fireEvent.focus(end);
+  fireEvent.change(end, { target: { value: '1' } });
+  fireEvent.blur(end);
+  expect(await screen.findAllByText('Below the odometer at start')).not.toHaveLength(0);
 });

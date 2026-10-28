@@ -38,8 +38,14 @@ export function useSaveDraft(form: string, id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: { id: `draft-${id}` },
-    mutationFn: ({ values, test }: { values: Values; test: boolean }) =>
-      unwrap(api.PUT('/api/forms/{form}/submissions/{id}', { params: { path: { form, id } }, body: { values, test } })),
+    // values as typed, kept; answers as they'd be submitted, looked over: what's wrong comes back with the save
+    mutationFn: ({ values, answers, test }: { values: Values; answers: Values; test: boolean }) =>
+      unwrap(
+        api.PUT('/api/forms/{form}/submissions/{id}', {
+          params: { path: { form, id } },
+          body: { values, answers, test },
+        }),
+      ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['drafts', form] }),
   });
 }

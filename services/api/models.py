@@ -38,13 +38,24 @@ class DraftRequest(BaseModel):
     """Our own form as it's being filled in: anything, as typed. The form's model is the submit's."""
 
     values: dict[str, Any]
+    # The same, as the form would submit them: what's looked over, never stored
+    answers: dict[str, Any] | None = None
     test: bool = False
+
+
+class Problem(Model):
+    """What's wrong, and where: a question's name, or nothing for the whole form."""
+
+    loc: list[str | int]
+    msg: str
 
 
 class Draft(Model):
     id: str
     title: str | None = None
     updated_at: datetime | None = None
+    # What submitting it as it is would find wrong. It's saved either way
+    problems: list[Problem] = []
 
 
 class Uploaded(Model):

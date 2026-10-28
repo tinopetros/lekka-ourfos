@@ -102,14 +102,16 @@ def submission(form: str, id: str, user: Annotated[str, needs("forms:{form}:read
 
 @router.put("/forms/{form}/submissions/{id}")
 def save_draft(form: str, id: str, body: DraftRequest, user: Annotated[str, needs("forms:{form}:submit")]) -> Draft:
-    """A draft, saved whole as it's filled in. Refused once it's submitted, or if it's someone else's"""
+    """A draft, saved whole as it's filled in, and looked over as the submit would, so what's wrong shows as you go.
+    Refused once it's submitted, or if it's someone else's"""
     known(form)
     if not ID.match(id):
         raise HTTPException(400, "Not an id we can store")
     if body.test and not allowed(user, f"forms:{form}:test"):
         raise HTTPException(403, f"You don't have forms:{form}:test")
     drafts.save(form, id, body.values, body.test, user)
-    return Draft(id=id, title=drafts.title(form, body.values))
+    found = [] if body.answers is None else submitting.look_over(form, body.answers)
+    return Draft(id=id, title=drafts.title(form, body.values), problems=found)
 
 
 @router.delete("/forms/{form}/submissions/{id}", status_code=204)

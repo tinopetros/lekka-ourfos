@@ -125,3 +125,21 @@ def test_a_discarded_draft_takes_its_files_with_it(db, bucket):
 
 def test_a_draft_cant_be_a_test_without_its_permission(db):
     assert client().put(URL, json={"values": {}, "test": True}).status_code == 403
+
+
+def test_a_draft_is_looked_over_as_its_saved_and_saved_whatever_it_finds(db):
+    answers = {"client_first_name": "Ada", "total_recovered": 12.345}
+    got = client().put(
+        URL, json={"values": {"client_first_name": "Ada", "total_recovered": "12.345"}, "answers": answers}
+    )
+    assert got.status_code == 200
+    assert {tuple(p["loc"]) for p in got.json()["problems"]} == {("client_last_name",), ("total_recovered",)}
+    assert db.docs[("write_offs", "w1")]["draft"]["total_recovered"] == "12.345"
+
+
+def test_a_trips_odometer_going_backwards_shows_as_its_drafted(db):
+    answers = {"vehicle": "White Nissan Note | AGO8747", "date": "2026-10-28", "purpose": "x", "odometer_start": 100}
+    got = client().put(
+        "/api/forms/vehicle_log/submissions/v1", json={"values": {}, "answers": answers | {"odometer_end": 1}}
+    )
+    assert got.json()["problems"] == [{"loc": ["odometer_end"], "msg": "Below the odometer at start"}]

@@ -18,12 +18,39 @@ from . import drafts
 COUNTERS = "counters"
 
 
+# Pydantic's words for what the form says itself, so the two read the same (web/src/features/forms/schema.ts)
+SAID = {
+    "missing": "Required",
+    "string_too_short": "Required",
+    "multiple_of": "To the cent: at most 2 decimal places",
+    "literal_error": "Choose one of the options",
+    "string_pattern_mismatch": "That's not the link it asks for",
+}
+
+
+def problems(error: ValidationError) -> list[dict]:
+    """Each problem by its field, for the form to show by it, in the form's own words where it has them."""
+    return [
+        {"loc": list(err["loc"]), "msg": SAID.get(err["type"], err["msg"].removeprefix("Value error, "))}
+        for err in error.errors()
+    ]
+
+
 def check(form: str, answers: dict) -> BaseModel:
-    """The form's own model, strict. Each problem names its field, for the form to show by it."""
+    """The form's own model, strict."""
     try:
         return FORMS[form].model.model_validate(answers)
     except ValidationError as e:
-        raise HTTPException(422, [{"loc": list(err["loc"]), "msg": err["msg"]} for err in e.errors()]) from e
+        raise HTTPException(422, problems(e)) from e
+
+
+def look_over(form: str, answers: dict) -> list[dict]:
+    """What submitting these answers would find wrong, without refusing them: a draft's, as it's saved."""
+    try:
+        FORMS[form].model.model_validate(answers)
+    except ValidationError as e:
+        return problems(e)
+    return []
 
 
 def counts_up() -> bool:

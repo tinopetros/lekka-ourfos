@@ -54,7 +54,9 @@
 - Saved when you leave a question you've changed, or pick a choice or a file: the whole draft each time, one record's saves in order (TanStack Query's mutation `scope`), so a slow save never overwrites a later one. "Saving…", "Draft saved" by the title. A new form's own prefilled answers aren't worth a draft
 - And on **Save draft**, and as the page goes: hidden, saved the usual way; closed, sent with `keepalive`, which the browser finishes after the tab's gone. Not as you type: a save a keystroke is too much
 - Actions are coloured by what they do: Submit green, Discard red, Save draft neither. Drafts are amber, waiting on you to submit or discard them
-- A draft takes anything, every field optional. The strict model is the submit's: you see what's wrong as you go, and it never stops a save
+- A draft takes anything, every field optional. The strict model is the submit's, and it never stops a save
+- Each save is also looked over by the strict model, and answers with what submitting would find wrong: shown on the questions you've been to, or all of them on **Save draft**. One set of rules, the API's, those across fields too, like the odometer going forwards. The browser's own checks, from the schema, show at once; the rest a save later. Offline, only the browser's
+- Not taken: **the cross-field rules declared for the browser too**. Instant, but a rule language of our own, two implementations of it, and only for what it can say
 - Only its author sees a draft, above the list as **Your drafts**, and may discard it, its files too. Anyone else gets a 404. The first list that depends on who's asking
 - Submitting is once: a transaction that turns the draft into a submission, numbers it and sets `received_at`, then starts the workflow. A save after that is refused
 - Not taken: **drafts in the browser only**. Cheap, but lost with the browser, and never the page that becomes the record

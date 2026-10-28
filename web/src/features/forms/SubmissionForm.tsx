@@ -24,7 +24,7 @@ import {
 import { FieldGroup } from '@/components/ui/field';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, type Problem } from '@/lib/api/client';
 import { useCan, useForms } from '@/lib/api/queries';
 import { upload, useDiscard, useSaveDraft, useSubmit } from './api';
 import { FormField } from './FormField';
@@ -123,11 +123,12 @@ export function SubmissionForm({
     const check = zodResolver(validator(form) as never, { error: message } as never) as unknown as Resolver<Values>;
     return (values, context, options) => check(toAnswers(fs, values), context, options);
   }, [form, fs]);
-  const { control, handleSubmit, setError, setFocus, getValues, formState } = useForm<Values>({
-    defaultValues: draft ? restore(fs, draft) : blank(fs),
-    resolver,
-    mode: 'onTouched',
-  });
+  const { control, handleSubmit, setError, clearErrors, getFieldState, setFocus, getValues, formState } =
+    useForm<Values>({
+      defaultValues: draft ? restore(fs, draft) : blank(fs),
+      resolver,
+      mode: 'onTouched',
+    });
   const wrong = problems(fs, formState.errors);
   const whole = formState.errors.root?.message;
 
@@ -145,19 +146,38 @@ export function SubmissionForm({
   const snapshot = useCallback(() => ({ ...getValues(), [NAMES]: picked.current }), [getValues]);
   const last = useRef(JSON.stringify({ values: { ...getValues(), [NAMES]: fileNames }, test: draftTest }));
   const submitted = useRef(false);
+
+  // What the API found as the draft saved, on the questions it's about: those you've been to, or every one when you
+  // ask with Save draft. A problem gone since is cleared; what the browser found itself is left as it is
+  const show = useCallback(
+    (found: Problem[], everywhere: boolean) => {
+      const wrong = new Map(found.map((p) => [p.loc.join('.'), p.msg]));
+      for (const name of names(fs)) {
+        const { isTouched, error } = getFieldState(name);
+        const message = wrong.get(name);
+        if (message && (everywhere || isTouched) && (!error || error.type === 'api'))
+          setError(name, { type: 'api', message });
+        else if (!message && error?.type === 'api') clearErrors(name);
+      }
+    },
+    [fs, getFieldState, setError, clearErrors],
+  );
+
   const keep = useCallback(
-    (nextTest = test) => {
+    (nextTest = test, everywhere = false) => {
       if (submitted.current) return;
       const values = snapshot();
       const now = JSON.stringify({ values, test: nextTest });
-      if (now === last.current) return;
+      // Save draft asks what's wrong, so it saves even when nothing's changed
+      if (now === last.current && !everywhere) return;
       last.current = now;
       setSaved('saving');
       save.mutate(
-        { values, test: nextTest },
+        { values, answers: toAnswers(fs, values), test: nextTest },
         {
-          onSuccess: () => {
+          onSuccess: (saved) => {
             setSaved('saved');
+            show(saved.problems, everywhere);
             if (!isDraft) {
               setIsDraft(true);
               // The same page, now the draft's: a link to it opens it again
@@ -171,7 +191,7 @@ export function SubmissionForm({
         },
       );
     },
-    [test, snapshot, isDraft, save, navigate, form, id],
+    [test, snapshot, isDraft, save, navigate, form, id, fs, show],
   );
 
   // Leaving the page: what's in the question you're on, if it changed, is saved as the page goes. keepalive, so the
@@ -376,7 +396,7 @@ export function SubmissionForm({
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  keep();
+                  keep(test, true);
                 }}
               >
                 Save draft

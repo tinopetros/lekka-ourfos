@@ -66,7 +66,8 @@ export interface paths {
     get: operations['submission'];
     /**
      * Save Draft
-     * @description A draft, saved whole as it's filled in. Refused once it's submitted, or if it's someone else's
+     * @description A draft, saved whole as it's filled in, and looked over as the submit would, so what's wrong shows as you go.
+     *     Refused once it's submitted, or if it's someone else's
      */
     put: operations['save_draft'];
     post?: never;
@@ -330,6 +331,11 @@ export interface components {
       title: string | null;
       /** Updated At */
       updated_at: string | null;
+      /**
+       * Problems
+       * @default []
+       */
+      problems: components['schemas']['Problem'][];
     };
     /**
      * DraftRequest
@@ -340,6 +346,10 @@ export interface components {
       values: {
         [key: string]: unknown;
       };
+      /** Answers */
+      answers?: {
+        [key: string]: unknown;
+      } | null;
       /**
        * Test
        * @default false
@@ -529,6 +539,16 @@ export interface components {
       version: string;
       /** Permissions */
       permissions: string[];
+    };
+    /**
+     * Problem
+     * @description What's wrong, and where: a question's name, or nothing for the whole form.
+     */
+    Problem: {
+      /** Loc */
+      loc: (string | number)[];
+      /** Msg */
+      msg: string;
     };
     /**
      * Submission
