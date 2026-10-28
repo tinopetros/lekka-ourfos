@@ -147,16 +147,15 @@ export function SubmissionForm({
   const last = useRef(JSON.stringify({ values: { ...getValues(), [NAMES]: fileNames }, test: draftTest }));
   const submitted = useRef(false);
 
-  // What the API found as the draft saved, on the questions it's about: those you've been to, or every one when you
-  // ask with Save draft. A problem gone since is cleared; what the browser found itself is left as it is
+  // What the API found as the draft saved, on the questions it's about that you've been to. A problem gone since is
+  // cleared; what the browser found itself is left as it is
   const show = useCallback(
-    (found: Problem[], everywhere: boolean) => {
+    (found: Problem[]) => {
       const wrong = new Map(found.map((p) => [p.loc.join('.'), p.msg]));
       for (const name of names(fs)) {
         const { isTouched, error } = getFieldState(name);
         const message = wrong.get(name);
-        if (message && (everywhere || isTouched) && (!error || error.type === 'api'))
-          setError(name, { type: 'api', message });
+        if (message && isTouched && (!error || error.type === 'api')) setError(name, { type: 'api', message });
         else if (!message && error?.type === 'api') clearErrors(name);
       }
     },
@@ -164,12 +163,14 @@ export function SubmissionForm({
   );
 
   const keep = useCallback(
-    (nextTest = test, everywhere = false) => {
+    (nextTest = test, then?: () => void) => {
       if (submitted.current) return;
       const values = snapshot();
       const now = JSON.stringify({ values, test: nextTest });
-      // Save draft asks what's wrong, so it saves even when nothing's changed
-      if (now === last.current && !everywhere) return;
+      if (now === last.current) {
+        then?.();
+        return;
+      }
       last.current = now;
       setSaved('saving');
       save.mutate(
@@ -177,12 +178,13 @@ export function SubmissionForm({
         {
           onSuccess: (saved) => {
             setSaved('saved');
-            show(saved.problems, everywhere);
+            show(saved.problems);
             if (!isDraft) {
               setIsDraft(true);
               // The same page, now the draft's: a link to it opens it again
               void navigate(`/forms/${form}/${id}`, { replace: true });
             }
+            then?.();
           },
           onError: () => {
             setSaved('failed');
@@ -395,8 +397,9 @@ export function SubmissionForm({
               <Button
                 type="button"
                 variant="outline"
+                // Saved, and back to the list: drafts wait there, in Your drafts
                 onClick={() => {
-                  keep(test, true);
+                  keep(test, () => void navigate(`/forms/${form}`));
                 }}
               >
                 Save draft

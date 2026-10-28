@@ -1,5 +1,6 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, unwrap } from '@/lib/api/client';
+import type { Submission } from '@/lib/api/types';
 import type { Values } from './schema';
 
 export const draftQueries = {
@@ -46,7 +47,15 @@ export function useSaveDraft(form: string, id: string) {
           body: { values, answers, test },
         }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['drafts', form] }),
+    onSuccess: (saved, { values, test }) => {
+      // The record the page opens it from is as saved now: opened again, it's this, not what was cached before
+      queryClient.setQueryData<Submission>(
+        ['submission', form, id],
+        (cached) => cached && { ...cached, draft: values, test, title: saved.title },
+      );
+      void queryClient.invalidateQueries({ queryKey: ['submission', form, id] });
+      void queryClient.invalidateQueries({ queryKey: ['drafts', form] });
+    },
   });
 }
 

@@ -62,7 +62,11 @@ function open(
       data: path.endsWith('/submissions') ? { items: [], next: null } : record,
       response: new Response(null, { status: 200 }),
     })) as never);
-  const router = createMemoryRouter([{ path: '/forms/:form/:id', element: <SubmissionPage /> }], {
+  const routes = [
+    { path: '/forms/:form', element: <p>The list</p> },
+    { path: '/forms/:form/:id', element: <SubmissionPage /> },
+  ];
+  const router = createMemoryRouter(routes, {
     initialEntries: [at],
   });
   render(
@@ -157,14 +161,14 @@ test('a draft opened again, or reloaded, is its form with its answers', async ()
   expect(screen.getByText('Draft saved')).toBeInTheDocument();
 });
 
-test('Save draft saves what changed, without leaving a question', async () => {
+test('Save draft saves what changed, and takes you back to the list', async () => {
   const sent = open(['forms:vehicle_log:submit'], ok);
   fireEvent.change(screen.getByLabelText(/^Purpose/), { target: { value: 'Client visit' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await waitFor(() => {
     expect(sent.saves).toHaveLength(1);
   });
-  expect(await screen.findByText('draft')).toBeInTheDocument();
+  expect(await screen.findByText('The list')).toBeInTheDocument();
 });
 
 test('a form you give up on asks first if you typed anything, and saves nothing', async () => {
