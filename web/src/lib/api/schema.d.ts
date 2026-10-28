@@ -64,8 +64,77 @@ export interface paths {
     };
     /** Submission */
     get: operations['submission'];
+    /**
+     * Save Draft
+     * @description A draft, saved whole as it's filled in, and looked over as the submit would, so what's wrong shows as you go.
+     *     Refused once it's submitted, or if it's someone else's
+     */
+    put: operations['save_draft'];
+    post?: never;
+    /**
+     * Discard Draft
+     * @description A draft, and its files, gone
+     */
+    delete: operations['discard_draft'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/submissions/{id}/files': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upload File
+     * @description A file for a draft, its bytes the body, its name the query: stored under the draft, its gs:// ref back
+     */
+    post: operations['upload_file'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/drafts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * My Drafts
+     * @description Yours, the latest first
+     */
+    get: operations['my_drafts'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/submissions/{id}/submit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit
+     * @description Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once
+     */
+    post: operations['submit'];
     delete?: never;
     options?: never;
     head?: never;
@@ -115,10 +184,29 @@ export interface paths {
     };
     /**
      * File
-     * @description A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
-     *     Drive's own preview instead
+     * @description A file in our attachments bucket, by its gs:// ref. Drive's files open in Drive's own preview instead
      */
     get: operations['file'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/files/{form}/{id}/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Submission File
+     * @description A file added to a submission from our own form: a short link, for its emails
+     */
+    get: operations['submission_file'];
     put?: never;
     post?: never;
     delete?: never;
@@ -235,6 +323,39 @@ export interface components {
        */
       posted: components['schemas']['Line'][];
     };
+    /** Draft */
+    Draft: {
+      /** Id */
+      id: string;
+      /** Title */
+      title: string | null;
+      /** Updated At */
+      updated_at: string | null;
+      /**
+       * Problems
+       * @default []
+       */
+      problems: components['schemas']['Problem'][];
+    };
+    /**
+     * DraftRequest
+     * @description Our own form as it's being filled in: anything, as typed. The form's model is the submit's.
+     */
+    DraftRequest: {
+      /** Values */
+      values: {
+        [key: string]: unknown;
+      };
+      /** Answers */
+      answers?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+    };
     /** Email */
     Email: {
       /** Kind */
@@ -300,6 +421,8 @@ export interface components {
       key: string;
       /** Title */
       title: string;
+      /** Tracks Status */
+      tracks_status: boolean;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -414,6 +537,18 @@ export interface components {
       environment: 'local' | 'dev' | 'prod';
       /** Version */
       version: string;
+      /** Permissions */
+      permissions: string[];
+    };
+    /**
+     * Problem
+     * @description What's wrong, and where: a question's name, or nothing for the whole form.
+     */
+    Problem: {
+      /** Loc */
+      loc: (string | number)[];
+      /** Msg */
+      msg: string;
     };
     /**
      * Submission
@@ -452,6 +587,10 @@ export interface components {
        * @default []
        */
       answers: components['schemas']['Answer'][];
+      /** Draft */
+      draft: {
+        [key: string]: unknown;
+      } | null;
       /** Raw */
       raw: {
         [key: string]: unknown;
@@ -513,6 +652,28 @@ export interface components {
       live_entry: string | null;
     };
     /**
+     * SubmitRequest
+     * @description What our own form sends: its answers, checked against the form's model, and whether it's a test.
+     */
+    SubmitRequest: {
+      /** Answers */
+      answers: {
+        [key: string]: unknown;
+      };
+      /**
+       * Test
+       * @default false
+       */
+      test: boolean;
+    };
+    /** Submitted */
+    Submitted: {
+      /** Id */
+      id: string;
+      /** Response Number */
+      response_number: number;
+    };
+    /**
      * UnknownRun
      * @description A run of a workflow this API doesn't know yet: how it ended, and what the store calls it.
      */
@@ -544,6 +705,11 @@ export interface components {
       workflow: 'unknown';
       /** Name */
       name: string | null;
+    };
+    /** Uploaded */
+    Uploaded: {
+      /** Ref */
+      ref: string;
     };
     /** ValidationError */
     ValidationError: {
@@ -673,6 +839,177 @@ export interface operations {
       };
     };
   };
+  save_draft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DraftRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Draft'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  discard_draft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  upload_file: {
+    parameters: {
+      query: {
+        name: string;
+      };
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/octet-stream': string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Uploaded'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  my_drafts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Draft'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  submit: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubmitRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Submitted'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   journal_entries: {
     parameters: {
       query?: {
@@ -743,6 +1080,39 @@ export interface operations {
       };
       header?: never;
       path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/octet-stream': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  submission_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+        name: string;
+      };
       cookie?: never;
     };
     requestBody?: never;

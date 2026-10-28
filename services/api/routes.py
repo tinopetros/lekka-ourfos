@@ -1,18 +1,35 @@
 import os
+import re
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from google.cloud import firestore
 
 import store
 from forms import FORMS
 from integrations import gcs
+from submission import ID
 
-from . import views
+from . import drafts, views
+from . import submit as submitting
 from .auth import current_user
-from .models import FormInfo, JournalEntry, JournalEntryPage, Me, Submission, SubmissionPage
+from .models import (
+    Draft,
+    DraftRequest,
+    FormInfo,
+    JournalEntry,
+    JournalEntryPage,
+    Me,
+    Submission,
+    SubmissionPage,
+    SubmitRequest,
+    Submitted,
+    Uploaded,
+)
+from .permissions import allowed, granted, needs
 
 # Each route's operation named by its function: the generated TypeScript's names
 router = APIRouter(prefix="/api", generate_unique_id_function=lambda route: route.name)
@@ -46,16 +63,19 @@ def me(email: User) -> Me:
         email=email,
         environment=os.environ.get("ENVIRONMENT", "local"),
         version=os.environ.get("VERSION", "local"),
+        permissions=granted(email),
     )
 
 
 @router.get("/forms")
 def forms(_: User) -> list[FormInfo]:
-    return [FormInfo(key=form, title=spec.title) for form, spec in FORMS.items()]
+    return [FormInfo(key=form, title=spec.title, tracks_status=spec.tracks_status) for form, spec in FORMS.items()]
 
 
 @router.get("/forms/{form}/submissions")
-def submissions(form: str, _: User, cursor: str | None = None, limit: Limit = 25) -> SubmissionPage:
+def submissions(
+    form: str, _: Annotated[str, needs("forms:{form}:read")], cursor: str | None = None, limit: Limit = 25
+) -> SubmissionPage:
     known(form)
     collection = store.client().collection(FORMS[form].collection)
     docs, next = page(collection, "received_at", cursor, limit)
@@ -63,13 +83,14 @@ def submissions(form: str, _: User, cursor: str | None = None, limit: Limit = 25
 
 
 @router.get("/forms/{form}/submissions/{id}")
-def submission(form: str, id: str, _: User) -> Submission:
+def submission(form: str, id: str, user: Annotated[str, needs("forms:{form}:read")]) -> Submission:
     known(form)
     ref = store.client().collection(FORMS[form].collection).document(id)
     doc = ref.get()
-    if not doc.exists:
+    data = doc.to_dict() if doc.exists else None
+    # Someone else's draft is as good as not there
+    if data is None or (data.get("status") == drafts.DRAFT and data.get("submitted_by") != user):
         raise HTTPException(404, f"No {FORMS[form].noun} {id}")
-    data = doc.to_dict()
     runs = [views.run(r.id, r.to_dict()) for r in ref.collection("runs").stream()]
     ids = data.get("journal_entries") or []
     refs = [store.client().collection(JOURNAL).document(i) for i in ids]
@@ -79,33 +100,94 @@ def submission(form: str, id: str, _: User) -> Submission:
     )
 
 
+@router.put("/forms/{form}/submissions/{id}")
+def save_draft(form: str, id: str, body: DraftRequest, user: Annotated[str, needs("forms:{form}:submit")]) -> Draft:
+    """A draft, saved whole as it's filled in, and looked over as the submit would, so what's wrong shows as you go.
+    Refused once it's submitted, or if it's someone else's"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if body.test and not allowed(user, f"forms:{form}:test"):
+        raise HTTPException(403, f"You don't have forms:{form}:test")
+    drafts.save(form, id, body.values, body.test, user)
+    found = [] if body.answers is None else submitting.look_over(form, body.answers)
+    return Draft(id=id, title=drafts.title(form, body.values), problems=found)
+
+
+@router.delete("/forms/{form}/submissions/{id}", status_code=204)
+def discard_draft(form: str, id: str, user: Annotated[str, needs("forms:{form}:submit")]) -> None:
+    """A draft, and its files, gone"""
+    known(form)
+    drafts.discard(form, id, user)
+
+
+@router.post(
+    "/forms/{form}/submissions/{id}/files",
+    openapi_extra={"requestBody": {"content": {"application/octet-stream": {"schema": {"type": "string"}}}}},
+)
+async def upload_file(
+    form: str, id: str, name: str, request: Request, user: Annotated[str, needs("forms:{form}:submit")]
+) -> Uploaded:
+    """A file for a draft, its bytes the body, its name the query: stored under the draft, its gs:// ref back"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if int(request.headers.get("content-length") or 0) > drafts.MAX_FILE:
+        raise HTTPException(413, "Files of up to 25 MB")
+    data = await request.body()
+    content_type = request.headers.get("content-type", "application/octet-stream")
+    ref = await run_in_threadpool(drafts.upload, form, id, name, data, content_type, user)
+    return Uploaded(ref=ref)
+
+
+@router.get("/forms/{form}/drafts")
+def my_drafts(form: str, user: Annotated[str, needs("forms:{form}:submit")]) -> list[Draft]:
+    """Yours, the latest first"""
+    known(form)
+    return [
+        Draft(id=id, title=drafts.title(form, doc.get("draft") or {}), updated_at=doc.get("updated_at"))
+        for id, doc in drafts.list_mine(form, user)
+    ]
+
+
+@router.post("/forms/{form}/submissions/{id}/submit")
+def submit(form: str, id: str, body: SubmitRequest, user: Annotated[str, needs("forms:{form}:submit")]) -> Submitted:
+    """Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once"""
+    known(form)
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if body.test and not allowed(user, f"forms:{form}:test"):
+        raise HTTPException(403, f"You don't have forms:{form}:test")
+    doc = submitting.submit(form, id, body.answers, body.test, user)
+    return Submitted(id=id, response_number=doc["response_number"])
+
+
 @router.get("/journal_entries")
-def journal_entries(_: User, cursor: str | None = None, limit: Limit = 25) -> JournalEntryPage:
+def journal_entries(
+    _: Annotated[str, needs("journal_entries:read")], cursor: str | None = None, limit: Limit = 25
+) -> JournalEntryPage:
     collection = store.client().collection(JOURNAL)
     docs, next = page(collection, "recorded_at", cursor, limit)
     return JournalEntryPage(items=[views.journal_entry(d.id, d.to_dict()) for d in docs], next=next)
 
 
 @router.get("/journal_entries/{transaction_id}")
-def journal_entry(transaction_id: str, _: User) -> JournalEntry:
+def journal_entry(transaction_id: str, _: Annotated[str, needs("journal_entries:read")]) -> JournalEntry:
     doc = store.client().collection(JOURNAL).document(transaction_id).get()
     if not doc.exists:
         raise HTTPException(404, f"No journal entry {transaction_id}")
     return views.journal_entry(doc.id, doc.to_dict())
 
 
-@router.get("/files", response_class=StreamingResponse, responses={200: {"content": {"application/octet-stream": {}}}})
-def file(ref: str, _: User):
-    """A file in our attachments bucket, streamed through, so it's behind IAP like the rest. Drive's files open in
-    Drive's own preview instead"""
-    try:
-        name_of_bucket, name = gcs.parse(ref)
-    except gcs.GcsError as e:
-        raise HTTPException(400, str(e)) from e
-    if name_of_bucket != gcs.bucket():
-        raise HTTPException(403, "Not our attachments bucket")
+FILES = {200: {"content": {"application/octet-stream": {}}}}
+# A file's stored name, as our own form names it: what's safe in a path
+NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+
+
+def stream(name: str) -> StreamingResponse:
+    """An object in our attachments bucket, streamed through, so it's behind IAP like the rest"""
     response = gcs.session().get(
-        gcs.OBJECTS.format(bucket=name_of_bucket, name=quote(name, safe="")),
+        gcs.OBJECTS.format(bucket=gcs.bucket(), name=quote(name, safe="")),
         params={"alt": "media"},
         timeout=gcs.TIMEOUT,
         stream=True,
@@ -120,3 +202,24 @@ def file(ref: str, _: User):
             "Cache-Control": "private, max-age=3600",
         },
     )
+
+
+@router.get("/files", response_class=StreamingResponse, responses=FILES)
+def file(ref: str, _: Annotated[str, needs("files:read")]):
+    """A file in our attachments bucket, by its gs:// ref. Drive's files open in Drive's own preview instead"""
+    try:
+        name_of_bucket, name = gcs.parse(ref)
+    except gcs.GcsError as e:
+        raise HTTPException(400, str(e)) from e
+    if name_of_bucket != gcs.bucket():
+        raise HTTPException(403, "Not our attachments bucket")
+    return stream(name)
+
+
+@router.get("/files/{form}/{id}/{name}", response_class=StreamingResponse, responses=FILES)
+def submission_file(form: str, id: str, name: str, _: Annotated[str, needs("files:read")]):
+    """A file added to a submission from our own form: a short link, for its emails"""
+    known(form)
+    if not (ID.match(id) and NAME.match(name)):
+        raise HTTPException(400, "Not a file of ours")
+    return stream(f"{form}/{id}/{name}")

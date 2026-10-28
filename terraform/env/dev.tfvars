@@ -9,7 +9,6 @@ notify_to = {
   loan_approval = ["lekkai@lekkacredit.com"]
   write_off     = ["lekkai@lekkacredit.com"]
 }
-test_to = ["tpetros@lekkacredit.com"]
 reply_to = {
   loan_approval = ["lekkai@lekkacredit.com"]
 }

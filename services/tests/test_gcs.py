@@ -8,7 +8,7 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 
 from classify import attachments
 from integrations import gcs
-from requisition import Requisition
+from requisition import Files, Requisition
 
 OURS = "gs://ourfos-dev-attachments/evals/requisitions/a/receipts/0f1e"
 
@@ -62,14 +62,15 @@ def test_not_a_ref(got, ref):
 
 
 def load(**files):
-    requisition = Requisition(
+    # Only the files asked for, so each test fetches what it names: not a requisition as the form would take it
+    requisition = Requisition.model_construct(
         response_number=1,
         response_id="r",
         submitted_by="a@lekkacredit.com",
         submitted_at="2026-03-06T12:40:10Z",
         payable_to="x",
         amount=1,
-        files=files,
+        files=Files.model_construct(**({"signed_requisition_form": [], "receipts": [], "invoices": []} | files)),
     )
     return asyncio.run(attachments.load(requisition))
 

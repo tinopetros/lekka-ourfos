@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { BookOpen, Car, ClipboardList, FileX, HandCoins, Home, type LucideIcon } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router';
 import {
@@ -15,7 +15,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Tip } from '@/components/Tip';
-import { useForms } from '@/lib/api/queries';
+import { useCan, useReadableForms } from '@/lib/api/queries';
 
 const ICONS: Record<string, LucideIcon> = {
   requisition: ClipboardList,
@@ -39,8 +39,9 @@ function Item({ to, label, icon: Icon, end }: { to: string; label: string; icon:
   );
 }
 
-// Collapsed, its headings give way to lines, and every icon says what it is on hover
+// Collapsed, its headings give way to lines, and every icon says what it is on hover. Gone, with nothing in it
 function Section({ label, children }: { label: string; children: ReactNode }) {
+  if (Children.toArray(children).length === 0) return null;
   return (
     <>
       <SidebarSeparator className="hidden group-data-[collapsible=icon]:block" />
@@ -53,7 +54,8 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function AppSidebar({ version }: { version: string }) {
-  const { data: forms = [] } = useForms();
+  const forms = useReadableForms();
+  const can = useCan();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:justify-center">
@@ -74,7 +76,7 @@ export function AppSidebar({ version }: { version: string }) {
           ))}
         </Section>
         <Section label="Accounts">
-          <Item to="/journal" label="Journal entries" icon={BookOpen} />
+          {can('journal_entries:read') && <Item to="/journal" label="Journal entries" icon={BookOpen} />}
         </Section>
       </SidebarContent>
       <SidebarFooter>

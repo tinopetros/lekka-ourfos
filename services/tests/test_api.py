@@ -28,7 +28,7 @@ REQUISITION = {
     "submitted_at": "2026-10-01T10:00:00Z",
     "payable_to": "Acme",
     "amount": 1234.5,
-    "files": {"receipts": ["drive-id", "gs://bucket/x.pdf"]},
+    "files": {"signed_requisition_form": ["signed-id"], "receipts": ["drive-id", "gs://bucket/x.pdf"]},
 }
 
 
@@ -82,11 +82,8 @@ def test_locally_who_you_are_is_acted_as_or_your_adc(monkeypatch):
     monkeypatch.setenv("AUTH", "local")
     monkeypatch.setenv("ACT_AS", "Someone@lekkacredit.com")
     monkeypatch.delenv("K_SERVICE", raising=False)
-    assert TestClient(app).get("/api/me").json() == {
-        "email": "someone@lekkacredit.com",
-        "environment": "local",
-        "version": "local",
-    }
+    me = TestClient(app).get("/api/me").json()
+    assert (me["email"], me["environment"], me["version"]) == ("someone@lekkacredit.com", "local", "local")
 
 
 def test_local_sign_in_is_refused_on_cloud_run(monkeypatch):
@@ -144,8 +141,9 @@ def test_a_requisitions_row_and_answers():
     assert row.response_number == 7 and row.received_at is not None
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
     answers = views.answers("requisition", doc)
-    assert [(a.label, a.text) for a in answers[:2]] == [("Payable To", "Acme"), ("Total Amount", "$1,234.50")]
-    assert [(f.name, f.drive_id, f.ref) for f in answers[2].files] == [
+    assert [(a.label, a.text) for a in answers[:2]] == [("Payable to", "Acme"), ("Amount", "$1,234.50")]
+    assert answers[2].label == "Signed requisition form"
+    assert [(f.name, f.drive_id, f.ref) for f in answers[3].files] == [
         ("File 1", "drive-id", None),
         ("File 2", None, "gs://bucket/x.pdf"),
     ]
@@ -231,3 +229,38 @@ def test_unknown_forms_are_404(monkeypatch):
     monkeypatch.setenv("AUTH", "local")
     monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
     assert TestClient(app).get("/api/forms/nope/submissions").status_code == 404
+
+
+def test_our_own_forms_answers_are_titled_as_it_asks():
+    answers = {"source": "ourfos", "client_first_name": "Ada", "total_recovered": 20, "supporting_documents": ["d"]}
+    rows = views.answers("write_off", {"answers": answers})
+    assert [(a.label, a.text) for a in rows[:2]] == [("Client's first name", "Ada"), ("Total recovered", "$20.00")]
+    assert rows[2].label == "Supporting documents" and rows[2].files[0].drive_id == "d"
+
+
+def test_a_write_off_is_named_as_either_form_names_its_client():
+    assert views.summary("write_off", "w", {"answers": {"client_full_name": "Ada Moyo"}}).title == "Ada Moyo"
+    named = {"client_first_name": "Ada", "client_last_name": "Moyo"}
+    assert views.summary("write_off", "w", {"answers": named}).title == "Ada Moyo"
+
+
+def test_a_submissions_own_file_streams_by_its_short_path(monkeypatch):
+    monkeypatch.setenv("AUTH", "local")
+    monkeypatch.setenv("ACT_AS", "a@lekkacredit.com")
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+
+    class Response:
+        ok, status_code, headers = True, 200, {"Content-Type": "image/png"}
+
+        def iter_content(self, size):
+            yield b"png"
+
+    asked = []
+    monkeypatch.setattr(
+        gcs, "session", lambda: type("S", (), {"get": lambda self, url, **kw: asked.append(url) or Response()})()
+    )
+    client = TestClient(app)
+    got = client.get("/api/files/vehicle_log/v1/989fb3b9.png")
+    assert got.content == b"png" and asked[0].endswith("/o/vehicle_log%2Fv1%2F989fb3b9.png")
+    assert client.get("/api/files/vehicle_log/v1/..%2Fx").status_code in (400, 404)
+    assert client.get("/api/files/nope/v1/a.png").status_code == 404

@@ -45,12 +45,13 @@ resource "google_cloud_run_v2_service" "services" {
           WORKSPACE_SUBJECT         = "lekkai@lekkacredit.com"
           ATTACHMENTS_BUCKET        = "${var.project_id}-attachments"
           FORMS                     = jsonencode(local.forms)
-          TEST_TO                   = join(",", var.test_to)
           MIFOS_BASE_URL            = var.mifos.base_url
           MIFOS_TENANT_ID           = var.mifos.tenant_id
           MIFOS_OFFICE_ID           = tostring(var.mifos.office_id)
           MIFOS_CURRENCY            = var.mifos.currency
           MIFOS_VERIFY_SSL          = tostring(var.mifos.verify_ssl)
+          # Where the emails link our files to: the UI, which streams them behind its sign-in
+          UI_URL = var.api_domain == null ? google_cloud_run_v2_service.api.uri : "https://${var.api_domain}"
         }
         content {
           name  = env.key

@@ -35,6 +35,10 @@ resource "google_cloud_run_v2_service" "api" {
           ATTACHMENTS_BUCKET   = "${var.project_id}-attachments"
           ENVIRONMENT          = trimprefix(var.project_id, "ourfos-")
           VERSION              = var.build_version
+          # Where the workflows it starts run: the rest of ourfos's region, not its own
+          REGION = var.region
+          # A submission's workflow posts to Mifos only where this environment does
+          POST_TO_MIFOS = tostring(var.mifos.post)
           # What IAP's signed header must be for: this service, and no other
           IAP_AUDIENCE = "/projects/${data.google_project.this.number}/locations/${var.api_region}/services/ourfos-api"
         }

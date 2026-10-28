@@ -99,3 +99,28 @@ def test_every_step_needs_its_run(docs):
     with pytest.raises(HTTPException) as e:
         forms.receive("vehicle_log", "r", {"submission": SUBMISSION})
     assert e.value.status_code == 400
+
+
+OURS = {
+    "response_number": -3,
+    "response_id": "t1",
+    "submitted_by": "driver@lekkacredit.com",
+    "submitted_at": "2026-10-27T10:00:00Z",
+    "source": "ourfos",
+    "vehicle": "White Nissan Note | AGO8747",
+    "date": "2026-10-27",
+    "purpose": "Client visit",
+    "odometer_start": 100,
+    "odometer_end": 140,
+}
+
+
+def test_our_own_forms_submission_is_received_as_ours(docs):
+    forms.receive("vehicle_log", "t1", {"submission": OURS, "workflow": "intake"})
+    assert docs[("vehicle_log", "t1")]["source"] == "ourfos"
+    assert docs[("vehicle_log", "t1")]["answers"]["purpose"] == "Client visit"
+
+
+def test_a_google_forms_is_received_as_one(docs):
+    forms.receive("vehicle_log", "r", {"submission": SUBMISSION, "workflow": "intake"})
+    assert docs[("vehicle_log", "r")]["source"] == "google-form"

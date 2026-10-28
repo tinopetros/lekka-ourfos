@@ -56,12 +56,6 @@ variable "notify_to" {
   }
 }
 
-variable "test_to" {
-  description = "Who of the submitters a test run also emails, beside lekkai@ (docs/release1/adr.md 3)"
-  type        = list(string)
-  default     = []
-}
-
 variable "reply_to" {
   description = "Per form, only where replies shouldn't go to lekkai@ alone"
   type        = map(list(string))
@@ -83,6 +77,8 @@ variable "mifos" {
     currency  = optional(string, "USD")
     # Off until the server has a certificate we can check (docs/phase11/adr.md 5)
     verify_ssl = optional(bool, true)
+    # Whether our own forms' submissions post. A Google Form's link says so for its own, with &mifos=
+    post = optional(bool, true)
   })
 
   # default is the books (docs/phase11/adr.md 4)

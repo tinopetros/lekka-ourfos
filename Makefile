@@ -54,6 +54,8 @@ API_PORT ?= 8000
 ACT_AS ?=
 OPENAPI := .build/openapi.json
 SCHEMA := web/src/lib/api/schema.d.ts
+# Each form's own, as JSON Schema: the UI draws its forms from them
+FORM_SCHEMAS := web/src/lib/api/forms.json
 
 .DEFAULT_GOAL := help
 .PHONY: help check-env package build build-services build-api stage stage-api deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
@@ -258,11 +260,12 @@ web/node_modules/.package-lock.json: web/package-lock.json
 types: web/node_modules/.package-lock.json
 	@mkdir -p .build
 	cd services && uv run -q python -c 'import json; from api.main import app; print(json.dumps(app.openapi(), indent=1))' > ../$(OPENAPI)
+	cd services && uv run -q python -c 'import json; from forms import FORMS; print(json.dumps({k: f.model.model_json_schema() for k, f in FORMS.items()}, ensure_ascii=False))' > ../$(FORM_SCHEMAS)
 	cd web && npm run -s types >/dev/null
 
 # Fails when the committed types aren't what the API's models make
 types-check: types
-	@git diff --exit-code -- $(SCHEMA) || { echo "$(SCHEMA) is stale: run make types and commit it" >&2; exit 1; }
+	@git diff --exit-code -- $(SCHEMA) $(FORM_SCHEMAS) || { echo "$(SCHEMA) or $(FORM_SCHEMAS) is stale: run make types and commit them" >&2; exit 1; }
 
 web-check: web/node_modules/.package-lock.json
 	cd web && npm run -s lint && npm run -s typecheck && npm run -s test && npm run -s build
@@ -273,7 +276,7 @@ web: types
 	@[ "$(ENV)" = dev ] || { echo "make web reads dev's data only" >&2; exit 1; }
 	@echo "UI: http://localhost:5173  API: http://localhost:$(API_PORT)/docs  as $(or $(ACT_AS),your ADC account)"
 	@trap 'kill 0' INT TERM EXIT; \
-	(cd services && AUTH=local ENVIRONMENT=local GOOGLE_CLOUD_PROJECT=$(PROJECT) ACT_AS=$(ACT_AS) ATTACHMENTS_BUCKET=$(PROJECT)-attachments \
+	(cd services && AUTH=local ENVIRONMENT=local GOOGLE_CLOUD_PROJECT=$(PROJECT) REGION=$(REGION) ACT_AS=$(ACT_AS) ATTACHMENTS_BUCKET=$(PROJECT)-attachments \
 		uv run -q uvicorn api.main:app --reload --port $(API_PORT)) & \
 	cd web && API_PORT=$(API_PORT) npm run -s dev
 

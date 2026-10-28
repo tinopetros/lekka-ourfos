@@ -1,13 +1,19 @@
 import { Plus } from 'lucide-react';
+import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/lib/api/queries';
 import { Tip } from './Tip';
 
-// A stub until forms can be submitted here: it says so rather than doing nothing silently
-export function CreateButton({ noun, size = 'sm' }: { noun: string; size?: 'sm' | 'xs' }) {
+// A new submission of a form, for whoever may submit it: nothing, for anyone else
+export function CreateButton({ form, noun, size = 'sm' }: { form: string; noun: string; size?: 'sm' | 'xs' }) {
+  const can = useCan();
+  if (!can(`forms:${form}:submit`)) return null;
   return (
-    <Tip label={`Creating a ${noun} here is coming soon`}>
-      <Button variant="outline" size={size} aria-disabled="true" className="cursor-not-allowed">
-        <Plus /> New
+    <Tip label={`Start a new ${noun}`}>
+      <Button variant="outline" size={size} asChild>
+        <Link to={`/forms/${form}/new`}>
+          <Plus /> New {noun}
+        </Link>
       </Button>
     </Tip>
   );

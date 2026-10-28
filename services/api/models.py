@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,11 +16,55 @@ class Me(Model):
     environment: Literal["local", "dev", "prod"]
     # The commit the image was built from, for bug reports
     version: str
+    # What you may do, from the policy: the UI offers only these, and the API checks either way
+    permissions: list[str]
 
 
 class FormInfo(Model):
     key: str
     title: str
+    # Whether its status means anything: the others only show they were received
+    tracks_status: bool
+
+
+class SubmitRequest(BaseModel):
+    """What our own form sends: its answers, checked against the form's model, and whether it's a test."""
+
+    answers: dict[str, Any]
+    test: bool = False
+
+
+class DraftRequest(BaseModel):
+    """Our own form as it's being filled in: anything, as typed. The form's model is the submit's."""
+
+    values: dict[str, Any]
+    # The same, as the form would submit them: what's looked over, never stored
+    answers: dict[str, Any] | None = None
+    test: bool = False
+
+
+class Problem(Model):
+    """What's wrong, and where: a question's name, or nothing for the whole form."""
+
+    loc: list[str | int]
+    msg: str
+
+
+class Draft(Model):
+    id: str
+    title: str | None = None
+    updated_at: datetime | None = None
+    # What submitting it as it is would find wrong. It's saved either way
+    problems: list[Problem] = []
+
+
+class Uploaded(Model):
+    ref: str
+
+
+class Submitted(Model):
+    id: str
+    response_number: int
 
 
 class SubmissionSummary(Model):
@@ -172,6 +216,8 @@ class Submission(SubmissionSummary):
     """What a row opens: the answers, every run on it, and the entries it posted."""
 
     answers: list[Answer] = []
+    # A draft's answers as they were typed, for its form to pick up again. Only its author ever sees one
+    draft: dict[str, Any] | None = None
     # The webhook's body, when the answers never validated: all there is to see
     raw: dict | None = None
     runs: list[Run] = []

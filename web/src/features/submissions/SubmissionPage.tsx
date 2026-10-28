@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
 import { FileDialog } from '@/components/FileDialog';
@@ -5,12 +6,13 @@ import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
 import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
-import { StatusBadge, TestBadge } from '@/components/StatusBadge';
+import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useForms } from '@/lib/api/queries';
+import { useCan, useForms } from '@/lib/api/queries';
 import type { Answer, Run, Submission } from '@/lib/api/types';
 import { money, when } from '@/lib/format';
 import { useNeighbours } from '@/lib/useNeighbours';
+import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
 
 function AnswerValue({ answer }: { answer: Answer }) {
@@ -24,14 +26,17 @@ function AnswerValue({ answer }: { answer: Answer }) {
     return (
       <span className="flex flex-wrap gap-3">
         {answer.files.map((f) => (
-          <FileDialog key={f.name} file={f} />
+          <FileDialog key={f.ref ?? f.drive_id ?? f.name} file={f} />
         ))}
       </span>
     );
   return <>{answer.text}</>;
 }
 
+// A link to the entry's own page, for whoever may read the journal. Its lines show here either way
 function EntryLink({ id }: { id: string }) {
+  const can = useCan();
+  if (!can('journal_entries:read')) return <span className="font-mono text-xs">{id}</span>;
   return (
     <Link to={`/journal/${id}`} className="font-mono text-xs underline underline-offset-2">
       {id}
@@ -148,9 +153,31 @@ function History({ s }: { s: Submission }) {
   );
 }
 
-// A submission on its own page: where it stands, and its history
+/** A submission on its own page. Its form while it's new or a draft, the same page throughout: what's typed stays
+ * where it is when the URL becomes the draft's */
 export function SubmissionPage() {
   const { form = '', id = '' } = useParams();
+  // A new one's id, made here: while this page is open, its URL becoming the draft's keeps it the same form. Opened
+  // again, or reloaded, a draft comes from the API
+  const [minted] = useState(() => crypto.randomUUID());
+  // Submitted, it's the record
+  const [submitted, setSubmitted] = useState(false);
+  if (!submitted && (id === 'new' || id === minted))
+    return (
+      <SubmissionForm
+        key={minted}
+        form={form}
+        id={minted}
+        onSubmitted={() => {
+          setSubmitted(true);
+        }}
+      />
+    );
+  return <Record form={form} id={id} />;
+}
+
+// Where it stands, and its history. A draft opened again is its form
+function Record({ form, id }: { form: string; id: string }) {
   const { data: forms } = useForms();
   const neighbours = useNeighbours({
     id,
@@ -159,8 +186,11 @@ export function SubmissionPage() {
     pathOf: (row) => `/forms/${form}/${row.id}`,
   });
   const { data: s, error, isPlaceholderData } = useSubmission(form, id);
-  const list = forms?.find((f) => f.key === form)?.title ?? 'Back';
+  const spec = forms?.find((f) => f.key === form);
+  const list = spec?.title ?? 'Back';
   const current = s ? `${s.response_number !== null ? `#${s.response_number} ` : ''}${s.title ?? id}` : id;
+  if (s?.status === 'draft' && !isPlaceholderData)
+    return <SubmissionForm key={id} form={form} id={id} draft={s.draft} draftTest={s.test} />;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -178,7 +208,7 @@ export function SubmissionPage() {
         <>
           <div className="mb-1 flex flex-wrap items-center gap-3">
             <h1 className="text-lg font-semibold">{s.title ?? id}</h1>
-            <StatusBadge status={s.status} />
+            <SubmissionStatus status={s.status} tracked={spec?.tracks_status ?? false} />
             {s.test && <TestBadge />}
             {s.amount !== null && <span className="ml-auto text-lg font-semibold">{money(s.amount)}</span>}
           </div>

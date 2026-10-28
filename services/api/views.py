@@ -6,7 +6,8 @@ from pydantic import ValidationError
 
 from common import log
 from forms import FORMS
-from requisition import Files, Requisition
+from requisition import Files, Requisition, RequisitionForm
+from submission import kinds
 
 from .models import (
     Answer,
@@ -64,7 +65,9 @@ def answers(form: str, doc: dict) -> list[Answer]:
         return []
     if form == "requisition":
         return requisition_answers(values)
-    spec, rows = FORMS[form], []
+    if values.get("source") == "ourfos":
+        return form_answers(form, values)
+    spec, rows = FORMS[form].google_form, []
     for key, label in spec.labels.items():
         value = values.get(key)
         if not value:
@@ -78,18 +81,45 @@ def answers(form: str, doc: dict) -> list[Answer]:
     return rows
 
 
+def form_answers(form: str, values: dict) -> list[Answer]:
+    """Our own form's, in its order, titled as it asks them. As stored, unchecked: a field it no longer asks is left out"""
+    model, rows = FORMS[form].model, []
+    for key, field in model.model_fields.items():
+        value = values.get(key)
+        if value in (None, "", []):
+            continue
+        kind = kinds(model)[key]
+        if kind == "files":
+            rows.append(Answer(label=field.title or key, files=files(value)))
+        elif kind == "amount":
+            rows.append(Answer(label=field.title or key, text=f"${value:,.2f}"))
+        elif str(value).startswith(("http://", "https://")) and " " not in str(value).strip():
+            rows.append(Answer(label=field.title or key, link=str(value).strip()))
+        else:
+            rows.append(Answer(label=field.title or key, text=str(value)))
+    return rows
+
+
+def title(field: str) -> str:
+    return RequisitionForm.model_fields[field].title or field
+
+
 def requisition_answers(values: dict) -> list[Answer]:
     try:
         r = Requisition.model_validate(values)
     except ValidationError:
         # A shape from before the model was what it is now: every answer as it was kept
         return [Answer(label=k, text=str(v)) for k, v in values.items() if v not in (None, "", [], {})]
-    rows = [Answer(label="Reference Number", text=r.reference_number)] if r.reference_number else []
-    rows += [Answer(label="Payable To", text=r.payable_to), Answer(label="Total Amount", text=f"${r.amount:,.2f}")]
+    rows = [
+        Answer(label=title("payable_to"), text=r.payable_to),
+        Answer(label=title("amount"), text=f"${r.amount:,.2f}"),
+    ]
     if r.disbursed_on:
-        rows.append(Answer(label="Date Disbursed", text=r.disbursed_on.isoformat()))
+        rows.append(Answer(label=title("disbursed_on"), text=r.disbursed_on.isoformat()))
+    if r.reference_number:
+        rows.append(Answer(label=title("reference_number"), text=r.reference_number))
     if r.comment:
-        rows.append(Answer(label="Comment", text=r.comment))
+        rows.append(Answer(label=title("comment"), text=r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
             rows.append(Answer(label=Files.label(field), files=files(refs)))
@@ -193,4 +223,5 @@ def submission(form: str, id: str, doc: dict, runs: list[Run], entries: list[Jou
         raw=None if shown else doc.get("raw"),
         runs=sorted(runs, key=lambda r: (r.started_at is not None, r.started_at), reverse=True),
         journal_entries=entries,
+        draft=doc.get("draft") if doc.get("status") == "draft" else None,
     )

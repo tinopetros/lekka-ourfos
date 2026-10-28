@@ -9,11 +9,12 @@ import re
 from datetime import date
 from functools import cache
 from html import escape
+from urllib.parse import quote, urlencode
 
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
-from requisition import Files, Requisition
-from submission import Submission
+from requisition import Files, Requisition, RequisitionForm
+from submission import Submission, kinds
 
 DISCLAIMER = "Lekkai is an experimental AI agent at Lekka, it may make mistakes..."
 # Where Lekkai stops on a requisition, so a deferral says it as the handover does
@@ -53,18 +54,12 @@ def reply_to(form: str, test=False) -> list[str]:
 
 def recipients(form: str, submitter: str | None, test=False) -> tuple[list[str], int]:
     """The form's list and the submitter, once each, in our domain only. And how many were dropped. A test goes to
-    lekkai@, and to its submitter only if TEST_TO lists them (docs/release1/adr.md 3)."""
+    lekkai@ and its submitter alone: only those allowed to send one can, from our own form."""
     listed = [sender()] if test else config()[form]["notify_to"]
-    if test and (submitter or "").strip().lower() not in test_to():
-        submitter = None
     wanted = [a.strip().lower() for a in listed] + [(submitter or "").strip().lower()]
     domain = "@" + sender().rsplit("@", 1)[1]
     to = list(dict.fromkeys(a for a in wanted if a.endswith(domain) and a.count("@") == 1))
     return to, len({a for a in wanted if a} - set(to))
-
-
-def test_to() -> set[str]:
-    return {a.strip().lower() for a in os.environ.get("TEST_TO", "").split(",") if a.strip()}
 
 
 def money(amount: float) -> str:
@@ -76,17 +71,26 @@ def day(d: date) -> str:
     return f"{d:%b} {d.day}, {d.year}"
 
 
-def file_links(refs: list[str]) -> tuple[str, str]:
-    """File 1, File 2: Drive's linked. A gs:// file has nowhere to open yet (ADR 4), so it's named only."""
+def file_links(refs: list[str], form: str, id: str) -> tuple[str, str]:
+    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. One added
+    to this submission from our own form by a short path; any other of ours by its ref. Without the UI's address,
+    ours is named only"""
     html, text = [], []
+    ui = os.environ.get("UI_URL")
+    own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{form}/{id}/"
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            html.append(f"File {n}")
-            text.append(f"File {n}")
+            short = ref.startswith(own) and "/" not in ref.removeprefix(own)
+            path = (
+                f"/api/files/{form}/{quote(id)}/{ref.removeprefix(own)}"
+                if short
+                else f"/api/files?{urlencode({'ref': ref})}"
+            )
+            url = f"{ui}{path}" if ui else None
         else:
             url = f"https://drive.google.com/open?id={ref}"
-            html.append(f'<a href="{escape(url)}">File {n}</a>')
-            text.append(f"File {n} {url}")
+        html.append(f'<a href="{escape(url)}">File {n}</a>' if url else f"File {n}")
+        text.append(f"File {n} {url}" if url else f"File {n}")
     return ", ".join(html), ", ".join(text)
 
 
@@ -111,7 +115,12 @@ def table(rows: list[tuple[str, str, str]]) -> str:
 
 def acknowledgement(form: str, s: Submission) -> tuple[str, str]:
     """The first email: the form's answers, as its add-on sent them."""
-    rows = requisition_rows(s) if isinstance(s, Requisition) else text_rows(form, s)
+    if isinstance(s, Requisition):
+        rows = requisition_rows(s)
+    elif s.source == "ourfos":
+        rows = form_rows(form, s)
+    else:
+        rows = text_rows(form, s)
     heading = f"{form_name(form)} has a new entry from {s.submitted_by}:"
     html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
     text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
@@ -124,13 +133,13 @@ def submitter_row(s: Submission) -> tuple[str, str, str]:
 
 def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
     """The form's questions in its order, empty ones left out. A line break stays one, and a lone link is linked."""
-    spec, rows = FORMS[form], [submitter_row(s)]
+    spec, rows = FORMS[form].google_form, [submitter_row(s)]
     for key, label in spec.labels.items():
         value = getattr(s, key)
         if not value:
             continue
         if key in spec.files:
-            rows.append((label, *file_links(value)))
+            rows.append((label, *file_links(value, form, s.response_id)))
         elif URL.match(value):
             rows.append((label, f'<a href="{escape(value)}">{escape(value)}</a>', value))
         else:
@@ -138,20 +147,46 @@ def text_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
     return rows
 
 
+def title(field: str) -> str:
+    return RequisitionForm.model_fields[field].title or field
+
+
+def form_rows(form: str, s: Submission) -> list[tuple[str, str, str]]:
+    """Our own form's answers, in its order, titled as it asks them, empty ones left out."""
+    model, rows = FORMS[form].model, [submitter_row(s)]
+    for key, field in model.model_fields.items():
+        value = getattr(s, key)
+        if value in (None, "", []):
+            continue
+        kind = kinds(model)[key]
+        if kind == "files":
+            rows.append((field.title, *file_links(value, form, s.response_id)))
+        elif kind == "amount":
+            rows.append((field.title, f"${money(value)}", f"${money(value)}"))
+        elif isinstance(value, date):
+            rows.append((field.title, day(value), day(value)))
+        elif URL.match(str(value)):
+            rows.append((field.title, f'<a href="{escape(value)}">{escape(value)}</a>', value))
+        else:
+            rows.append((field.title, escape(str(value)).replace("\n", "<br>"), str(value)))
+    return rows
+
+
 def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     rows = [
         submitter_row(r),
-        *([("Reference Number", escape(r.reference_number), r.reference_number)] if r.reference_number else []),
-        ("Payable To", escape(r.payable_to), r.payable_to),
-        ("Total Amount", f"${money(r.amount)}", f"${money(r.amount)}"),
+        (title("payable_to"), escape(r.payable_to), r.payable_to),
+        (title("amount"), f"${money(r.amount)}", f"${money(r.amount)}"),
     ]
     if r.disbursed_on:
-        rows.append(("Date Disbursed", day(r.disbursed_on), day(r.disbursed_on)))
+        rows.append((title("disbursed_on"), day(r.disbursed_on), day(r.disbursed_on)))
+    if r.reference_number:
+        rows.append((title("reference_number"), escape(r.reference_number), r.reference_number))
     if r.comment:
-        rows.append(("Comment", escape(r.comment), r.comment))
+        rows.append((title("comment"), escape(r.comment), r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
-            rows.append((Files.label(field), *file_links(refs)))
+            rows.append((Files.label(field), *file_links(refs, "requisition", r.response_id)))
     return rows
 
 

@@ -12,6 +12,7 @@ export const router = createBrowserRouter([
         path: 'forms/:form',
         lazy: async () => ({ Component: (await import('@/features/submissions/SubmissionsPage')).SubmissionsPage }),
       },
+      // forms/:form/new too: a new one is the same page, its form, until it's submitted
       {
         path: 'forms/:form/:id',
         lazy: async () => ({ Component: (await import('@/features/submissions/SubmissionPage')).SubmissionPage }),

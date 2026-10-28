@@ -27,5 +27,5 @@ export const useSubmissions = (form: string, cursor?: string) =>
 export const useSubmission = (form: string, id: string, row?: SubmissionSummary) =>
   useQuery({
     ...submissionQueries.one(form, id),
-    placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [] },
+    placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null },
   });

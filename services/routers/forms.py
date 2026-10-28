@@ -31,10 +31,12 @@ def known(form: str):
 @router.post("")
 def receive(form: str, id: str, body: dict):
     known(form)
-    submission = FORMS[form].model.model_validate(body["submission"])
+    source = body["submission"].get("source")
+    submission = FORMS[form].stored(source).model_validate(body["submission"])
     test = bool(body.get("test"))
     store.submission(form, id).save(
         form=form,
+        source=source or "google-form",
         answers=submission.to_firestore(),
         raw=body.get("raw"),
         test=test,
@@ -68,7 +70,7 @@ def acknowledge(form: str, id: str, body: dict):
     sent = doc.get("emails", {}).get("acknowledgement")
     if not sent:
         simulate("acknowledge", body.get("simulate"))
-        submission = FORMS[form].model.model_validate(doc["answers"])
+        submission = FORMS[form].stored(doc["answers"].get("source")).model_validate(doc["answers"])
         test = doc.get("test")
         html, text = emails.acknowledgement(form, submission)
         sent = send(

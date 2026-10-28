@@ -1,14 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { FilePen } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
 import { CreateButton } from '@/components/CreateButton';
 import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
-import { StatusBadge, TestBadge } from '@/components/StatusBadge';
+import { SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useForms } from '@/lib/api/queries';
+import { useDrafts } from '@/features/forms/api';
+import { useCan, useForms } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
 import { money, when } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
@@ -16,8 +18,32 @@ import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
 import { submissionQueries, useSubmissions } from './api';
 
+// Yours alone, unsubmitted, above the list: a draft is in no list until it's submitted
+function YourDrafts({ form }: { form: string }) {
+  const can = useCan();
+  const { data: drafts = [] } = useDrafts(form, can(`forms:${form}:submit`));
+  if (!drafts.length) return null;
+  return (
+    // Amber: not wrong, but waiting on you, to submit or discard
+    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+      <h2 className="mb-2 font-medium text-amber-900 dark:text-amber-200">Your drafts</h2>
+      <ul className="space-y-1">
+        {drafts.map((d) => (
+          <li key={d.id} className="flex items-center gap-2">
+            <FilePen className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
+            <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
+              {d.title ?? 'Untitled'}
+            </Link>
+            <span className="ml-auto shrink-0 text-muted-foreground">{when(d.updated_at)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // A row peeks after the pointer rests on it, not as it passes, and starts loading the record so a click is quick
-function Peek({ row, children }: { row: SubmissionSummary; children: ReactElement }) {
+function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boolean; children: ReactElement }) {
   const queryClient = useQueryClient();
   return (
     <HoverCard
@@ -30,7 +56,7 @@ function Peek({ row, children }: { row: SubmissionSummary; children: ReactElemen
       <HoverCardContent align="start" className="w-80 text-sm">
         <div className="flex items-center gap-2">
           <span className="font-medium">{row.title ?? 'No answers'}</span>
-          <StatusBadge status={row.status} />
+          <SubmissionStatus status={row.status} tracked={tracked} />
         </div>
         <div className="mt-1 text-muted-foreground">
           {row.response_number !== null && `#${row.response_number} · `}
@@ -54,6 +80,7 @@ export function SubmissionsPage() {
   const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor);
   const spec = forms?.find((f) => f.key === form);
   const amounts = form === 'requisition';
+  const tracked = spec?.tracks_status ?? false;
   const open = (id: string) => void navigate(`/forms/${form}/${id}`, { state: { from: search } satisfies FromList });
 
   return (
@@ -61,9 +88,10 @@ export function SubmissionsPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold">{spec?.title ?? ''}</h1>
         <div className="ml-auto">
-          <CreateButton noun={(spec?.title ?? 'one').toLowerCase().replace(/s$/, '')} />
+          <CreateButton form={form} noun={(spec?.title ?? 'one').toLowerCase().replace(/s$/, '')} />
         </div>
       </div>
+      <YourDrafts form={form} />
       {!data ? (
         <QueryState error={error} loading={<TableSkeleton columns={amounts ? 5 : 4} />} />
       ) : (
@@ -82,7 +110,7 @@ export function SubmissionsPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((s) => (
-                  <Peek key={s.id} row={s}>
+                  <Peek key={s.id} row={s} tracked={tracked}>
                     <TableRow
                       className="cursor-pointer"
                       tabIndex={0}
@@ -104,7 +132,7 @@ export function SubmissionsPage() {
                       <TableCell className="hidden md:table-cell">{s.submitted_by ?? '—'}</TableCell>
                       <TableCell className="hidden sm:table-cell">{when(s.submitted_at)}</TableCell>
                       <TableCell>
-                        <StatusBadge status={s.status} />
+                        <SubmissionStatus status={s.status} tracked={tracked} />
                       </TableCell>
                     </TableRow>
                   </Peek>

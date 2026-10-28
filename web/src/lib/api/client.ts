@@ -3,13 +3,21 @@ import type { paths } from './schema';
 
 export const api = createClient<paths>({ baseUrl: window.location.origin });
 
+// What the API found wrong with what was sent, each by where it is: a field's name, or nothing for the whole of it
+export interface Problem {
+  loc: (string | number)[];
+  msg: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
+  readonly problems: Problem[];
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, problems: Problem[] = []) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.problems = problems;
   }
 }
 
@@ -24,5 +32,6 @@ export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; respo
   const { data, error, response } = result;
   if (response.ok && data !== undefined) return data;
   const detail = (error as { detail?: unknown } | undefined)?.detail;
+  if (Array.isArray(detail)) throw new ApiError(response.status, 'Some answers need another look', detail as Problem[]);
   throw new ApiError(response.status, typeof detail === 'string' ? detail : response.statusText || 'Request failed');
 }

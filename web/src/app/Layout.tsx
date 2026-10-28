@@ -10,10 +10,12 @@ import { useUi } from '@/stores/ui';
 import { AppSidebar } from './AppSidebar';
 import { EnvironmentBanner } from './EnvironmentBanner';
 import { useOnRecord } from './useOnRecord';
+import { useScrollArea } from './useScrollArea';
 
 export function Layout({ me }: { me: Me }) {
   const onRecord = useOnRecord();
   const { expanded, pinned, setSidebar } = useUi();
+  const scrolling = useScrollArea();
   return (
     <div
       className="flex h-dvh flex-col bg-background"
@@ -45,7 +47,8 @@ export function Layout({ me }: { me: Me }) {
               </Tip>
             )}
           </header>
-          <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
+          {/* relative: what's positioned inside, like a switch's hidden input, stays in here, not the page's scroll */}
+          <main ref={scrolling} className="relative min-h-0 flex-1 overflow-auto p-4 md:p-6">
             <Outlet />
           </main>
         </SidebarInset>

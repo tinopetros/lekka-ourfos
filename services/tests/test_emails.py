@@ -63,7 +63,6 @@ FIXTURES = Path(__file__).parents[2] / "workflows/fixtures"
 def env(monkeypatch):
     monkeypatch.setenv("WORKSPACE_SUBJECT", "lekkai@lekkacredit.com")
     monkeypatch.setenv("FORMS", json.dumps(FORMS))
-    monkeypatch.setenv("TEST_TO", "tpetros@lekkacredit.com")
     emails.config.cache_clear()
 
 
@@ -100,17 +99,17 @@ def test_money(amount, want):
 def test_an_acknowledgement_is_the_forms_answers():
     html, text = emails.acknowledgement(R, REQUISITION)
     assert "<strong>Requisition Approval Request Form has a new entry from tpetros@lekkacredit.com:</strong>" in html
-    assert f"{emails.QUESTION}Date Disbursed</th>{emails.TD}Sep 18, 2026</td>" in html
+    assert f"{emails.QUESTION}Disbursed on</th>{emails.TD}Sep 18, 2026</td>" in html
     assert '<a href="https://drive.google.com/open?id=B2">File 1</a>, File 2' in html
     assert "Invoice(s)" not in html
-    assert "Total Amount: $60" in text
-    assert "Receipt(s): File 1 https://drive.google.com/open?id=B2, File 2" in text
-    assert "Reference Number" not in text
+    assert "Amount: $60" in text
+    assert "Receipts: File 1 https://drive.google.com/open?id=B2, File 2" in text
+    assert "Reference number" not in text
 
 
 def test_a_reference_number_is_shown_when_the_form_has_one():
     _, text = emails.acknowledgement(R, REQUISITION.model_copy(update={"reference_number": "REQ-0482"}))
-    assert "Reference Number: REQ-0482" in text
+    assert "Reference number: REQ-0482" in text
 
 
 def test_the_forms_values_are_escaped():
@@ -192,16 +191,17 @@ def test_a_reply_is_sent_in_its_thread(monkeypatch):
     assert b"In-Reply-To: <x>" in base64.urlsafe_b64decode(sent["body"]["raw"])
 
 
-def test_a_test_tells_lekkai_and_a_submitter_test_to_lists():
-    assert emails.recipients(R, " TPetros@lekkacredit.com", test=True) == (
-        ["lekkai@lekkacredit.com", "tpetros@lekkacredit.com"],
+def test_a_test_tells_lekkai_and_its_submitter():
+    assert emails.recipients(R, " LTanga@lekkacredit.com", test=True) == (
+        ["lekkai@lekkacredit.com", "ltanga@lekkacredit.com"],
         0,
     )
 
 
-@pytest.mark.parametrize("submitter", ["ltanga@lekkacredit.com", "someone@gmail.com", None])
-def test_a_test_tells_only_lekkai_otherwise(submitter):
-    assert emails.recipients(R, submitter, test=True) == (["lekkai@lekkacredit.com"], 0)
+@pytest.mark.parametrize("submitter", ["someone@gmail.com", None])
+def test_a_test_tells_only_lekkai_without_a_submitter_of_ours(submitter):
+    dropped = 1 if submitter else 0
+    assert emails.recipients(R, submitter, test=True) == (["lekkai@lekkacredit.com"], dropped)
 
 
 def test_a_tests_subject_says_so():
@@ -223,9 +223,10 @@ def submission(form: str, **changes):
     """A form's happy fixture, as the trigger cleans it: text, empty answers dropped, uploads as Drive ids."""
     raw = json.loads((FIXTURES / form / "happy.json").read_text())
     spec = SPECS[form]
-    answers = {k: raw[k] for k in spec.labels if raw.get(k) and k not in spec.files}
-    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in spec.files if raw.get(k)}
-    return spec.model(**IDENTITY, **answers | changes)
+    google_form = spec.google_form
+    answers = {k: raw[k] for k in google_form.labels if raw.get(k) and k not in google_form.files}
+    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in google_form.files if raw.get(k)}
+    return google_form.model(**IDENTITY, **answers | changes)
 
 
 def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():
@@ -314,3 +315,44 @@ def test_reply_to_is_a_header_only_when_there_is_one():
         "Reply-To"
     ] == ("d@lekkacredit.com")
     assert parsed(gmail.message(["a@lekkacredit.com"], "L", "s", "", ""))["Reply-To"] is None
+
+
+def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
+    s = SPECS["loan_approval"].submission(
+        response_number=-1,
+        response_id="t",
+        submitted_by="a@lekkacredit.com",
+        submitted_at="2026-10-27T10:00:00Z",
+        source="ourfos",
+        applicant_first_name="Ada",
+        applicant_last_name="Moyo",
+        loan_amount=1500,
+        tenure=6,
+        monthly_repayment=290,
+        recommendation="Approve",
+        client_folder="https://drive.google.com/drive/folders/1AbC",
+    )
+    _, text = emails.acknowledgement("loan_approval", s)
+    assert text.splitlines()[2:] == [
+        "Email address: a@lekkacredit.com",
+        "Applicant's first name: Ada",
+        "Applicant's last name: Moyo",
+        "Loan amount: $1,500",
+        "Tenure: 6",
+        "Monthly repayment: $290",
+        "Recommendation: Approve",
+        "Client folder: https://drive.google.com/drive/folders/1AbC",
+    ]
+
+
+def test_our_files_link_to_the_ui_which_streams_them(monkeypatch):
+    monkeypatch.setenv("UI_URL", "https://test-ourfos.lekkacredit.tech")
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+    refs = ["gs://ourfos-dev-attachments/write_off/w1/0a1b2c3d.png", "gs://ourfos-dev-attachments/r/receipts/0f", "D1"]
+    _, text = emails.file_links(refs, "write_off", "w1")
+    ui = "https://test-ourfos.lekkacredit.tech/api/files"
+    assert text == (
+        f"File 1 {ui}/write_off/w1/0a1b2c3d.png, "
+        f"File 2 {ui}?ref=gs%3A%2F%2Fourfos-dev-attachments%2Fr%2Freceipts%2F0f, "
+        "File 3 https://drive.google.com/open?id=D1"
+    )

@@ -59,3 +59,47 @@ def reason(response) -> str:
         return str(response.json()["error"]["message"])[:200]
     except (ValueError, KeyError, TypeError):
         return response.text[:200]
+
+
+UPLOAD = "https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o"
+LIST = "https://storage.googleapis.com/storage/v1/b/{bucket}/o"
+
+
+@functools.cache
+def writer() -> AuthorizedSession:
+    """ourfos-api's, for the files our own forms take: it writes and deletes only under a submission's own prefix."""
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/devstorage.read_write"])
+    return AuthorizedSession(credentials)
+
+
+def upload(name: str, data: bytes, content_type: str) -> str:
+    """An object in our attachments bucket, its gs:// ref."""
+    response = writer().post(
+        UPLOAD.format(bucket=bucket()),
+        params={"uploadType": "media", "name": name},
+        data=data,
+        headers={"Content-Type": content_type},
+        timeout=TIMEOUT,
+    )
+    if not response.ok:
+        raise GcsError(response.status_code, f"{response.status_code} {reason(response)}")
+    return f"gs://{bucket()}/{name}"
+
+
+def delete_prefix(prefix: str) -> int:
+    """Every object under a prefix, gone: a discarded draft's files. How many there were."""
+    names, token = [], None
+    while True:
+        params = {"prefix": prefix, "fields": "items(name),nextPageToken"} | ({"pageToken": token} if token else {})
+        response = writer().get(LIST.format(bucket=bucket()), params=params, timeout=TIMEOUT)
+        if not response.ok:
+            raise GcsError(response.status_code, f"{response.status_code} {reason(response)}")
+        body = response.json()
+        names += [item["name"] for item in body.get("items", [])]
+        if not (token := body.get("nextPageToken")):
+            break
+    for name in names:
+        response = writer().delete(OBJECTS.format(bucket=bucket(), name=quote(name, safe="")), timeout=TIMEOUT)
+        if not response.ok and response.status_code != 404:
+            raise GcsError(response.status_code, f"{response.status_code} {reason(response)}")
+    return len(names)
