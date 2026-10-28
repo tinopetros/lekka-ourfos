@@ -138,7 +138,9 @@ export function message(issue: z.core.$ZodRawIssue): string | undefined {
     case 'not_multiple_of':
       return 'To the cent: at most 2 decimal places';
     case 'too_small':
-      return issue.origin === 'string' ? 'Required' : `At least ${String(issue.minimum)}`;
+      if (issue.origin === 'string') return 'Required';
+      if (issue.origin === 'array') return 'Add at least one file';
+      return `At least ${String(issue.minimum)}`;
     case 'invalid_value':
       return 'Choose one of the options';
     case 'invalid_format':

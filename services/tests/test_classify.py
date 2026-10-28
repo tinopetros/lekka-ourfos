@@ -20,7 +20,7 @@ REQUISITION = Requisition(
     submitted_at="2026-03-06T12:40:10Z",
     payable_to="x",
     amount=1,
-    files={"receipts": ["gs://ourfos-dev-attachments/x"]},
+    files={"signed_requisition_form": ["S1"], "receipts": ["gs://ourfos-dev-attachments/x"]},
 )
 
 

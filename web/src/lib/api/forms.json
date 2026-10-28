@@ -5,9 +5,9 @@
         "additionalProperties": false,
         "properties": {
           "signed_requisition_form": {
-            "default": [],
             "items": { "type": "string" },
             "kind": "files",
+            "minItems": 1,
             "title": "Signed requisition form",
             "type": "array"
           },
@@ -26,6 +26,7 @@
             "type": "array"
           }
         },
+        "required": ["signed_requisition_form"],
         "title": "Files",
         "type": "object"
       }
@@ -57,9 +58,9 @@
         "default": null,
         "title": "Comment"
       },
-      "files": { "$ref": "#/$defs/Files", "default": { "signed_requisition_form": [], "receipts": [], "invoices": [] } }
+      "files": { "$ref": "#/$defs/Files" }
     },
-    "required": ["payable_to", "amount"],
+    "required": ["payable_to", "amount", "files"],
     "title": "Requisition",
     "type": "object"
   },

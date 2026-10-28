@@ -12,7 +12,8 @@ from submission import Amount, FileRefs, LongText, Submission
 class Files(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    signed_requisition_form: FileRefs = Field([], title="Signed requisition form")
+    # A requisition isn't one without its signed form: the Google Form required it too
+    signed_requisition_form: FileRefs = Field(min_length=1, title="Signed requisition form")
     receipts: FileRefs = Field([], title="Receipts")
     invoices: FileRefs = Field([], title="Invoices")
 
@@ -33,7 +34,7 @@ class RequisitionForm(BaseModel):
         None, title="Reference number", description="The number on the paper requisition, if it has one"
     )
     comment: LongText | None = Field(None, title="Comment")
-    files: Files = Field(Files(), title="Files")
+    files: Files = Field(title="Files")
 
 
 class Requisition(RequisitionForm, Submission):

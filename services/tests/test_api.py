@@ -28,7 +28,7 @@ REQUISITION = {
     "submitted_at": "2026-10-01T10:00:00Z",
     "payable_to": "Acme",
     "amount": 1234.5,
-    "files": {"receipts": ["drive-id", "gs://bucket/x.pdf"]},
+    "files": {"signed_requisition_form": ["signed-id"], "receipts": ["drive-id", "gs://bucket/x.pdf"]},
 }
 
 
@@ -142,7 +142,8 @@ def test_a_requisitions_row_and_answers():
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
     answers = views.answers("requisition", doc)
     assert [(a.label, a.text) for a in answers[:2]] == [("Payable to", "Acme"), ("Amount", "$1,234.50")]
-    assert [(f.name, f.drive_id, f.ref) for f in answers[2].files] == [
+    assert answers[2].label == "Signed requisition form"
+    assert [(f.name, f.drive_id, f.ref) for f in answers[3].files] == [
         ("File 1", "drive-id", None),
         ("File 2", None, "gs://bucket/x.pdf"),
     ]
