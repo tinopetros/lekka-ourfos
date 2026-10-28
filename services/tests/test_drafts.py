@@ -20,6 +20,7 @@ ANSWERS = {
     "client_number": "000123",
     "loan_account_number": "000456",
     "original_principal": 600,
+    "original_interest": 120,
     "loan_term": 12,
     "total_recovered": 1110,
     "current_balance": 212.52,

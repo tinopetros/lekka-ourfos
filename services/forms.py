@@ -159,9 +159,13 @@ class WriteOffForm(BaseModel):
     loan_account_number: AccountNumber = Field(
         title="Loan account number", description="The loan's account number in Mifos, e.g. 000000428"
     )
-    # In the order a request makes its case: what was lent, over how long, what's come back, what's left
+    # In the order a request makes its case: what was lent and at what interest, over how long, what's come back,
+    # what's left
     original_principal: Amount = Field(
         gt=0, title="Original principal", description="What was lent, before interest and fees"
+    )
+    original_interest: Amount = Field(
+        title="Original interest", description="The interest charged on the loan over its term"
     )
     loan_term: Months = Field(title="Loan term", description="In months")
     total_recovered: Amount = Field(

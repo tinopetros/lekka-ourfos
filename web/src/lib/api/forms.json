@@ -223,6 +223,14 @@
         "title": "Original principal",
         "type": "number"
       },
+      "original_interest": {
+        "description": "The interest charged on the loan over its term",
+        "kind": "amount",
+        "minimum": 0,
+        "multipleOf": 0.01,
+        "title": "Original interest",
+        "type": "number"
+      },
       "loan_term": { "description": "In months", "minimum": 1, "title": "Loan term", "type": "integer" },
       "total_recovered": {
         "description": "Everything received on the loan so far, interest and fees included",
@@ -263,6 +271,7 @@
       "client_number",
       "loan_account_number",
       "original_principal",
+      "original_interest",
       "loan_term",
       "total_recovered",
       "current_balance",
