@@ -1,5 +1,5 @@
-import { CircleHelp, Loader2, Paperclip, X } from 'lucide-react';
-import { useState } from 'react';
+import { CircleHelp, Loader2, Paperclip, Upload, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Controller, type Control } from 'react-hook-form';
 import {
@@ -10,76 +10,102 @@ import {
   FieldLegend,
   FieldSet,
 } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { Field, Values } from './schema';
 
-// Files, sent as they're picked, each listed with a way to take it off again. On a phone, the camera is one way in
+// Files, sent as they're picked, each listed by the name it was picked with, with a way to take it off again. On a
+// phone, the camera is one way in. The button stands in for the browser's own picker, which says "No file chosen"
+// however many there are
 function Files({
   id,
   refs,
+  names,
   upload,
   onChange,
 }: {
   id: string;
   refs: string[];
+  names: Record<string, string>;
   upload: (file: File) => Promise<string>;
-  onChange: (refs: string[]) => void;
+  onChange: (refs: string[], named: Record<string, string>) => void;
 }) {
-  const [sending, setSending] = useState<string[]>([]);
+  const [sending, setSending] = useState<{ key: string; name: string }[]>([]);
+  const picker = useRef<HTMLInputElement>(null);
   return (
     <div className="space-y-2">
-      {refs.length > 0 && (
+      {(refs.length > 0 || sending.length > 0) && (
         <ul className="space-y-1 text-sm">
           {refs.map((ref, i) => (
             <li key={ref} className="flex items-center gap-2">
               <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
-              <span>File {i + 1}</span>
+              <span className="min-w-0 truncate">{names[ref] ?? `File ${String(i + 1)}`}</span>
               <button
                 type="button"
-                aria-label={`Take off file ${String(i + 1)}`}
-                className="ml-auto text-muted-foreground hover:text-foreground"
+                aria-label={`Take off ${names[ref] ?? `file ${String(i + 1)}`}`}
+                className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
                 onClick={() => {
-                  onChange(refs.filter((r) => r !== ref));
+                  onChange(
+                    refs.filter((r) => r !== ref),
+                    {},
+                  );
                 }}
               >
                 <X className="size-4" />
               </button>
             </li>
           ))}
-          {sending.map((name) => (
-            <li key={name} className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> Sending…
+          {sending.map((s) => (
+            <li key={s.key} className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="size-3.5 shrink-0 animate-spin" />
+              <span className="min-w-0 truncate">Sending {s.name}…</span>
             </li>
           ))}
         </ul>
       )}
-      <Input
+      <input
+        ref={picker}
         id={id}
         type="file"
         multiple
         accept="image/*,application/pdf"
+        className="sr-only"
+        tabIndex={-1}
         onChange={(e) => {
-          const picked = Array.from(e.target.files ?? []);
+          const picked = Array.from(e.target.files ?? []).map((file) => ({ file, key: crypto.randomUUID() }));
           e.target.value = '';
-          setSending((s) => [...s, ...picked.map((f) => f.name)]);
+          setSending((s) => [...s, ...picked.map((p) => ({ key: p.key, name: p.file.name }))]);
           void (async () => {
             const added: string[] = [];
-            for (const file of picked) {
+            const named: Record<string, string> = {};
+            for (const { file, key } of picked) {
               try {
-                added.push(await upload(file));
+                const ref = await upload(file);
+                added.push(ref);
+                named[ref] = file.name;
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : `Couldn't send ${file.name}`);
               } finally {
-                setSending((s) => s.filter((n) => n !== file.name));
+                setSending((s) => s.filter((x) => x.key !== key));
               }
             }
-            if (added.length) onChange([...refs, ...added]);
+            if (added.length) onChange([...refs, ...added], named);
           })();
         }}
       />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          picker.current?.click();
+        }}
+      >
+        <Upload /> Upload files
+      </Button>
     </div>
   );
 }
@@ -106,6 +132,8 @@ export function FormField({
   name,
   control,
   upload,
+  names,
+  onNamed,
   onCommit,
 }: {
   field: Field;
@@ -113,6 +141,9 @@ export function FormField({
   control: Control<Values>;
   // Sends a picked file, its gs:// ref back
   upload: (file: File) => Promise<string>;
+  // Each file's name as it was picked, by its ref: it's stored under a short one of its own
+  names: Record<string, string>;
+  onNamed: (named: Record<string, string>) => void;
   // An answer given without leaving its question, a choice or a file: the draft is saved then
   onCommit: () => void;
 }) {
@@ -127,6 +158,8 @@ export function FormField({
             name={`${name}.${f.key}`}
             control={control}
             upload={upload}
+            names={names}
+            onNamed={onNamed}
             onCommit={onCommit}
           />
         ))}
@@ -211,8 +244,10 @@ export function FormField({
               <Files
                 id={id}
                 refs={Array.isArray(input.value) ? (input.value as string[]) : []}
+                names={names}
                 upload={upload}
-                onChange={(refs) => {
+                onChange={(refs, named) => {
+                  onNamed(named);
                   input.onChange(refs);
                   onCommit();
                 }}

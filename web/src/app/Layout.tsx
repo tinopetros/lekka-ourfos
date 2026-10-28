@@ -45,7 +45,8 @@ export function Layout({ me }: { me: Me }) {
               </Tip>
             )}
           </header>
-          <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
+          {/* relative: what's positioned inside, like a switch's hidden input, stays in here, not the page's scroll */}
+          <main className="relative min-h-0 flex-1 overflow-auto p-4 md:p-6">
             <Outlet />
           </main>
         </SidebarInset>

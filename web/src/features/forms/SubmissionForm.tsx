@@ -30,6 +30,9 @@ import { upload, useDiscard, useSaveDraft, useSubmit } from './api';
 import { FormField } from './FormField';
 import { blank, fields, message, toAnswers, validator, type Field, type Values } from './schema';
 
+// Where a draft keeps its files' names as picked: beside its answers, never one of them
+const NAMES = '_file_names';
+
 // Every problem the form has, each with the title of the question it's about, for the summary at the top
 function problems(
   fs: Field[],
@@ -130,12 +133,22 @@ export function SubmissionForm({
 
   // What was last saved, or what the form started with: leaving a question you didn't change saves nothing, and a
   // new form's own prefilled answers aren't worth a draft
-  const last = useRef(JSON.stringify({ values: getValues(), test: draftTest }));
+  // Each file's name as picked, kept with the draft alone: what's submitted, and stored, names it afresh
+  const [fileNames, setFileNames] = useState<Record<string, string>>(
+    () => (draft?.[NAMES] as Record<string, string> | undefined) ?? {},
+  );
+  const picked = useRef(fileNames);
+  const named = (more: Record<string, string>) => {
+    picked.current = { ...picked.current, ...more };
+    setFileNames(picked.current);
+  };
+  const snapshot = useCallback(() => ({ ...getValues(), [NAMES]: picked.current }), [getValues]);
+  const last = useRef(JSON.stringify({ values: { ...getValues(), [NAMES]: fileNames }, test: draftTest }));
   const submitted = useRef(false);
   const keep = useCallback(
     (nextTest = test) => {
       if (submitted.current) return;
-      const values = getValues();
+      const values = snapshot();
       const now = JSON.stringify({ values, test: nextTest });
       if (now === last.current) return;
       last.current = now;
@@ -158,7 +171,7 @@ export function SubmissionForm({
         },
       );
     },
-    [test, getValues, isDraft, save, navigate, form, id],
+    [test, snapshot, isDraft, save, navigate, form, id],
   );
 
   // Leaving the page: what's in the question you're on, if it changed, is saved as the page goes. keepalive, so the
@@ -170,7 +183,7 @@ export function SubmissionForm({
     };
     const leaving = () => {
       if (submitted.current) return;
-      const values = getValues();
+      const values = snapshot();
       const now = JSON.stringify({ values, test });
       if (now === last.current) return;
       last.current = now;
@@ -187,7 +200,7 @@ export function SubmissionForm({
       document.removeEventListener('visibilitychange', hidden);
       window.removeEventListener('pagehide', leaving);
     };
-  }, [keep, getValues, test, form, id]);
+  }, [keep, snapshot, test, form, id]);
 
   if (!fs.length) return <p className="p-6 text-muted-foreground">There's no form {form}</p>;
   const list = spec?.title ?? form;
@@ -290,6 +303,8 @@ export function SubmissionForm({
                 name={f.key}
                 control={control}
                 upload={(file) => upload(form, id, file)}
+                names={fileNames}
+                onNamed={named}
                 onCommit={() => {
                   keep();
                 }}
@@ -323,7 +338,7 @@ export function SubmissionForm({
                   }}
                   onClick={() => {
                     // Nothing typed, nothing saved: there's nothing to lose, so no asking
-                    if (!isDraft && JSON.stringify({ values: getValues(), test }) === last.current) leave();
+                    if (!isDraft && JSON.stringify({ values: snapshot(), test }) === last.current) leave();
                     else setConfirming(true);
                   }}
                 >
