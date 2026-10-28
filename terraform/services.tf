@@ -51,6 +51,8 @@ resource "google_cloud_run_v2_service" "services" {
           MIFOS_OFFICE_ID           = tostring(var.mifos.office_id)
           MIFOS_CURRENCY            = var.mifos.currency
           MIFOS_VERIFY_SSL          = tostring(var.mifos.verify_ssl)
+          # Where the emails link our files to: the UI, which streams them behind its sign-in
+          UI_URL = var.api_domain == null ? google_cloud_run_v2_service.api.uri : "https://${var.api_domain}"
         }
         content {
           name  = env.key

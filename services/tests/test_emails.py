@@ -339,3 +339,11 @@ def test_our_own_forms_acknowledgement_is_its_answers_titled_as_it_asks():
         "Tenure: 6",
         "Client folder: https://drive.google.com/drive/folders/1AbC",
     ]
+
+
+def test_our_files_link_to_the_ui_which_opens_them(monkeypatch):
+    monkeypatch.setenv("UI_URL", "https://test-ourfos.lekkacredit.tech")
+    html, text = emails.file_links(["gs://ourfos-dev-attachments/write_off/w1/0a1b2c3d-receipt.png", "D1"])
+    url = "https://test-ourfos.lekkacredit.tech/api/files?ref=gs%3A%2F%2Fourfos-dev-attachments%2Fwrite_off%2Fw1%2F0a1b2c3d-receipt.png"
+    assert html.startswith(f'<a href="{url}">receipt.png</a>')
+    assert text == f"receipt.png {url}, File 2 https://drive.google.com/open?id=D1"

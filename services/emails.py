@@ -9,6 +9,7 @@ import re
 from datetime import date
 from functools import cache
 from html import escape
+from urllib.parse import urlencode
 
 from forms import FORMS
 from integrations.workspace.delegation import subject as sender
@@ -77,13 +78,20 @@ def day(d: date) -> str:
 
 
 def file_links(refs: list[str]) -> tuple[str, str]:
-    """File 1, File 2: Drive's linked. A gs:// file has nowhere to open yet (ADR 4), so it's named only: by its own
-    name, if it was added from our own form."""
+    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. Ours goes by
+    its own name, if it was added from our own form. Without the UI's address, ours is named only"""
     html, text = [], []
+    ui = os.environ.get("UI_URL")
     for n, ref in enumerate(refs, 1):
         if ref.startswith("gs://"):
-            html.append(escape(file_name(ref, n)))
-            text.append(file_name(ref, n))
+            name = file_name(ref, n)
+            if ui:
+                url = f"{ui}/api/files?{urlencode({'ref': ref})}"
+                html.append(f'<a href="{escape(url)}">{escape(name)}</a>')
+                text.append(f"{name} {url}")
+            else:
+                html.append(escape(name))
+                text.append(name)
         else:
             url = f"https://drive.google.com/open?id={ref}"
             html.append(f'<a href="{escape(url)}">File {n}</a>')
