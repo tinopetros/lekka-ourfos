@@ -41,9 +41,17 @@ createRoot(root).render(
       <TooltipProvider delayDuration={300}>
         <RouterProvider router={router} />
       </TooltipProvider>
-      {/* Top right, below the header, so it covers neither the banner nor who you are; long enough to read and
-          reach for its link, and closed any time */}
-      <Toaster richColors position="top-right" offset={{ top: '4.5rem' }} duration={15_000} closeButton />
+      {/* Bottom right, 5 seconds. Done is green, as the buttons that do it are; a failure keeps its rich red */}
+      <Toaster
+        richColors
+        duration={5_000}
+        toastOptions={{
+          classNames: {
+            success: '!border-emerald-600 !bg-emerald-600 !text-white',
+            actionButton: '!bg-white !text-emerald-700',
+          },
+        }}
+      />
       <Suspense>
         <Devtools />
       </Suspense>
