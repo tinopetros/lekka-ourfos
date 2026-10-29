@@ -61,7 +61,7 @@ export function HomePage() {
   const can = useCan();
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-4">
-      <h1 className="text-2xl font-semibold">Hi {me ? firstName(me.email) : ''}</h1>
+      <h1 className="text-2xl font-semibold">Hi {me ? firstName(me.email, me.name) : ''}</h1>
       {/* Search, back when it searches: ids, response numbers and subjects, one kind of record at a time. A search
           box that does nothing misleads, so it waits
       <div className="flex gap-2">

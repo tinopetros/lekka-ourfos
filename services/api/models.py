@@ -9,10 +9,19 @@ class Model(BaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
 
+class Person(Model):
+    """Someone, as the UI shows them: by name, the email beside it."""
+
+    email: str
+    name: str | None
+
+
 class Me(Model):
     """Who's signed in, and where: one call before anything shows."""
 
     email: str
+    # Workspace's, if it has one
+    name: str | None = None
     environment: Literal["local", "dev", "prod"]
     # The commit the image was built from, for bug reports
     version: str

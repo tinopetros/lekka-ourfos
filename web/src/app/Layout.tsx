@@ -34,7 +34,7 @@ export function Layout({ me }: { me: Me }) {
           <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4 md:px-6">
             <SidebarTrigger className="md:hidden" aria-label="Menu" />
             <span className="ml-auto truncate text-sm text-muted-foreground" title={me.email}>
-              Hi {firstName(me.email)}
+              Hi {firstName(me.email, me.name)}
             </span>
             {/* IAP's own sign-out: it clears its cookie, and the next page asks Google who you are. None locally */}
             {me.environment !== 'local' && (

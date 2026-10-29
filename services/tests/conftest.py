@@ -1,10 +1,10 @@
-"""No test reaches a real database, nor Workspace's groups: anything a test doesn't fake fails loudly, rather than writing through whatever
+"""No test reaches a real database, nor Workspace's groups or directory: anything a test doesn't fake fails loudly, rather than writing through whatever
 credentials the laptop has."""
 
 import pytest
 
 import store
-from api import groups
+from api import groups, people
 
 
 @pytest.fixture(autouse=True)
@@ -21,3 +21,11 @@ def groups_of(monkeypatch):
     members: dict[str, set[str]] = {}
     monkeypatch.setattr(groups, "of", lambda email: frozenset(members.get(email, set())))
     return members
+
+
+@pytest.fixture(autouse=True)
+def names(monkeypatch):
+    """Everyone's full name, by email, for a test to fill in: nobody has one, unless it does."""
+    known: dict[str, str] = {}
+    monkeypatch.setattr(people, "name", lambda email: known.get(email))
+    return known

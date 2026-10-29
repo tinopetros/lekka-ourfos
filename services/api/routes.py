@@ -13,7 +13,7 @@ from forms import FORMS
 from integrations import gcs
 from submission import ID
 
-from . import drafts, views
+from . import drafts, people, views
 from . import submit as submitting
 from .auth import current_user
 from .models import (
@@ -23,6 +23,7 @@ from .models import (
     JournalEntry,
     JournalEntryPage,
     Me,
+    Person,
     Submission,
     SubmissionPage,
     SubmitRequest,
@@ -61,10 +62,16 @@ def page(collection, field: str, cursor: str | None, limit: int):
 def me(email: User) -> Me:
     return Me(
         email=email,
+        name=people.name(email),
         environment=os.environ.get("ENVIRONMENT", "local"),
         version=os.environ.get("VERSION", "local"),
         permissions=granted(email),
     )
+
+
+@router.get("/people/{email}")
+def person(email: str, _: User) -> Person:
+    return Person(email=email, name=people.name(email))
 
 
 @router.get("/forms")

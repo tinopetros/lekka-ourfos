@@ -39,3 +39,13 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Moving it to Terraform would let dev and prod differ, and change access without a rebuild. But it splits the rules from the code they guard, turns typos into runtime errors, and still takes a PR and a deploy. With this few people, a rebuild isn't the bottleneck
 - If dev and prod ever need different people, only the email lists would come from tfvars, as `POST_TO_MIFOS` does. The grants and exclusions stay in code, under test
 - **Revisit** with an admin page: in the long run, who has what belongs in the database, editable by ourfos admins, not in code or Terraform. Terraform would be a detour on the way there
+
+### 5. People by name, from Workspace's directory
+
+- All IAP tells us is an email. Names, photos, titles and managers are in Workspace's directory, by email: the Admin SDK's `users.get`, read-only scope `admin.directory.user.readonly`. That covers anyone at lekkacredit.com, submitters too, not just whoever is signed in
+- `ourfos-api@` reads it as itself, through **ourfos user reader**, a custom admin role: Users → Read only. As it reads groups as **Groups Reader** (phase 14 ADR). No domain-wide delegation, no prompt for anyone. Both roles, and how to assign them, are in lekka-ourfos-infra's README (tinopetros/lekka-ourfos-infra#24, which also enables `admin.googleapis.com`)
+- A name is kept on `users/{email}` and asked for again after a day. Never deleted: when the directory can't say, the name last saved stands, and without one, the email. Each instance keeps it 5 minutes too, so a page of submissions isn't a read a row
+- The UI shows people by name, dotted like a time. Held over: their name, their email, and a copy of the email. "Hi" takes the first word of the name
+- Only lekkacredit.com addresses are looked up: the directory knows nobody else
+- Not signing in with the profile scope: a second sign-in beside IAP, and it only ever knows who's signed in
+- **Revisit** with the admin page: a name someone picks for themselves would go beside the directory's, not instead of it

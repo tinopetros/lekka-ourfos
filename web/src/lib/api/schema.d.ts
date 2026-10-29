@@ -21,6 +21,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/people/{email}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Person */
+    get: operations['person'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/forms': {
     parameters: {
       query?: never;
@@ -532,6 +549,8 @@ export interface components {
     Me: {
       /** Email */
       email: string;
+      /** Name */
+      name: string | null;
       /**
        * Environment
        * @enum {string}
@@ -541,6 +560,16 @@ export interface components {
       version: string;
       /** Permissions */
       permissions: string[];
+    };
+    /**
+     * Person
+     * @description Someone, as the UI shows them: by name, the email beside it.
+     */
+    Person: {
+      /** Email */
+      email: string;
+      /** Name */
+      name: string | null;
     };
     /**
      * Problem
@@ -751,6 +780,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Me'];
+        };
+      };
+    };
+  };
+  person: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        email: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Person'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
