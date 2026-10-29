@@ -15,6 +15,7 @@ import { useDrafts } from '@/features/forms/api';
 import { useCan, useForms, useName } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
 import { money } from '@/lib/format';
+import { LINK } from '@/lib/styles';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ function YourDrafts({ form }: { form: string }) {
         {drafts.map((d) => (
           <li key={d.id} className="flex items-center gap-2">
             <FilePen className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
-            <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
+            <Link to={`/forms/${form}/${d.id}`} className={`truncate ${LINK}`}>
               {d.title ?? 'Untitled'}
             </Link>
             <span className="ml-auto shrink-0 text-muted-foreground">
