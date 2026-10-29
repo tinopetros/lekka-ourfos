@@ -72,7 +72,8 @@ export function RecordHeader({
   );
 }
 
-// This record's own link, without where you came from, and a word beside it that it's copied
+// This record's own link, on the tab you're on, without where in the list you came from, and a word beside it
+// that it's copied
 function CopyLink({ noun }: { noun: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -83,12 +84,14 @@ function CopyLink({ noun }: { noun: string }) {
           size="icon-sm"
           aria-label={`Copy link to ${noun}`}
           onClick={() => {
-            void navigator.clipboard.writeText(window.location.origin + window.location.pathname).then(() => {
-              setCopied(true);
-              setTimeout(() => {
-                setCopied(false);
-              }, 1500);
-            });
+            void navigator.clipboard
+              .writeText(window.location.origin + window.location.pathname + window.location.search)
+              .then(() => {
+                setCopied(true);
+                setTimeout(() => {
+                  setCopied(false);
+                }, 1500);
+              });
           }}
         >
           <LinkIcon />

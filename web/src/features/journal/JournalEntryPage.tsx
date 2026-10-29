@@ -13,6 +13,7 @@ import type { Submission } from '@/lib/api/types';
 import { day } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
+import { useTab } from '@/lib/useTab';
 import { useSubmission } from '@/features/submissions/api';
 import { journalQueries, useJournalEntry } from './api';
 
@@ -47,6 +48,7 @@ export function JournalEntryPage() {
     pathOf: (e) => `/journal/${e.transaction_id}`,
   });
   const { data: e, error } = useJournalEntry(id);
+  const [tab, setTab] = useTab(['lines', 'details']);
   // Whatever posted it, fetched with the entry: its submitter heads the page, and Details links it by name
   const { data: s } = useSubmission(e?.form ?? '', e?.submission ?? '', undefined, Boolean(e?.form && e.submission));
 
@@ -86,7 +88,7 @@ export function JournalEntryPage() {
               correcting it again.
             </p>
           )}
-          <Tabs defaultValue="lines">
+          <Tabs value={tab} onValueChange={setTab}>
             <RecordTabs>
               <RecordTab value="lines">Journal entry</RecordTab>
               <RecordTab value="details">Details</RecordTab>
