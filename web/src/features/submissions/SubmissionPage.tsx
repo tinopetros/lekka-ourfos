@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
-import { FileDialog } from '@/components/FileDialog';
+import { FileLink } from '@/components/FileLink';
 import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
 import { RecordHeader } from '@/components/RecordHeader';
@@ -26,7 +26,7 @@ function AnswerValue({ answer }: { answer: Answer }) {
     return (
       <span className="flex flex-wrap gap-3">
         {answer.files.map((f) => (
-          <FileDialog key={f.ref ?? f.drive_id ?? f.name} file={f} />
+          <FileLink key={f.ref ?? f.drive_id ?? f.name} file={f} />
         ))}
       </span>
     );

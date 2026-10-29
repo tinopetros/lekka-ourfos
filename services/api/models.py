@@ -93,6 +93,8 @@ class File(Model):
     drive_id: str | None = None
     # Ours, by its gs:// ref: the API streams it, at /api/files
     ref: str | None = None
+    # Where it opens: Drive's in Drive, ours as its emails link it
+    url: str
 
 
 class Answer(Model):

@@ -71,21 +71,23 @@ def day(d: date) -> str:
     return f"{d:%b} {d.day}, {d.year}"
 
 
+def file_path(ref: str, form: str, id: str) -> str | None:
+    """Where one of ours opens in the UI, which streams it behind its sign-in: one added to this submission from our
+    own form by a short path, any other by its ref. None for Drive's"""
+    if not ref.startswith("gs://"):
+        return None
+    own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{form}/{id}/"
+    if ref.startswith(own) and "/" not in ref.removeprefix(own):
+        return f"/api/files/{form}/{quote(id)}/{ref.removeprefix(own)}"
+    return f"/api/files?{urlencode({'ref': ref})}"
+
+
 def file_links(refs: list[str], form: str, id: str) -> tuple[str, str]:
-    """File 1, File 2, each linked: Drive's to Drive, ours to the UI, which streams it behind its sign-in. One added
-    to this submission from our own form by a short path; any other of ours by its ref. Without the UI's address,
-    ours is named only"""
+    """File 1, File 2, each linked: Drive's to Drive, ours to the UI. Without the UI's address, ours is named only"""
     html, text = [], []
     ui = os.environ.get("UI_URL")
-    own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{form}/{id}/"
     for n, ref in enumerate(refs, 1):
-        if ref.startswith("gs://"):
-            short = ref.startswith(own) and "/" not in ref.removeprefix(own)
-            path = (
-                f"/api/files/{form}/{quote(id)}/{ref.removeprefix(own)}"
-                if short
-                else f"/api/files?{urlencode({'ref': ref})}"
-            )
+        if path := file_path(ref, form, id):
             url = f"{ui}{path}" if ui else None
         else:
             url = f"https://drive.google.com/open?id={ref}"

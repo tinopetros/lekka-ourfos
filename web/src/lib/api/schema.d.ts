@@ -414,6 +414,8 @@ export interface components {
       drive_id: string | null;
       /** Ref */
       ref: string | null;
+      /** Url */
+      url: string;
     };
     /** FormInfo */
     FormInfo: {

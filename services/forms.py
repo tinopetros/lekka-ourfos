@@ -260,20 +260,6 @@ FORMS = {
         subject=("payable_to",),
         tracks_status=True,
     ),
-    "vehicle_log": Form(
-        collection="vehicle_logs",
-        workflow="intake",
-        model=VehicleLogForm,
-        google_form=GoogleForm(
-            model=text_form("VehicleLog", VEHICLE_LOG, ("trip_name_purpose",), ("vehicle_images",)),
-            labels=VEHICLE_LOG,
-            files=("vehicle_images",),
-        ),
-        title="Vehicle logs",
-        noun="vehicle log",
-        taker="someone",
-        subject=("trip_name_purpose", "purpose"),
-    ),
     "loan_approval": Form(
         collection="loan_approvals",
         workflow="intake",
@@ -300,5 +286,19 @@ FORMS = {
         noun="write-off request",
         taker="a director",
         subject=("client_full_name", "client_first_name", "client_last_name"),
+    ),
+    "vehicle_log": Form(
+        collection="vehicle_logs",
+        workflow="intake",
+        model=VehicleLogForm,
+        google_form=GoogleForm(
+            model=text_form("VehicleLog", VEHICLE_LOG, ("trip_name_purpose",), ("vehicle_images",)),
+            labels=VEHICLE_LOG,
+            files=("vehicle_images",),
+        ),
+        title="Vehicle logs",
+        noun="vehicle log",
+        taker="someone",
+        subject=("trip_name_purpose", "purpose"),
     ),
 }
