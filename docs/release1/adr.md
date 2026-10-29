@@ -31,3 +31,11 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 **Closed** by phase 14 ADR 9: who may send a test is a permission now, so a test also tells its submitter, whoever they are. `test_to` is gone
 - **Revisit** with Mifos: a test run must never post. Until then `post` is a stub, and a test run goes through it like any other
   - **Closed** by [phase 11](../phase11/tdd.md): a test run never posts, and its last email says so
+
+### 4. Permissions stay in code, for now
+
+- Who may do what is `POLICY` and `EXCLUDE` in `services/api/permissions.py`. The permission names belong to the routes that check them, so the two change together, in one PR
+- pytest checks the real policy: that `lekkai@` reads no journal entries is proven in CI, not just in a sample
+- Moving it to Terraform would let dev and prod differ, and change access without a rebuild. But it splits the rules from the code they guard, turns typos into runtime errors, and still takes a PR and a deploy. With this few people, a rebuild isn't the bottleneck
+- If dev and prod ever need different people, only the email lists would come from tfvars, as `POST_TO_MIFOS` does. The grants and exclusions stay in code, under test
+- **Revisit** with an admin page: in the long run, who has what belongs in the database, editable by ourfos admins, not in code or Terraform. Terraform would be a detour on the way there
