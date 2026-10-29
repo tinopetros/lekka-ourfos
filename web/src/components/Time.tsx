@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { when } from '@/lib/format';
 
 // Where the people who read these are, so nobody converts by hand
@@ -13,8 +13,8 @@ const ZONES = [
 export function Time({ at }: { at: string | null | undefined }) {
   if (!at) return <>—</>;
   return (
-    <Tooltip delayDuration={700}>
-      <TooltipTrigger asChild>
+    <HoverCard openDelay={700}>
+      <HoverCardTrigger asChild>
         <time
           dateTime={at}
           tabIndex={0}
@@ -22,17 +22,17 @@ export function Time({ at }: { at: string | null | undefined }) {
         >
           {when(at)}
         </time>
-      </TooltipTrigger>
-      <TooltipContent>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" className="w-auto text-sm">
         <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5">
           {ZONES.map(([name, zone]) => (
             <div key={zone} className="contents">
-              <dt className="opacity-70">{name}</dt>
+              <dt className="text-muted-foreground">{name}</dt>
               <dd>{when(at, zone)}</dd>
             </div>
           ))}
         </dl>
-      </TooltipContent>
-    </Tooltip>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
