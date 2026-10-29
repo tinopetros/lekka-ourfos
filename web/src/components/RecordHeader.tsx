@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Share2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LinkIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -29,7 +29,7 @@ export function RecordHeader({
   neighbours: { prev: () => Promise<void>; next: () => Promise<void>; hasPrev: boolean; hasNext: boolean };
 }) {
   return (
-    <div className="mb-4 flex items-center gap-2">
+    <div className="mb-6 flex items-center gap-2">
       <Breadcrumb className="min-w-0">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -44,7 +44,7 @@ export function RecordHeader({
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex gap-1">
-        <ShareLink />
+        <CopyLink noun={noun} />
         <Tip label={`Previous ${noun}`}>
           <Button
             variant="outline"
@@ -73,15 +73,15 @@ export function RecordHeader({
 }
 
 // This record's own link, without where you came from, and a word beside it that it's copied
-function ShareLink() {
+function CopyLink({ noun }: { noun: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="relative">
-      <Tip label="Share link">
+      <Tip label={`Copy link to ${noun}`}>
         <Button
           variant="outline"
           size="icon-sm"
-          aria-label="Share link"
+          aria-label={`Copy link to ${noun}`}
           onClick={() => {
             void navigator.clipboard.writeText(window.location.origin + window.location.pathname).then(() => {
               setCopied(true);
@@ -91,7 +91,7 @@ function ShareLink() {
             });
           }}
         >
-          <Share2 />
+          <LinkIcon />
         </Button>
       </Tip>
       {copied && (

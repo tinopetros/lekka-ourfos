@@ -35,7 +35,7 @@ export function JournalEntryPage() {
         listPath="/journal"
         from={neighbours.from}
         current={id}
-        noun="entry"
+        noun="journal entry"
         neighbours={neighbours}
       />
       {!e ? (

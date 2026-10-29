@@ -4,6 +4,7 @@ import { Field, Section } from '@/components/Field';
 import { FileLink } from '@/components/FileLink';
 import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
+import { Person } from '@/components/Person';
 import { Time } from '@/components/Time';
 import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
@@ -54,7 +55,9 @@ function Overview({ s }: { s: Submission }) {
         {s.answers.length ? (
           <dl className="divide-y">
             {/* Who and when first, as its email has them */}
-            <Field label="Submitted by">{s.submitted_by ?? '—'}</Field>
+            <Field label="Submitted by">
+              <Person email={s.submitted_by} />
+            </Field>
             <Field label="Submitted at">
               <Time at={s.submitted_at ?? s.received_at} />
             </Field>
@@ -83,6 +86,11 @@ function Overview({ s }: { s: Submission }) {
   );
 }
 
+// Boxed when open, its bottom edge the page's colour, so it joins what's below. Important, to win over the line
+// variant's dark mode; its underline off
+const TAB =
+  '-mb-px h-auto flex-none rounded-b-none rounded-t-md border px-4 py-1.5 after:hidden data-active:border-border! data-active:border-b-background! data-active:text-foreground focus-visible:ring-0 focus-visible:outline-none';
+
 const TITLES: Record<Run['workflow'], string> = {
   expense: 'Received',
   intake: 'Received',
@@ -98,7 +106,12 @@ function Event({ run }: { run: Run }) {
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">
           {run.workflow === 'unknown' ? (run.name ?? TITLES.unknown) : TITLES[run.workflow]}
-          {run.workflow === 'correction' && run.request?.requested_by && ` by ${run.request.requested_by}`}
+          {run.workflow === 'correction' && run.request?.requested_by && (
+            <>
+              {' '}
+              by <Person email={run.request.requested_by} />
+            </>
+          )}
         </span>
         <StatusBadge status={run.status} />
         {run.test && <TestBadge />}
@@ -208,31 +221,45 @@ function Record({ form, id }: { form: string; id: string }) {
         listPath={`/forms/${form}`}
         from={neighbours.from}
         current={current}
-        noun="submission"
+        noun={spec ? spec.title.toLowerCase().replace(/s$/, '') : 'submission'}
         neighbours={neighbours}
       />
       {!s || isPlaceholderData ? (
         <QueryState error={error} loading={<RecordSkeleton />} />
       ) : (
         <>
-          <div className="mb-1 flex flex-wrap items-center gap-3">
+          <div className="mb-2 flex flex-wrap items-center gap-3">
             <h1 className="text-lg font-semibold">{current}</h1>
             <SubmissionStatus status={s.status} tracked={spec?.tracks_status ?? false} />
             {s.test && <TestBadge />}
             {s.amount !== null && <span className="ml-auto text-lg font-semibold">{money(s.amount)}</span>}
           </div>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Submitted{s.submitted_by && ` by ${s.submitted_by}`} at <Time at={s.submitted_at ?? s.received_at} />
+          <p className="mb-8 text-sm text-muted-foreground">
+            Submitted
+            {s.submitted_by && (
+              <>
+                {' '}
+                by <Person email={s.submitted_by} />
+              </>
+            )}{' '}
+            at <Time at={s.submitted_at ?? s.received_at} />
           </p>
+          {/* A line across the page, the open tab a box sitting on it, open at the bottom: everything below is that tab's */}
           <Tabs defaultValue="overview">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="history">History ({s.runs.length})</TabsTrigger>
-            </TabsList>
-            <TabsContent value="overview" className="pt-4">
+            <div className="border-b">
+              <TabsList variant="line" className="gap-0 p-0 group-data-horizontal/tabs:h-auto">
+                <TabsTrigger value="overview" className={TAB}>
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="history" className={TAB}>
+                  History ({s.runs.length})
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="overview" className="pt-6">
               <Overview s={s} />
             </TabsContent>
-            <TabsContent value="history" className="pt-4">
+            <TabsContent value="history" className="pt-6">
               <History s={s} />
             </TabsContent>
           </Tabs>
