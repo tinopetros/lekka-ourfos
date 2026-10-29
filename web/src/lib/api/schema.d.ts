@@ -158,6 +158,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/forms/requisition/submissions/{id}/reverse': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reverse
+     * @description A requisition's live entry undone: the correction workflow with no new lines posts its mirror, so the books
+     *     balance, and replies in its thread. Asked here, so a page that's stale or a reason left blank start nothing
+     */
+    post: operations['reverse'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/journal_entries': {
     parameters: {
       query?: never;
@@ -580,6 +601,24 @@ export interface components {
       loc: (string | number)[];
       /** Msg */
       msg: string;
+    };
+    /**
+     * ReverseRequest
+     * @description Which entry, so a page that's out of date can't reverse a newer one, and why: the reply in its thread says.
+     */
+    ReverseRequest: {
+      /** Transaction Id */
+      transaction_id: string;
+      /** Reason */
+      reason: string;
+    };
+    /**
+     * Reversing
+     * @description The correction run that reverses it: the page watches it until it ends.
+     */
+    Reversing: {
+      /** Run */
+      run: string;
     };
     /**
      * Submission
@@ -1059,6 +1098,41 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Submitted'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  reverse: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReverseRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Reversing'];
         };
       };
       /** @description Validation Error */

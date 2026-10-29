@@ -1,5 +1,6 @@
-import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
-import { api, unwrap } from '@/lib/api/client';
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, ApiError, unwrap } from '@/lib/api/client';
+import { toast } from 'sonner';
 import { PAGE_SIZE } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
 
@@ -31,3 +32,48 @@ export const useSubmission = (form: string, id: string, row?: SubmissionSummary,
     enabled,
     placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null },
   });
+
+// How often, and how long, a reversal's run is watched: a cold start and Mifos can take a minute or two
+const EVERY = 2000;
+const WAIT = 5 * 60_000;
+
+/** A requisition's live entry reversed: the run started, then watched until it ends. Done is the page as it is
+ * after; anything else is why not. Its toasts are the mutation's, not the button's: the button goes once the entry
+ * isn't live, which is before the run ends, and a component's own callbacks go with it */
+export function useReverse(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ transaction_id, reason }: { transaction_id: string; reason: string }) => {
+      const { run } = await unwrap(
+        api.POST('/api/forms/requisition/submissions/{id}/reverse', {
+          params: { path: { id } },
+          body: { transaction_id, reason },
+        }),
+      );
+      const until = Date.now() + WAIT;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, EVERY));
+        const s = await queryClient.query({ ...submissionQueries.one('requisition', id), staleTime: 0 });
+        const ended = s.runs.find((r) => r.id === run && r.completed_at);
+        if (!ended) continue;
+        if (ended.status !== 'done')
+          throw new ApiError(0, `Not reversed: ${ended.reason ?? ended.status ?? 'it failed'}`);
+        return s;
+      }
+      throw new ApiError(0, 'Still reversing: check back in a few minutes');
+    },
+    onMutate: ({ transaction_id }) => ({ waiting: toast.loading(`Reversing transaction ${transaction_id}…`) }),
+    onSuccess: (_, { transaction_id }, context) => {
+      toast.success(`Transaction ${transaction_id} reversed`, { id: context.waiting });
+    },
+    // Why not is the error's own toast
+    onError: (_, __, context) => {
+      if (context) toast.dismiss(context.waiting);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['submissions', 'requisition'] });
+      void queryClient.invalidateQueries({ queryKey: ['journal_entries'] });
+      void queryClient.invalidateQueries({ queryKey: ['journal_entry'] });
+    },
+  });
+}

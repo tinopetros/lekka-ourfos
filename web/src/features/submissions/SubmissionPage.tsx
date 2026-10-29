@@ -19,8 +19,10 @@ import type { Answer, JournalEntry, Run, Submission } from '@/lib/api/types';
 import { money } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
+import { useTab } from '@/lib/useTab';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
+import { ReverseEntry } from './ReverseEntry';
 
 function AnswerValue({ answer }: { answer: Answer }) {
   if (answer.link)
@@ -84,34 +86,36 @@ function Overview({ s }: { s: Submission }) {
 
 // What it posted to Mifos: the entry live there first, then any it replaced or that reversed one
 function JournalEntries({ s }: { s: Submission }) {
-  const entries = [...s.journal_entries].sort(
-    (a, b) => Number(b.transaction_id === s.live_entry) - Number(a.transaction_id === s.live_entry),
-  );
+  // Newest first, as History is: they're listed as they were posted
+  const entries = [...s.journal_entries].reverse();
   if (!entries.length) return <p className="text-sm text-muted-foreground">Nothing posted to Mifos yet.</p>;
   return (
-    // One under another, a line between them
-    <div className="divide-y [&>*]:py-6 [&>*:first-child]:pt-0">
+    // One under another, a line between them, the one you're over shaded
+    <div className="divide-y [&>*]:-mx-3 [&>*]:rounded-md [&>*]:p-3 [&>*]:transition-colors [&>*:hover]:bg-muted/50">
       {entries.map((e) => (
-        <Entry key={e.transaction_id} e={e} live={e.transaction_id === s.live_entry} />
+        <Entry key={e.transaction_id} e={e} live={e.transaction_id === s.live_entry} submission={s.id} />
       ))}
     </div>
   );
 }
 
-function Entry({ e, live }: { e: JournalEntry; live: boolean }) {
+function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submission: string }) {
   const can = useCan();
   return (
     <EntrySummary
       e={e}
       live={live}
       action={
-        can('journal_entries:read') && (
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/journal/${e.transaction_id}`}>
-              Go to journal entry <ArrowRight />
-            </Link>
-          </Button>
-        )
+        <>
+          {live && can('journal_entries:reverse') && <ReverseEntry id={submission} transaction={e.transaction_id} />}
+          {can('journal_entries:read') && (
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/journal/${e.transaction_id}`}>
+                Go to journal entry <ArrowRight />
+              </Link>
+            </Button>
+          )}
+        </>
       }
     />
   );
@@ -127,8 +131,8 @@ const TITLES: Record<Run['workflow'], string> = {
 // One run on the timeline: what happened, why, and the lines it posted, inline
 function Event({ run }: { run: Run }) {
   return (
-    <li className="relative pb-6 pl-6 last:pb-0">
-      <span className="absolute top-1.5 -left-[5px] size-2.5 rounded-full border-2 border-foreground/40 bg-background" />
+    <li className="relative rounded-r-md py-3 pr-3 pl-6 transition-colors hover:bg-muted/50">
+      <span className="absolute top-[18px] -left-[5px] size-2.5 rounded-full border-2 border-foreground/40 bg-background" />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">
           {run.workflow === 'unknown' ? (run.name ?? TITLES.unknown) : TITLES[run.workflow]}
@@ -190,10 +194,9 @@ function Event({ run }: { run: Run }) {
 
 // Its runs, oldest first, as a story
 function History({ s }: { s: Submission }) {
-  const runs = [...s.runs].reverse();
   return (
     <ol className="ml-1.5 border-l pl-0">
-      {runs.map((r) => (
+      {s.runs.map((r) => (
         <Event key={r.id} run={r} />
       ))}
     </ol>
@@ -237,6 +240,7 @@ function Record({ form, id }: { form: string; id: string }) {
   const list = spec?.title ?? 'Back';
   // Requisitions post; anything else only if something of it has
   const posts = form === 'requisition' || (s?.journal_entries.length ?? 0) > 0;
+  const [tab, setTab] = useTab(posts ? ['overview', 'journal', 'history'] : ['overview', 'history']);
   // #482: its subject, in the breadcrumb and as the title
   const current = s ? `${s.response_number !== null ? `#${s.response_number}: ` : ''}${s.title ?? id}` : id;
   if (s?.status === 'draft' && !isPlaceholderData)
@@ -272,7 +276,7 @@ function Record({ form, id }: { form: string; id: string }) {
             )}{' '}
             at <Time at={s.submitted_at ?? s.received_at} />
           </p>
-          <Tabs defaultValue="overview">
+          <Tabs value={tab} onValueChange={setTab}>
             <RecordTabs>
               <RecordTab value="overview">Overview</RecordTab>
               {posts && (

@@ -43,6 +43,19 @@ class SubmitRequest(BaseModel):
     test: bool = False
 
 
+class ReverseRequest(BaseModel):
+    """Which entry, so a page that's out of date can't reverse a newer one, and why: the reply in its thread says."""
+
+    transaction_id: str
+    reason: str
+
+
+class Reversing(Model):
+    """The correction run that reverses it: the page watches it until it ends."""
+
+    run: str
+
+
 class DraftRequest(BaseModel):
     """Our own form as it's being filled in: anything, as typed. The form's model is the submit's."""
 
