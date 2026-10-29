@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Share2 } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
   Breadcrumb,
@@ -43,7 +44,8 @@ export function RecordHeader({
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex gap-1">
-        <Tip label={`Previous ${noun} (←)`}>
+        <ShareLink />
+        <Tip label={`Previous ${noun}`}>
           <Button
             variant="outline"
             size="icon-sm"
@@ -51,10 +53,10 @@ export function RecordHeader({
             disabled={!neighbours.hasPrev}
             onClick={() => void neighbours.prev()}
           >
-            <ChevronLeft />
+            <ArrowLeft />
           </Button>
         </Tip>
-        <Tip label={`Next ${noun} (→)`}>
+        <Tip label={`Next ${noun}`}>
           <Button
             variant="outline"
             size="icon-sm"
@@ -62,10 +64,44 @@ export function RecordHeader({
             disabled={!neighbours.hasNext}
             onClick={() => void neighbours.next()}
           >
-            <ChevronRight />
+            <ArrowRight />
           </Button>
         </Tip>
       </div>
+    </div>
+  );
+}
+
+// This record's own link, without where you came from, and a word beside it that it's copied
+function ShareLink() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative">
+      <Tip label="Share link">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Share link"
+          onClick={() => {
+            void navigator.clipboard.writeText(window.location.origin + window.location.pathname).then(() => {
+              setCopied(true);
+              setTimeout(() => {
+                setCopied(false);
+              }, 1500);
+            });
+          }}
+        >
+          <Share2 />
+        </Button>
+      </Tip>
+      {copied && (
+        <span
+          role="status"
+          className="absolute top-full right-0 z-50 mt-1 rounded-md border bg-muted px-2 py-1 text-xs whitespace-nowrap text-muted-foreground shadow-sm"
+        >
+          Link copied to clipboard
+        </span>
+      )}
     </div>
   );
 }
