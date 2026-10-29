@@ -24,10 +24,7 @@ POLICY: dict[str, list[str]] = {
     "forms:*:read": [EVERYONE],
     "forms:*:submit": [EVERYONE],
     "forms:*:test": ["group:tech@lekkacredit.com"],
-    "journal_entries:read": [
-        "group:directors@lekkacredit.com",
-        "user:consultant-zsaruchera@lekkacredit.com"
-    ],
+    "journal_entries:read": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
     "files:read": [EVERYONE],
 }
 
