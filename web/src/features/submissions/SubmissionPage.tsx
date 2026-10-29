@@ -1,18 +1,23 @@
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
+import { EntrySummary } from '@/components/EntrySummary';
 import { FileLink } from '@/components/FileLink';
 import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
 import { Person } from '@/components/Person';
 import { Time } from '@/components/Time';
 import { RecordHeader } from '@/components/RecordHeader';
+import { RecordTab, RecordTabs } from '@/components/RecordTabs';
 import { RecordSkeleton } from '@/components/Skeletons';
 import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBadge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useCan, useForms } from '@/lib/api/queries';
-import type { Answer, Run, Submission } from '@/lib/api/types';
+import type { Answer, JournalEntry, Run, Submission } from '@/lib/api/types';
 import { money } from '@/lib/format';
+import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
@@ -20,7 +25,7 @@ import { submissionQueries, useSubmission } from './api';
 function AnswerValue({ answer }: { answer: Answer }) {
   if (answer.link)
     return (
-      <a href={answer.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+      <a href={answer.link} target="_blank" rel="noreferrer" className={LINK}>
         {answer.link}
       </a>
     );
@@ -40,15 +45,14 @@ function EntryLink({ id }: { id: string }) {
   const can = useCan();
   if (!can('journal_entries:read')) return <span className="font-mono text-xs">{id}</span>;
   return (
-    <Link to={`/journal/${id}`} className="font-mono text-xs underline underline-offset-2">
+    <Link to={`/journal/${id}`} className={`font-mono text-xs ${LINK}`}>
       {id}
     </Link>
   );
 }
 
-// Where it stands: its answers, then the entry live in Mifos
+// What was asked, and answered
 function Overview({ s }: { s: Submission }) {
-  const live = s.journal_entries.find((e) => e.transaction_id === s.live_entry);
   return (
     <div className="space-y-6">
       <Section title="Answers">
@@ -74,22 +78,44 @@ function Overview({ s }: { s: Submission }) {
           </>
         )}
       </Section>
-      {live && (
-        <Section title="Live in Mifos">
-          <p className="text-sm">
-            <EntryLink id={live.transaction_id} />
-          </p>
-          <Lines lines={live.lines} currency={live.currency} />
-        </Section>
-      )}
     </div>
   );
 }
 
-// Boxed when open, its bottom edge the page's colour, so it joins what's below. Important, to win over the line
-// variant's dark mode; its underline off
-const TAB =
-  '-mb-px h-auto flex-none rounded-b-none rounded-t-md border px-4 py-1.5 after:hidden data-active:border-border! data-active:border-b-background! data-active:text-foreground focus-visible:ring-0 focus-visible:outline-none';
+// What it posted to Mifos: the entry live there first, then any it replaced or that reversed one
+function JournalEntries({ s }: { s: Submission }) {
+  const entries = [...s.journal_entries].sort(
+    (a, b) => Number(b.transaction_id === s.live_entry) - Number(a.transaction_id === s.live_entry),
+  );
+  if (!entries.length) return <p className="text-sm text-muted-foreground">Nothing posted to Mifos yet.</p>;
+  return (
+    // One under another, a line between them
+    <div className="divide-y [&>*]:py-6 [&>*:first-child]:pt-0">
+      {entries.map((e) => (
+        <Entry key={e.transaction_id} e={e} live={e.transaction_id === s.live_entry} />
+      ))}
+    </div>
+  );
+}
+
+function Entry({ e, live }: { e: JournalEntry; live: boolean }) {
+  const can = useCan();
+  return (
+    <EntrySummary
+      e={e}
+      live={live}
+      action={
+        can('journal_entries:read') && (
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/journal/${e.transaction_id}`}>
+              Go to journal entry <ArrowRight />
+            </Link>
+          </Button>
+        )
+      }
+    />
+  );
+}
 
 const TITLES: Record<Run['workflow'], string> = {
   expense: 'Received',
@@ -209,6 +235,8 @@ function Record({ form, id }: { form: string; id: string }) {
   const { data: s, error, isPlaceholderData } = useSubmission(form, id);
   const spec = forms?.find((f) => f.key === form);
   const list = spec?.title ?? 'Back';
+  // Requisitions post; anything else only if something of it has
+  const posts = form === 'requisition' || (s?.journal_entries.length ?? 0) > 0;
   // #482: its subject, in the breadcrumb and as the title
   const current = s ? `${s.response_number !== null ? `#${s.response_number}: ` : ''}${s.title ?? id}` : id;
   if (s?.status === 'draft' && !isPlaceholderData)
@@ -244,21 +272,24 @@ function Record({ form, id }: { form: string; id: string }) {
             )}{' '}
             at <Time at={s.submitted_at ?? s.received_at} />
           </p>
-          {/* A line across the page, the open tab a box sitting on it, open at the bottom: everything below is that tab's */}
           <Tabs defaultValue="overview">
-            <div className="border-b">
-              <TabsList variant="line" className="gap-0 p-0 group-data-horizontal/tabs:h-auto">
-                <TabsTrigger value="overview" className={TAB}>
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="history" className={TAB}>
-                  History ({s.runs.length})
-                </TabsTrigger>
-              </TabsList>
-            </div>
+            <RecordTabs>
+              <RecordTab value="overview">Overview</RecordTab>
+              {posts && (
+                <RecordTab value="journal">
+                  {s.journal_entries.length === 1 ? 'Journal entry' : 'Journal entries'} ({s.journal_entries.length})
+                </RecordTab>
+              )}
+              <RecordTab value="history">History ({s.runs.length})</RecordTab>
+            </RecordTabs>
             <TabsContent value="overview" className="pt-6">
               <Overview s={s} />
             </TabsContent>
+            {posts && (
+              <TabsContent value="journal" className="pt-6">
+                <JournalEntries s={s} />
+              </TabsContent>
+            )}
             <TabsContent value="history" className="pt-6">
               <History s={s} />
             </TabsContent>

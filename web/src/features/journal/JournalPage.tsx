@@ -34,12 +34,12 @@ export function JournalPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Transaction</TableHead>
-                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead className="hidden sm:table-cell">Transaction date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden md:table-cell">By</TableHead>
                   <TableHead className="hidden lg:table-cell">Recorded</TableHead>
+                  <TableHead className="hidden md:table-cell">Recorded by</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -63,12 +63,12 @@ export function JournalPage() {
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">{day(e.transaction_date)}</TableCell>
                         <TableCell className="text-right">{money(total(e), e.currency ?? 'USD')}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={e.status} />
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <Time at={e.recorded_at} />
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={e.status} />
                         </TableCell>
                       </TableRow>
                     </HoverCardTrigger>

@@ -23,9 +23,11 @@ export const submissionQueries = {
 export const useSubmissions = (form: string, cursor?: string) =>
   useQuery({ ...submissionQueries.list(form, cursor), placeholderData: keepPreviousData });
 
-// The sheet opens at once with the row it was opened from, and fills in the rest when it comes
-export const useSubmission = (form: string, id: string, row?: SubmissionSummary) =>
+// The sheet opens at once with the row it was opened from, and fills in the rest when it comes. Off until there's
+// one to fetch
+export const useSubmission = (form: string, id: string, row?: SubmissionSummary, enabled = true) =>
   useQuery({
     ...submissionQueries.one(form, id),
+    enabled,
     placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null },
   });
