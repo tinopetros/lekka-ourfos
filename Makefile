@@ -216,7 +216,7 @@ smoke: check-env
 		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over requisition/invalid:handed_over \
 		vehicle_log/happy:done vehicle_log/invalid:handed_over loan_approval/happy:done loan_approval/invalid:handed_over \
 		write_off/happy:done write_off/invalid:handed_over \
-		correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:done \
+		correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:reversed \
 		correction/correct-unposted@mifos-off:refused correction/correct-timeout@google-doc:handed_over; do \
 		path=$${case%%:*}; want=$${case#*:}; form=$${path%%/*}; fixture=$${path#*/}; on=$${fixture#*@}; fixture=$${fixture%%@*}; \
 		for try in 1 2 3; do \
@@ -231,7 +231,7 @@ smoke: check-env
 			echo "$$path: $$result"; echo "$$result" > .build/smoke/$$form-$$fixture.json; \
 			case $$want in \
 				posted) echo "$$result" | grep '"status":"done"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' ;; \
-				corrected) echo "$$result" | grep '"status":"done"' | grep '"reversal":"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' ;; \
+				corrected) echo "$$result" | grep '"status":"corrected"' | grep '"reversal":"' | grep '"mifos_transaction_id":"' | grep -qv '"stub-txn-' ;; \
 				skipped) echo "$$result" | grep '"status":"done"' | grep -q '"skipped":"mifos"' ;; \
 				*) echo "$$result" | grep -q "\"status\":\"$$want\"" ;; \
 			esac && { echo $$sub > .build/smoke/$$form-$$fixture.id; break; }; \

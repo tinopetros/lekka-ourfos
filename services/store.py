@@ -78,7 +78,7 @@ def _save_status(transaction, ref, parent, fields):
         transaction.set(parent, {"status": fields["status"], "run": ref.id, "updated_at": NOW} | received, merge=True)
 
 
-ENDED = {"done", "rejected", "handed_over", "failed", "refused"}
+ENDED = {"done", "corrected", "reversed", "rejected", "handed_over", "failed", "refused"}
 
 
 def _status(e: exceptions.GoogleAPICallError) -> HTTPException:
