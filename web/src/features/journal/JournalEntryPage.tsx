@@ -2,10 +2,11 @@ import { Link, useParams } from 'react-router';
 import { Field, Section } from '@/components/Field';
 import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
+import { Time } from '@/components/Time';
 import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
 import { StatusBadge } from '@/components/StatusBadge';
-import { day, when } from '@/lib/format';
+import { day } from '@/lib/format';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { journalQueries, useJournalEntry } from './api';
 
@@ -75,7 +76,9 @@ export function JournalEntryPage() {
             <Field label="By">{e.by ?? '—'}</Field>
             <Field label="Source">{e.source ?? '—'}</Field>
             <Field label="Posted on">{day(e.created_on)}</Field>
-            <Field label="Recorded">{when(e.recorded_at)}</Field>
+            <Field label="Recorded">
+              <Time at={e.recorded_at} />
+            </Field>
             {e.form && e.submission && (
               <Field label="Submission">
                 <Link to={`/forms/${e.form}/${e.submission}`} className="underline underline-offset-2">

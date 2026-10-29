@@ -4,13 +4,14 @@ import { Field, Section } from '@/components/Field';
 import { FileLink } from '@/components/FileLink';
 import { Lines } from '@/components/Lines';
 import { QueryState } from '@/components/QueryState';
+import { Time } from '@/components/Time';
 import { RecordHeader } from '@/components/RecordHeader';
 import { RecordSkeleton } from '@/components/Skeletons';
 import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCan, useForms } from '@/lib/api/queries';
 import type { Answer, Run, Submission } from '@/lib/api/types';
-import { money, when } from '@/lib/format';
+import { money } from '@/lib/format';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useSubmission } from './api';
@@ -52,6 +53,11 @@ function Overview({ s }: { s: Submission }) {
       <Section title="Answers">
         {s.answers.length ? (
           <dl className="divide-y">
+            {/* Who and when first, as its email has them */}
+            <Field label="Submitted by">{s.submitted_by ?? '—'}</Field>
+            <Field label="Submitted at">
+              <Time at={s.submitted_at ?? s.received_at} />
+            </Field>
             {s.answers.map((a) => (
               <Field key={a.label} label={a.label}>
                 <AnswerValue answer={a} />
@@ -96,7 +102,9 @@ function Event({ run }: { run: Run }) {
         </span>
         <StatusBadge status={run.status} />
         {run.test && <TestBadge />}
-        <span className="ml-auto text-xs text-muted-foreground">{when(run.started_at)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          <Time at={run.started_at} />
+        </span>
       </div>
       <div className="mt-1 space-y-1 text-sm text-muted-foreground">
         {run.reason && <p>{run.reason}</p>}
@@ -188,7 +196,8 @@ function Record({ form, id }: { form: string; id: string }) {
   const { data: s, error, isPlaceholderData } = useSubmission(form, id);
   const spec = forms?.find((f) => f.key === form);
   const list = spec?.title ?? 'Back';
-  const current = s ? `${s.response_number !== null ? `#${s.response_number} ` : ''}${s.title ?? id}` : id;
+  // #482: its subject, in the breadcrumb and as the title
+  const current = s ? `${s.response_number !== null ? `#${s.response_number}: ` : ''}${s.title ?? id}` : id;
   if (s?.status === 'draft' && !isPlaceholderData)
     return <SubmissionForm key={id} form={form} id={id} draft={s.draft} draftTest={s.test} />;
 
@@ -207,14 +216,13 @@ function Record({ form, id }: { form: string; id: string }) {
       ) : (
         <>
           <div className="mb-1 flex flex-wrap items-center gap-3">
-            <h1 className="text-lg font-semibold">{s.title ?? id}</h1>
+            <h1 className="text-lg font-semibold">{current}</h1>
             <SubmissionStatus status={s.status} tracked={spec?.tracks_status ?? false} />
             {s.test && <TestBadge />}
             {s.amount !== null && <span className="ml-auto text-lg font-semibold">{money(s.amount)}</span>}
           </div>
           <p className="mb-4 text-sm text-muted-foreground">
-            {s.response_number !== null && `#${s.response_number} · `}
-            {s.submitted_by ?? '—'} · {when(s.submitted_at ?? s.received_at)}
+            Submitted{s.submitted_by && ` by ${s.submitted_by}`} at <Time at={s.submitted_at ?? s.received_at} />
           </p>
           <Tabs defaultValue="overview">
             <TabsList>

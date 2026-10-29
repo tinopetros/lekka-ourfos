@@ -3,11 +3,12 @@ import { Lines } from '@/components/Lines';
 import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
+import { Time } from '@/components/Time';
 import { StatusBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { JournalEntry } from '@/lib/api/types';
-import { day, money, when } from '@/lib/format';
+import { day, money } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
@@ -66,7 +67,9 @@ export function JournalPage() {
                           <StatusBadge status={e.status} />
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{when(e.recorded_at)}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <Time at={e.recorded_at} />
+                        </TableCell>
                       </TableRow>
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-96">

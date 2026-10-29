@@ -8,11 +8,12 @@ import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
 import { SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Time } from '@/components/Time';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useDrafts } from '@/features/forms/api';
 import { useCan, useForms } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
-import { money, when } from '@/lib/format';
+import { money } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,9 @@ function YourDrafts({ form }: { form: string }) {
             <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
               {d.title ?? 'Untitled'}
             </Link>
-            <span className="ml-auto shrink-0 text-muted-foreground">{when(d.updated_at)}</span>
+            <span className="ml-auto shrink-0 text-muted-foreground">
+              <Time at={d.updated_at} />
+            </span>
           </li>
         ))}
       </ul>
@@ -130,7 +133,9 @@ export function SubmissionsPage() {
                       </TableCell>
                       {amounts && <TableCell className="text-right">{money(s.amount)}</TableCell>}
                       <TableCell className="hidden md:table-cell">{s.submitted_by ?? '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{when(s.submitted_at)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Time at={s.submitted_at} />
+                      </TableCell>
                       <TableCell>
                         <SubmissionStatus status={s.status} tracked={tracked} />
                       </TableCell>
