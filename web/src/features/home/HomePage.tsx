@@ -1,5 +1,6 @@
-import { ArrowRight, BookOpen, Car, ClipboardList, FileX, HandCoins, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BookOpen, Car, ClipboardList, FileX, HandCoins, type LucideIcon, Plus } from 'lucide-react';
 import { Link } from 'react-router';
+import { Tip } from '@/components/Tip';
 import { useCan, useMe, useReadableForms } from '@/lib/api/queries';
 import { firstName } from '@/lib/greeting';
 
@@ -10,15 +11,46 @@ const ICONS: Record<string, LucideIcon> = {
   write_off: FileX,
 };
 
+const CARD = 'flex items-center gap-2 p-4 font-medium transition-colors hover:bg-accent';
+
 function Card({ to, title, icon: Icon }: { to: string; title: string; icon: LucideIcon }) {
   return (
-    <Link
-      to={to}
-      className="flex items-center gap-2 rounded-xl border p-4 font-medium transition-colors hover:bg-accent"
-    >
+    <Link to={to} className={`${CARD} rounded-xl border`}>
       <Icon className="size-4 shrink-0" /> <span className="truncate">{title}</span>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
     </Link>
+  );
+}
+
+// A workflow's list, and beside it, split off by a line down its whole height, a new one of it
+function WorkflowCard({
+  to,
+  title,
+  icon: Icon,
+  creates,
+}: {
+  to: string;
+  title: string;
+  icon: LucideIcon;
+  creates: boolean;
+}) {
+  if (!creates) return <Card to={to} title={title} icon={Icon} />;
+  return (
+    <div className="flex overflow-hidden rounded-xl border">
+      <Link to={to} className={`${CARD} min-w-0 basis-[70%]`}>
+        <Icon className="size-4 shrink-0" /> <span className="truncate">{title}</span>
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
+      {/* Slower than other tips: passing over it on the way to the list shouldn't flash one */}
+      <Tip label={`Submit a new ${title.toLowerCase().replace(/s$/, '')}`} delay={700}>
+        <Link
+          to={`${to}/new`}
+          className={`${CARD} basis-[30%] justify-center border-l text-muted-foreground hover:bg-emerald-600/10 hover:text-emerald-700`}
+        >
+          <Plus className="size-4 shrink-0" /> New
+        </Link>
+      </Tip>
+    </div>
   );
 }
 
@@ -49,7 +81,13 @@ export function HomePage() {
           <h2 className="text-sm text-muted-foreground">Workflows</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {forms.map((f) => (
-              <Card key={f.key} to={`/forms/${f.key}`} title={f.title} icon={ICONS[f.key] ?? ClipboardList} />
+              <WorkflowCard
+                key={f.key}
+                to={`/forms/${f.key}`}
+                title={f.title}
+                icon={ICONS[f.key] ?? ClipboardList}
+                creates={can(`forms:${f.key}:submit`)}
+              />
             ))}
           </div>
         </section>

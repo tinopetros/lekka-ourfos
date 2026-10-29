@@ -139,8 +139,7 @@ class LoanApprovalForm(BaseModel):
     )
     referred_by: str | None = Field(None, title="Referred by")
     recommendation: Literal["Approve", "Decline"] = Field(title="Recommendation", description="Yours, personally")
-    client_folder: DriveFolder | None = Field(
-        None,
+    client_folder: DriveFolder = Field(
         title="Client folder",
         description="In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link",
         json_schema_extra={"help_image": "client-folder.png"},
