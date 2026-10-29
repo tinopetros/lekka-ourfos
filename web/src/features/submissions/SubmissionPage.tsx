@@ -45,9 +45,9 @@ function AnswerValue({ answer }: { answer: Answer }) {
 // A link to the entry's own page, for whoever may read the journal. Its lines show here either way
 function EntryLink({ id }: { id: string }) {
   const can = useCan();
-  if (!can('journal_entries:read')) return <span className="font-mono text-xs">{id}</span>;
+  if (!can('journal_entries:read')) return <span className="text-xs">{id}</span>;
   return (
-    <Link to={`/journal/${id}`} className={`font-mono text-xs ${LINK}`}>
+    <Link to={`/journal/${id}`} className={`text-xs ${LINK}`}>
       {id}
     </Link>
   );

@@ -39,9 +39,9 @@ export function ReverseEntry({ id, transaction }: { id: string; transaction: str
             <DialogTitle>Reverse journal entry?</DialogTitle>
             <DialogDescription>
               A reversal entry will be posted to Mifos for transaction{' '}
-              <span className="font-mono text-foreground">{transaction}</span>: the same lines, debits and credits
-              swapped, on the same date, so the books balance. The requisition is then left with nothing live in Mifos,
-              and its thread is told why.
+              <span className="text-foreground">{transaction}</span>: the same lines, debits and credits swapped, on the
+              same date, so the books balance. The requisition is then left with nothing live in Mifos, and its thread
+              is told why.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

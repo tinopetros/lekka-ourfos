@@ -68,9 +68,7 @@ function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boo
           {row.submitted_by ? <NameOf email={row.submitted_by} /> : '—'}
         </div>
         {row.amount !== null && <div className="mt-2 text-base font-medium">{money(row.amount)}</div>}
-        {row.live_entry && (
-          <div className="mt-1 font-mono text-xs text-muted-foreground">Live in Mifos: {row.live_entry}</div>
-        )}
+        {row.live_entry && <div className="mt-1 text-xs text-muted-foreground">Live in Mifos: {row.live_entry}</div>}
       </HoverCardContent>
     </HoverCard>
   );

@@ -18,7 +18,7 @@ export function EntrySummary({ e, live, action }: { e: JournalEntry; live: boole
             <Status e={e} live={live} />
           </dd>
           <dt className="text-muted-foreground">Transaction ID</dt>
-          <dd className="font-mono">{e.transaction_id}</dd>
+          <dd>{e.transaction_id}</dd>
           <dt className="text-muted-foreground">Transaction date</dt>
           <dd>{day(e.transaction_date)}</dd>
         </dl>
@@ -44,11 +44,11 @@ function Linked({ to, children }: { to: string; children: ReactNode }) {
     <>
       {children}{' '}
       {can('journal_entries:read') ? (
-        <Link to={`/journal/${to}`} className={`font-mono ${LINK}`}>
+        <Link to={`/journal/${to}`} className={LINK}>
           {to}
         </Link>
       ) : (
-        <span className="font-mono">{to}</span>
+        { to }
       )}
     </>
   );

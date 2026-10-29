@@ -19,7 +19,7 @@ import { journalQueries, useJournalEntry } from './api';
 
 function Entry({ id }: { id: string }) {
   return (
-    <Link to={`/journal/${id}`} className={`font-mono ${LINK}`}>
+    <Link to={`/journal/${id}`} className={LINK}>
       {id}
     </Link>
   );
@@ -67,9 +67,7 @@ export function JournalEntryPage() {
       ) : (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-3">
-            <h1 className="text-lg font-semibold">
-              Transaction ID: <span className="font-mono">{id}</span>
-            </h1>
+            <h1 className="text-lg font-semibold">Transaction ID: {id}</h1>
           </div>
           <p className="mb-8 text-sm text-muted-foreground">
             {s ? (

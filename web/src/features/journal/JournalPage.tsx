@@ -57,9 +57,9 @@ export function JournalPage() {
                           if (k.key === 'Enter') open(e.transaction_id);
                         }}
                       >
-                        <TableCell className="max-w-36 truncate font-mono text-xs sm:max-w-none">
+                        <TableCell className="max-w-36 truncate text-xs sm:max-w-none">
                           {e.transaction_id}
-                          {e.reverses && <span className="ml-2 font-sans text-muted-foreground">mirror</span>}
+                          {e.reverses && <span className="ml-2 text-muted-foreground">mirror</span>}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">{day(e.transaction_date)}</TableCell>
                         <TableCell className="text-right">{money(total(e), e.currency ?? 'USD')}</TableCell>
