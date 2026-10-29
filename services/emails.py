@@ -96,6 +96,37 @@ def file_links(refs: list[str], form: str, id: str) -> tuple[str, str]:
     return ", ".join(html), ", ".join(text)
 
 
+def page(form: str, id: str, tab: str | None = None) -> str | None:
+    """A submission's page on Ourfos, on one of its tabs. None without the UI's address"""
+    ui = os.environ.get("UI_URL")
+    if not ui:
+        return None
+    return f"{ui}/forms/{form}/{quote(id)}" + (f"?{urlencode({'tab': tab})}" if tab else "")
+
+
+def view(form: str, id: str, label: str, tab: str | None = None) -> tuple[str, str]:
+    """A link to its page, right under the heading: each email words its own, so Gmail never trims one as repeated"""
+    if not (url := page(form, id, tab)):
+        return "", ""
+    return f'<p><a href="{escape(url)}">{escape(label)} &rarr;</a></p>', f"{label}: {url}"
+
+
+def noun(form: str) -> str:
+    """What one of a form's is called, as a title: Requisition, Loan Approval Request"""
+    return FORMS[form].noun.title()
+
+
+def details(rows: list[tuple[str, str]]) -> tuple[str, str]:
+    """Labelled lines, one thing each, as a table without borders so the values line up. Values escaped here"""
+    cells = "".join(
+        f'<tr><td style="color:#666;padding:2px 16px 2px 0;vertical-align:top">{escape(k)}</td>'
+        f'<td style="padding:2px 0">{escape(v)}</td></tr>'
+        for k, v in rows
+    )
+    html = f'<table cellpadding="0" cellspacing="0" style="font-family:inherit;font-size:inherit;margin:0 0 12px">{cells}</table>'
+    return html, "\n".join(f"{k}: {v}" for k, v in rows)
+
+
 # One look for every table, whichever email it's in: the form add-on's, light and roomy. Styles inline, since
 # Gmail drops <style>. The email's own font, inherited: a table doesn't always inherit it unasked. Text wraps rather
 # than stretch the table, a long link too, so it reads on a phone as on a laptop
@@ -123,9 +154,13 @@ def acknowledgement(form: str, s: Submission) -> tuple[str, str]:
         rows = form_rows(form, s)
     else:
         rows = text_rows(form, s)
-    heading = f"{form_name(form)} has a new entry from {s.submitted_by}:"
-    html = f"<p><strong>{escape(heading)}</strong></p>\n{table(rows)}"
-    text = "\n".join([heading, ""] + [f"{label}: {value}" for label, _, value in rows])
+    heading = f"New {FORMS[form].noun} from {s.submitted_by}"
+    number = f" #{s.response_number}" if s.response_number is not None else ""
+    link_html, link_text = view(form, s.response_id, f"View {noun(form)}{number} on Ourfos")
+    html = "\n".join(h for h in (f"<p><strong>{escape(heading)}</strong></p>", link_html, table(rows)) if h)
+    text = "\n".join(
+        [heading, *([link_text] if link_text else []), ""] + [f"{label}: {value}" for label, _, value in rows]
+    )
     return html, text
 
 
@@ -192,12 +227,16 @@ def requisition_rows(r: Requisition) -> list[tuple[str, str, str]]:
     return rows
 
 
-def suggestion(c: dict) -> tuple[str, str]:
-    """ourfos-v2's reply: the suggestion, its reason, the lines, the comments. A deferral hands it to a person."""
-    heading = f"Lekkai's suggestion: {'APPROVE' if c['approve'] else 'DEFER'}"
-    reason = c.get("reason") or ""
-    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
-    text = [heading, "", reason]
+def suggestion(c: dict, id: str) -> tuple[str, str]:
+    """ourfos-v2's reply: the suggestion, its reason and checks, the lines. A deferral hands it to a person."""
+    heading = f"Lekkai's suggestion: {'approve' if c['approve'] else 'defer'}"
+    link_html, link_text = view("requisition", id, "Review Lekkai's suggestion on Ourfos", "history")
+    rows = [("Reason", c.get("reason") or "")] + [
+        ("Checks" if i == 0 else "", x) for i, x in enumerate(c.get("comments") or [])
+    ]
+    rows_html, rows_text = details(rows)
+    html = [f"<strong>{heading}</strong>", *([link_html] if link_html else []), rows_html]
+    text = [heading, *([link_text] if link_text else []), "", rows_text]
     lines = [(d, money(d["amount"]), "") for d in c.get("debit", [])] + [
         (d, "", money(d["amount"])) for d in c.get("credit", [])
     ]
@@ -206,9 +245,6 @@ def suggestion(c: dict) -> tuple[str, str]:
         rows = [[d["name"], d["glCode"], str(d["glId"]), d["accountType"], dr, cr] for d, dr, cr in lines]
         html.append(grid(head, rows))
         text += [""] + [" | ".join(head)] + [" | ".join(row) for row in rows]
-    if c.get("comments"):
-        html.append("<ul>" + "".join(f"<li>{escape(x)}</li>" for x in c["comments"]) + "</ul>")
-        text += [""] + [f"- {x}" for x in c["comments"]]
     if not c["approve"]:
         html.append(f"<p><strong>{TAKE_OVER}</strong></p>")
         text += ["", TAKE_OVER]
@@ -241,47 +277,89 @@ def ledger(lines: list[dict]) -> tuple[str, list[str]]:
     return grid(head, rows), [" | ".join(head)] + [" | ".join(row) for row in rows]
 
 
-def action(heading: str, note: str, lines: list[dict], disclaimer: bool = True) -> tuple[str, str]:
-    """Lekkai's action, a line about it, the lines if any, and that Lekkai may be wrong, when it chose them."""
-    html, text = [f"<strong>{heading}</strong>", f"<p>{escape(note)}</p>"], [heading, "", note]
+def action(
+    heading: str,
+    link: tuple[str, str],
+    rows: list[tuple[str, str]],
+    lines: list[dict],
+    after: tuple[str, str] = ("", ""),
+    disclaimer: bool = True,
+) -> tuple[str, str]:
+    """Lekkai's action: its heading, a link to it on Ourfos, what it was line by line, its lines, anything after, and
+    that Lekkai may be wrong, when it chose them."""
+    rows_html, rows_text = details(rows)
+    html = [f"<strong>{heading}</strong>", *([link[0]] if link[0] else []), rows_html]
+    text = [heading, *([link[1]] if link[1] else []), "", rows_text]
     if lines:
         table_html, table_text = ledger(lines)
         html.append(table_html)
         text += ["", *table_text]
+    if after[0]:
+        html.append(after[0])
+        text += ["", after[1]]
     if disclaimer:
         html.append(f"<p><em>{DISCLAIMER}</em></p>")
         text += ["", DISCLAIMER]
     return "\n".join(html), "\n".join(text)
 
 
-def confirmation(lines: list[dict], transaction: str) -> tuple[str, str]:
-    """The last word: what we posted, and the transaction id Mifos booked it as (docs/phase12/adr.md 11)."""
-    return action("Lekkai's action: POSTED", f"Mifos transaction ID: {transaction}", lines)
+def entry_rows(posted: dict, reference: str | None) -> list[tuple[str, str]]:
+    rows = [
+        ("Transaction ID", posted["transaction_id"]),
+        ("Transaction date", day(date.fromisoformat(posted["transaction_date"]))),
+    ]
+    return rows + ([("Reference number", reference)] if reference else [])
 
 
-def corrected(lines: list[dict], transaction: str, reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
-    """A correction's reply: only the new entry, as posted. The lines are a person's, so no disclaimer."""
-    note = (
-        f"Mifos transaction ID: {transaction}. It replaces {reversed_}, now reversed. "
-        f"Reason: {reason}. Requested by: {requested_by}."
+def confirmation(id: str, posted: dict, reference: str | None) -> tuple[str, str]:
+    """The last word: what we posted, and the transaction id Mifos booked it as (docs/phase12/adr.md 11). Who can undo
+    it, and where"""
+    link = view("requisition", id, "View the posting on Ourfos", "journal")
+    url = page("requisition", id, "journal")
+    where = f'<a href="{escape(url)}">Ourfos</a>' if url else "Ourfos"
+    after = (
+        f"<p>Posted in error? An accountant or director can reverse it on {where}.</p>",
+        f"Posted in error? An accountant or director can reverse it on Ourfos{f': {url}' if url else ''}.",
     )
-    return action("Lekkai's action: CORRECTED", note, lines, disclaimer=False)
+    return action("Lekkai's action: posted", link, entry_rows(posted, reference), posted["lines"], after)
 
 
-def reversed_only(reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
-    """A correction with no lines: the entry is reversed, and nothing takes its place."""
-    note = (
-        f"Mifos transaction {reversed_} is reversed, nothing re-posted. Reason: {reason}. Requested by: {requested_by}."
-    )
-    return action("Lekkai's action: REVERSED", note, [], disclaimer=False)
+def corrected(id: str, posted: dict, reversed_: str, reversal: str, reason: str, requested_by: str) -> tuple[str, str]:
+    """A correction's reply: what it reversed, by what, and the new entry, as posted. The lines are a person's, so no
+    disclaimer."""
+    rows = [
+        ("Reversed", reversed_),
+        ("By transaction", reversal),
+        ("Re-posted as", posted["transaction_id"]),
+        ("Transaction date", day(date.fromisoformat(posted["transaction_date"]))),
+        ("Reason", reason),
+        ("Requested by", requested_by),
+    ]
+    link = view("requisition", id, "View the correction on Ourfos", "journal")
+    return action("Lekkai's action: corrected", link, rows, posted["lines"], disclaimer=False)
 
 
-def handover(form: str, reason: str, raw: dict | None = None) -> tuple[str, str]:
+def reversed_only(id: str, reversal: dict, reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
+    """A correction with no lines: the entry is reversed, by the mirror shown, and nothing takes its place."""
+    rows = [
+        ("Reversed", reversed_),
+        ("By transaction", reversal["transaction_id"]),
+        ("Transaction date", day(date.fromisoformat(reversal["transaction_date"]))),
+        ("Re-posted", "Nothing"),
+        ("Reason", reason),
+        ("Requested by", requested_by),
+    ]
+    link = view("requisition", id, "View the reversal on Ourfos", "journal")
+    return action("Lekkai's action: reversed", link, rows, reversal["lines"], disclaimer=False)
+
+
+def handover(form: str, reason: str, raw: dict | None = None, id: str | None = None) -> tuple[str, str]:
     """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
     spec = FORMS[form]
     heading = f"Lekkai failed to process this {spec.noun}: {spec.taker} needs to take it from here."
-    html = [f"<strong>{heading}</strong>", f"<p>{escape(reason)}</p>"]
-    text = [heading, "", reason]
+    link_html, link_text = view(form, id, "See what happened on Ourfos", "history") if id else ("", "")
+    html = [f"<strong>{heading}</strong>", *([link_html] if link_html else []), f"<p>{escape(reason)}</p>"]
+    text = [heading, *([link_text] if link_text else []), "", reason]
     if raw:
         rows = [(str(k), escape(str(v)), str(v)) for k, v in raw.items()]
         html += ["<p>What the form sent:</p>", table(rows)]

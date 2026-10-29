@@ -211,7 +211,7 @@ def test_the_last_email_is_what_we_posted_and_its_id(docs, journal, sent):
     requisitions.confirm("r", {"mifos_transaction_id": "L42", "thread": {"thread_id": "t1"}})
     assert [kind for kind, _ in sent] == ["confirmation"]
     html = sent[0][1]
-    assert "Lekkai's action: POSTED" in html and "Mifos transaction ID: L42" in html
+    assert "Lekkai's action: posted" in html and ">L42</td>" in html
     assert "Cash at Vault" in html and emails.DISCLAIMER in html
 
 
