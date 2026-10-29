@@ -8,11 +8,14 @@ import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
 import { SubmissionStatus, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Person } from '@/components/Person';
+import { Time } from '@/components/Time';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useDrafts } from '@/features/forms/api';
-import { useCan, useForms } from '@/lib/api/queries';
+import { useCan, useForms, useName } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
-import { money, when } from '@/lib/format';
+import { money } from '@/lib/format';
+import { LINK } from '@/lib/styles';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
@@ -31,10 +34,12 @@ function YourDrafts({ form }: { form: string }) {
         {drafts.map((d) => (
           <li key={d.id} className="flex items-center gap-2">
             <FilePen className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
-            <Link to={`/forms/${form}/${d.id}`} className="truncate underline-offset-2 hover:underline">
+            <Link to={`/forms/${form}/${d.id}`} className={`truncate ${LINK}`}>
               {d.title ?? 'Untitled'}
             </Link>
-            <span className="ml-auto shrink-0 text-muted-foreground">{when(d.updated_at)}</span>
+            <span className="ml-auto shrink-0 text-muted-foreground">
+              <Time at={d.updated_at} />
+            </span>
           </li>
         ))}
       </ul>
@@ -60,12 +65,10 @@ function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boo
         </div>
         <div className="mt-1 text-muted-foreground">
           {row.response_number !== null && `#${row.response_number} · `}
-          {row.submitted_by ?? '—'}
+          {row.submitted_by ? <NameOf email={row.submitted_by} /> : '—'}
         </div>
         {row.amount !== null && <div className="mt-2 text-base font-medium">{money(row.amount)}</div>}
-        {row.live_entry && (
-          <div className="mt-1 font-mono text-xs text-muted-foreground">Live in Mifos: {row.live_entry}</div>
-        )}
+        {row.live_entry && <div className="mt-1 text-xs text-muted-foreground">Live in Mifos: {row.live_entry}</div>}
       </HoverCardContent>
     </HoverCard>
   );
@@ -129,8 +132,12 @@ export function SubmissionsPage() {
                         {s.test && <TestBadge />}
                       </TableCell>
                       {amounts && <TableCell className="text-right">{money(s.amount)}</TableCell>}
-                      <TableCell className="hidden md:table-cell">{s.submitted_by ?? '—'}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{when(s.submitted_at)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Person email={s.submitted_by} />
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Time at={s.submitted_at} />
+                      </TableCell>
                       <TableCell>
                         <SubmissionStatus status={s.status} tracked={tracked} />
                       </TableCell>
@@ -152,4 +159,9 @@ export function SubmissionsPage() {
       )}
     </div>
   );
+}
+
+// Just the name, in a card that's itself a hover: a card in a card would close the first
+function NameOf({ email }: { email: string }) {
+  return <>{useName(email)}</>;
 }

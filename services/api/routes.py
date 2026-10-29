@@ -9,11 +9,12 @@ from fastapi.responses import StreamingResponse
 from google.cloud import firestore
 
 import store
+from common import log
 from forms import FORMS
-from integrations import gcs
+from integrations import gcs, workflows
 from submission import ID
 
-from . import drafts, views
+from . import drafts, people, views
 from . import submit as submitting
 from .auth import current_user
 from .models import (
@@ -23,6 +24,9 @@ from .models import (
     JournalEntry,
     JournalEntryPage,
     Me,
+    Person,
+    ReverseRequest,
+    Reversing,
     Submission,
     SubmissionPage,
     SubmitRequest,
@@ -61,10 +65,16 @@ def page(collection, field: str, cursor: str | None, limit: int):
 def me(email: User) -> Me:
     return Me(
         email=email,
+        name=people.name(email),
         environment=os.environ.get("ENVIRONMENT", "local"),
         version=os.environ.get("VERSION", "local"),
         permissions=granted(email),
     )
+
+
+@router.get("/people/{email}")
+def person(email: str, _: User) -> Person:
+    return Person(email=email, name=people.name(email))
 
 
 @router.get("/forms")
@@ -160,6 +170,21 @@ def submit(form: str, id: str, body: SubmitRequest, user: Annotated[str, needs("
         raise HTTPException(403, f"You don't have forms:{form}:test")
     doc = submitting.submit(form, id, body.answers, body.test, user)
     return Submitted(id=id, response_number=doc["response_number"])
+
+
+@router.post("/forms/requisition/submissions/{id}/reverse")
+def reverse(id: str, body: ReverseRequest, user: Annotated[str, needs("journal_entries:reverse")]) -> Reversing:
+    """A requisition's live entry undone: the correction workflow with no new lines posts its mirror, so the books
+    balance, and replies in its thread. Asked here, so a page that's stale or a reason left blank start nothing"""
+    if not (reason := body.reason.strip()):
+        raise HTTPException(422, "Say why it's reversed")
+    doc = store.submission("requisition", id).get()
+    if doc.get("live_entry") != body.transaction_id:
+        raise HTTPException(409, f"{body.transaction_id} isn't this requisition's live entry")
+    argument = {"id": id, "reason": reason, "requested_by": user, "transaction_id": body.transaction_id}
+    run = workflows.start("correction", argument)
+    log("reversal asked", id=id, transaction_id=body.transaction_id, run=run)
+    return Reversing(run=run)
 
 
 @router.get("/journal_entries")

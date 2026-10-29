@@ -140,18 +140,28 @@ def test_a_requisitions_row_and_answers():
     row = views.summary("requisition", "r", doc)
     assert row.response_number == 7 and row.received_at is not None
     assert (row.title, row.amount, row.live_entry, row.test, row.status) == ("Acme", 1234.5, "T1", True, "done")
-    answers = views.answers("requisition", doc)
+    answers = views.answers("requisition", "s1", doc)
     assert [(a.label, a.text) for a in answers[:2]] == [("Payable to", "Acme"), ("Amount", "$1,234.50")]
     assert answers[2].label == "Signed requisition form"
     assert [(f.name, f.drive_id, f.ref) for f in answers[3].files] == [
         ("File 1", "drive-id", None),
         ("File 2", None, "gs://bucket/x.pdf"),
     ]
+    assert [f.url for f in answers[3].files] == [
+        "https://drive.google.com/open?id=drive-id",
+        "/api/files?ref=gs%3A%2F%2Fbucket%2Fx.pdf",
+    ]
+
+
+def test_a_file_added_from_our_form_opens_by_its_short_path_as_in_its_emails(monkeypatch):
+    monkeypatch.setenv("ATTACHMENTS_BUCKET", "ourfos-dev-attachments")
+    (file,) = views.files(["gs://ourfos-dev-attachments/requisition/s1/989fb3b9.pdf"], "requisition", "s1")
+    assert file.url == "/api/files/requisition/s1/989fb3b9.pdf"
 
 
 def test_a_text_forms_answers_are_in_its_order_with_links_and_empty_ones_left_out():
     answers = {"applicant_first_name": "Ada", "client_folder": "https://drive.google.com/x", "purpose": ""}
-    rows = views.answers("loan_approval", {"answers": answers})
+    rows = views.answers("loan_approval", "s1", {"answers": answers})
     assert [(a.label, a.text, a.link) for a in rows] == [
         ("Applicant First Name", "Ada", None),
         ("Link to Applicant Client Folder", None, "https://drive.google.com/x"),
@@ -166,7 +176,7 @@ def test_an_invalid_submission_shows_what_was_sent():
 
 
 def test_an_old_requisition_shape_still_shows_its_answers():
-    rows = views.answers("requisition", {"answers": {"payable_to": "Acme", "an_old_field": "x"}})
+    rows = views.answers("requisition", "s1", {"answers": {"payable_to": "Acme", "an_old_field": "x"}})
     assert ("payable_to", "Acme") in [(a.label, a.text) for a in rows]
 
 
@@ -233,7 +243,7 @@ def test_unknown_forms_are_404(monkeypatch):
 
 def test_our_own_forms_answers_are_titled_as_it_asks():
     answers = {"source": "ourfos", "client_first_name": "Ada", "total_recovered": 20, "supporting_documents": ["d"]}
-    rows = views.answers("write_off", {"answers": answers})
+    rows = views.answers("write_off", "s1", {"answers": answers})
     assert [(a.label, a.text) for a in rows[:2]] == [("Client's first name", "Ada"), ("Total recovered", "$20.00")]
     assert rows[2].label == "Supporting documents" and rows[2].files[0].drive_id == "d"
 

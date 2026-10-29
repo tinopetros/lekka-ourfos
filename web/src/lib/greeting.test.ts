@@ -1,6 +1,7 @@
 import { firstName } from './greeting';
 
-test('a name is the start of an email until the directory gives us real ones', () => {
-  expect(firstName('tpetros@lekkacredit.com')).toBe('Tpetros');
+test("a first name is Workspace's, or the start of an email without one", () => {
+  expect(firstName('tpetros@lekkacredit.com', 'Tinotenda Petros')).toBe('Tinotenda');
+  expect(firstName('tpetros@lekkacredit.com', null)).toBe('Tpetros');
   expect(firstName('jane.doe@lekkacredit.com')).toBe('Jane');
 });

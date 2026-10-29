@@ -211,14 +211,19 @@ def confirm(id: str, body: dict):
     request = doc["request"]
     if doc.get("mifos_transaction_id"):
         html, text = emails.corrected(
-            doc["posted"]["lines"],
-            doc["mifos_transaction_id"],
+            id,
+            doc["posted"],
             doc["entry"],
+            doc["reversal"]["transaction_id"],
             request["reason"],
             request["requested_by"],
         )
     else:
-        html, text = emails.reversed_only(doc["entry"], request["reason"], request["requested_by"])
+        # The mirror as posted, on the reversed entry's date, so its email shows its lines as the page does
+        reversal = doc["reversal"]
+        on = date.fromisoformat(journal.entry(doc["entry"]).get()["transaction_date"])
+        posted = journal.sent(reversal["transaction_id"], reversal["debit"], reversal["credit"], on)
+        html, text = emails.reversed_only(id, posted, doc["entry"], request["reason"], request["requested_by"])
     test = submission.get("test")
     sent = send(
         FORM,

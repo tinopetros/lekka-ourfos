@@ -139,7 +139,7 @@ def test_a_correction_reverses_the_live_entry_on_its_date_then_posts_the_new_lin
 
     (kind, html, thread), *rest = sent
     assert kind == "correction" and not rest and thread == {"thread_id": "t1"}
-    assert "Lekkai's action: CORRECTED" in html and "Mifos transaction ID: T2" in html and "Fuel" in html
+    assert "Lekkai's action: corrected" in html and ">T2</td>" in html and "Fuel" in html
     assert "Cash at Vault" in html and emails.DISCLAIMER not in html
 
 
@@ -157,7 +157,7 @@ def test_no_lines_is_a_reversal_only(docs, mifos_journal, sent):
     _, new = correct(lines=None)
     assert new is None and len(mifos_journal.created) == 1
     assert docs[("requisition", "r")]["live_entry"] is None
-    assert "Lekkai's action: REVERSED" in sent[0][1] and "L1 is reversed, nothing re-posted" in sent[0][1]
+    assert "Lekkai's action: reversed" in sent[0][1] and ">L1</td>" in sent[0][1] and ">Nothing</td>" in sent[0][1]
 
 
 def test_a_retried_step_never_posts_twice(docs, mifos_journal, sent):

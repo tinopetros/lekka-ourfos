@@ -21,6 +21,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/people/{email}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Person */
+    get: operations['person'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/forms': {
     parameters: {
       query?: never;
@@ -135,6 +152,27 @@ export interface paths {
      * @description Our own form's submission, under the id the browser made for it: submitting it twice is submitting it once
      */
     post: operations['submit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/requisition/submissions/{id}/reverse': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reverse
+     * @description A requisition's live entry undone: the correction workflow with no new lines posts its mirror, so the books
+     *     balance, and replies in its thread. Asked here, so a page that's stale or a reason left blank start nothing
+     */
+    post: operations['reverse'];
     delete?: never;
     options?: never;
     head?: never;
@@ -414,6 +452,8 @@ export interface components {
       drive_id: string | null;
       /** Ref */
       ref: string | null;
+      /** Url */
+      url: string;
     };
     /** FormInfo */
     FormInfo: {
@@ -530,6 +570,8 @@ export interface components {
     Me: {
       /** Email */
       email: string;
+      /** Name */
+      name: string | null;
       /**
        * Environment
        * @enum {string}
@@ -541,6 +583,16 @@ export interface components {
       permissions: string[];
     };
     /**
+     * Person
+     * @description Someone, as the UI shows them: by name, the email beside it.
+     */
+    Person: {
+      /** Email */
+      email: string;
+      /** Name */
+      name: string | null;
+    };
+    /**
      * Problem
      * @description What's wrong, and where: a question's name, or nothing for the whole form.
      */
@@ -549,6 +601,24 @@ export interface components {
       loc: (string | number)[];
       /** Msg */
       msg: string;
+    };
+    /**
+     * ReverseRequest
+     * @description Which entry, so a page that's out of date can't reverse a newer one, and why: the reply in its thread says.
+     */
+    ReverseRequest: {
+      /** Transaction Id */
+      transaction_id: string;
+      /** Reason */
+      reason: string;
+    };
+    /**
+     * Reversing
+     * @description The correction run that reverses it: the page watches it until it ends.
+     */
+    Reversing: {
+      /** Run */
+      run: string;
     };
     /**
      * Submission
@@ -749,6 +819,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Me'];
+        };
+      };
+    };
+  };
+  person: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        email: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Person'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -997,6 +1098,41 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Submitted'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  reverse: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReverseRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Reversing'];
         };
       };
       /** @description Validation Error */

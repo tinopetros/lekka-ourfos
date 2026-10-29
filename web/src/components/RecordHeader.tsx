@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LinkIcon } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
   Breadcrumb,
@@ -28,7 +29,7 @@ export function RecordHeader({
   neighbours: { prev: () => Promise<void>; next: () => Promise<void>; hasPrev: boolean; hasNext: boolean };
 }) {
   return (
-    <div className="mb-4 flex items-center gap-2">
+    <div className="mb-6 flex items-center gap-2">
       <Breadcrumb className="min-w-0">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -43,7 +44,8 @@ export function RecordHeader({
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex gap-1">
-        <Tip label={`Previous ${noun} (←)`}>
+        <CopyLink noun={noun} />
+        <Tip label={`Previous ${noun}`}>
           <Button
             variant="outline"
             size="icon-sm"
@@ -51,10 +53,10 @@ export function RecordHeader({
             disabled={!neighbours.hasPrev}
             onClick={() => void neighbours.prev()}
           >
-            <ChevronLeft />
+            <ArrowLeft />
           </Button>
         </Tip>
-        <Tip label={`Next ${noun} (→)`}>
+        <Tip label={`Next ${noun}`}>
           <Button
             variant="outline"
             size="icon-sm"
@@ -62,10 +64,47 @@ export function RecordHeader({
             disabled={!neighbours.hasNext}
             onClick={() => void neighbours.next()}
           >
-            <ChevronRight />
+            <ArrowRight />
           </Button>
         </Tip>
       </div>
+    </div>
+  );
+}
+
+// This record's own link, on the tab you're on, without where in the list you came from, and a word beside it
+// that it's copied
+function CopyLink({ noun }: { noun: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative">
+      <Tip label={`Copy link to ${noun}`}>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label={`Copy link to ${noun}`}
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(window.location.origin + window.location.pathname + window.location.search)
+              .then(() => {
+                setCopied(true);
+                setTimeout(() => {
+                  setCopied(false);
+                }, 1500);
+              });
+          }}
+        >
+          <LinkIcon />
+        </Button>
+      </Tip>
+      {copied && (
+        <span
+          role="status"
+          className="absolute top-full right-0 z-50 mt-1 rounded-md border bg-muted px-2 py-1 text-xs whitespace-nowrap text-muted-foreground shadow-sm"
+        >
+          Link copied to clipboard
+        </span>
+      )}
     </div>
   );
 }

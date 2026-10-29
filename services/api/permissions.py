@@ -3,6 +3,9 @@ a PR and its review.
 
 A permission is `<what>:<action>`, a form's `forms:<form>:<action>`. A grant may use `*` for any part. Who is a
 `user:` (an email), a `domain:` (everyone at it) or a `group:` (a Workspace group's members, nested groups' too).
+An exclusion is the same, and wins over any grant: someone in a group that holds a permission can still be kept out of it.
+
+An email is the one IAP says, the account's primary address, whichever alias was typed at sign-in.
 """
 
 from fnmatch import fnmatchcase
@@ -18,20 +21,23 @@ from .auth import current_user
 EVERYONE = "domain:lekkacredit.com"
 
 POLICY: dict[str, list[str]] = {
-    # A submission's page shows what was posted for it, its own journal entries: forms:<form>:read is enough for that
     "forms:*:read": [EVERYONE],
     "forms:*:submit": [EVERYONE],
-    # A test submission never posts, but it emails and numbers like any other: only for whoever is testing ourfos
     "forms:*:test": ["group:tech@lekkacredit.com"],
-    # Every journal entry, whatever it was for
-    "journal_entries:read": ["group:directors@lekkacredit.com"],
+    "journal_entries:read": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
+    "journal_entries:reverse": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
     "files:read": [EVERYONE],
+}
+
+EXCLUDE: dict[str, list[str]] = {
+    "journal_entries:read": ["user:lekkai@lekkacredit.com"],
 }
 
 # Every permission there is, for /me to list
 PERMISSIONS = [
     *(f"forms:{form}:{action}" for form in FORMS for action in ("read", "submit", "test")),
     "journal_entries:read",
+    "journal_entries:reverse",
     "files:read",
 ]
 
@@ -47,10 +53,14 @@ def holds(email: str, who: str) -> bool:
     return False
 
 
-def allowed(email: str, permission: str) -> bool:
+def matches(policy: dict[str, list[str]], email: str, permission: str) -> bool:
     return any(
-        fnmatchcase(permission, granted) and any(holds(email, who) for who in whom) for granted, whom in POLICY.items()
+        fnmatchcase(permission, granted) and any(holds(email, who) for who in whom) for granted, whom in policy.items()
     )
+
+
+def allowed(email: str, permission: str) -> bool:
+    return matches(POLICY, email, permission) and not matches(EXCLUDE, email, permission)
 
 
 def granted(email: str) -> list[str]:

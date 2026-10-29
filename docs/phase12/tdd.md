@@ -44,8 +44,8 @@ Each run its own submission, so the corrections after know which to correct. Eac
 - `mifos-off`: `?mifos=false`, done, `skipped: mifos`: nothing posted and no third email
 - Corrections:
   - `correct-stale` on `happy`, a wrong transaction id: refused
-  - `correct` on `happy`, to `demo` for real: done, with a reversal and a new transaction. Only possible if `happy` left a live entry
-  - `reverse-only` on `happy-gcs`, stub: done, nothing re-posted
+  - `correct` on `happy`, to `demo` for real: corrected, with a reversal and a new transaction. Only possible if `happy` left a live entry
+  - `reverse-only` on `happy-gcs`, stub: reversed, nothing re-posted
   - `correct-unposted` on `mifos-off`: refused
   - `correct-timeout` on `google-doc`, the mirror times out: handed over
 - In Firestore: `happy`'s entry is ours by `lekkai`, `Subject:`, with its dates and the lines we sent; it reads posted, reversed, posted, the correction's entries by who asked; the mirror swaps every line on the original's date; `happy-gcs` has nothing live; `mifos-off` has no entries, no third email, and its status still `done`

@@ -183,7 +183,9 @@ export function FormField({
           case 'amount':
             asked = (
               <div className="relative">
-                <span className="absolute top-2 left-3 text-sm text-muted-foreground">$</span>
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-muted-foreground md:text-sm">
+                  $
+                </span>
                 <Input
                   id={id}
                   {...input}

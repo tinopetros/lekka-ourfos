@@ -106,7 +106,7 @@ def handover(form: str, id: str, body: dict):
     # A form's subject keys are the webhook's own, so raw names them too
     answers = submission or raw
     submitter = answers.get("submitted_by" if submission else "submitter_email_address")
-    html, text = emails.handover(form, body["error"], None if submission else raw)
+    html, text = emails.handover(form, body["error"], None if submission else raw, id)
     sent = send(
         form,
         "handover",

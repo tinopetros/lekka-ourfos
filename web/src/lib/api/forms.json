@@ -42,16 +42,12 @@
         "title": "Amount",
         "type": "number"
       },
-      "disbursed_on": {
-        "anyOf": [{ "format": "date", "type": "string" }, { "type": "null" }],
-        "default": null,
-        "title": "Disbursed on"
-      },
+      "disbursed_on": { "format": "date", "title": "Disbursed on", "type": "string" },
       "reference_number": {
-        "anyOf": [{ "type": "string" }, { "type": "null" }],
-        "default": null,
-        "description": "The number on the paper requisition, if it has one",
-        "title": "Reference number"
+        "description": "The number on the paper requisition",
+        "minLength": 1,
+        "title": "Reference number",
+        "type": "string"
       },
       "comment": {
         "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
@@ -60,42 +56,8 @@
       },
       "files": { "$ref": "#/$defs/Files" }
     },
-    "required": ["payable_to", "amount", "files"],
+    "required": ["payable_to", "amount", "disbursed_on", "reference_number", "files"],
     "title": "Requisition",
-    "type": "object"
-  },
-  "vehicle_log": {
-    "additionalProperties": false,
-    "properties": {
-      "vehicle": { "const": "White Nissan Note | AGO8747", "title": "Vehicle", "type": "string" },
-      "date": { "format": "date", "prefill": "today", "title": "Date", "type": "string" },
-      "purpose": { "description": "Where to, and why", "minLength": 1, "title": "Purpose", "type": "string" },
-      "odometer_start": { "minimum": 0, "title": "Odometer at start", "type": "integer" },
-      "odometer_end": { "minimum": 0, "title": "Odometer at end", "type": "integer" },
-      "odometer_photos": {
-        "default": [],
-        "items": { "type": "string" },
-        "kind": "files",
-        "title": "Odometer photos",
-        "type": "array"
-      },
-      "vehicle_photos": {
-        "default": [],
-        "description": "Of anything worth a record: damage, a warning light",
-        "items": { "type": "string" },
-        "kind": "files",
-        "title": "Vehicle photos",
-        "type": "array"
-      },
-      "comment": {
-        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
-        "default": null,
-        "description": "Anything else: refuelling, fuel readings, repairs or checks, issues with the vehicle, other drivers, a trip over more than a day. Fuel and repairs that cost money go in a requisition",
-        "title": "Comment"
-      }
-    },
-    "required": ["vehicle", "date", "purpose", "odometer_start", "odometer_end"],
-    "title": "Vehicle log",
     "type": "object"
   },
   "loan_approval": {
@@ -169,14 +131,11 @@
         "type": "string"
       },
       "client_folder": {
-        "anyOf": [
-          { "pattern": "^https://drive\\.google\\.com/drive/(u/\\d+/)?folders/[A-Za-z0-9_-]+", "type": "string" },
-          { "type": "null" }
-        ],
-        "default": null,
         "description": "In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link",
         "help_image": "client-folder.png",
-        "title": "Client folder"
+        "pattern": "^https://drive\\.google\\.com/drive/(u/\\d+/)?folders/[A-Za-z0-9_-]+",
+        "title": "Client folder",
+        "type": "string"
       }
     },
     "required": [
@@ -185,7 +144,8 @@
       "loan_amount",
       "tenure",
       "monthly_repayment",
-      "recommendation"
+      "recommendation",
+      "client_folder"
     ],
     "title": "Loan approval",
     "type": "object"
@@ -278,6 +238,40 @@
       "justification"
     ],
     "title": "Write-off",
+    "type": "object"
+  },
+  "vehicle_log": {
+    "additionalProperties": false,
+    "properties": {
+      "vehicle": { "const": "White Nissan Note | AGO8747", "title": "Vehicle", "type": "string" },
+      "date": { "format": "date", "prefill": "today", "title": "Date", "type": "string" },
+      "purpose": { "description": "Where to, and why", "minLength": 1, "title": "Purpose", "type": "string" },
+      "odometer_start": { "minimum": 0, "title": "Odometer at start", "type": "integer" },
+      "odometer_end": { "minimum": 0, "title": "Odometer at end", "type": "integer" },
+      "odometer_photos": {
+        "default": [],
+        "items": { "type": "string" },
+        "kind": "files",
+        "title": "Odometer photos",
+        "type": "array"
+      },
+      "vehicle_photos": {
+        "default": [],
+        "description": "Of anything worth a record: damage, a warning light",
+        "items": { "type": "string" },
+        "kind": "files",
+        "title": "Vehicle photos",
+        "type": "array"
+      },
+      "comment": {
+        "anyOf": [{ "kind": "long", "type": "string" }, { "type": "null" }],
+        "default": null,
+        "description": "Anything else: refuelling, fuel readings, repairs or checks, issues with the vehicle, other drivers, a trip over more than a day. Fuel and repairs that cost money go in a requisition",
+        "title": "Comment"
+      }
+    },
+    "required": ["vehicle", "date", "purpose", "odometer_start", "odometer_end"],
+    "title": "Vehicle log",
     "type": "object"
   }
 }

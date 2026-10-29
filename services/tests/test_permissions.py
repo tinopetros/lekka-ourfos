@@ -36,6 +36,21 @@ def test_a_grant_is_to_a_person_a_domain_or_a_group(policy, groups_of):
     assert not allowed("finance@lekkacredit.com", "forms:requisition:submit")
 
 
+def test_an_exclusion_wins_over_any_grant(policy, groups_of, monkeypatch):
+    policy({"journal_entries:read": ["group:directors@lekkacredit.com"]})
+    monkeypatch.setattr(permissions, "EXCLUDE", {"journal_entries:*": ["user:bo@lekkacredit.com"]})
+    groups_of["ada@lekkacredit.com"] = groups_of["bo@lekkacredit.com"] = {"directors@lekkacredit.com"}
+    assert allowed("ada@lekkacredit.com", "journal_entries:read")
+    assert not allowed("bo@lekkacredit.com", "journal_entries:read")
+    assert "journal_entries:read" not in granted("bo@lekkacredit.com")
+
+
+def test_lekkai_reads_no_journal_even_as_a_director(groups_of):
+    groups_of["lekkai@lekkacredit.com"] = {"directors@lekkacredit.com"}
+    assert not allowed("lekkai@lekkacredit.com", "journal_entries:read")
+    assert allowed("lekkai@lekkacredit.com", "forms:requisition:read")
+
+
 def test_me_lists_what_you_may_do(monkeypatch, groups_of):
     monkeypatch.setenv("AUTH", "local")
     monkeypatch.setenv("ACT_AS", "anyone@lekkacredit.com")

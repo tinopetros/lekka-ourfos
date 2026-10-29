@@ -2,8 +2,11 @@
 lack fields: a submission that failed validation has no answers. So whatever is missing comes back empty, never as an
 error. No database here: tests hand it documents of every shape."""
 
+from urllib.parse import quote
+
 from pydantic import ValidationError
 
+import emails
 from common import log
 from forms import FORMS
 from requisition import Files, Requisition, RequisitionForm
@@ -50,30 +53,32 @@ def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
     )
 
 
-def files(refs: list[str]) -> list[File]:
-    """File 1, File 2, as the emails name them: Drive's by id, ours by gs:// ref."""
+def files(refs: list[str], form: str, id: str) -> list[File]:
+    """File 1, File 2, as the emails name and link them: Drive's by id, ours by gs:// ref."""
     return [
-        File(name=f"File {n}", ref=ref) if ref.startswith("gs://") else File(name=f"File {n}", drive_id=ref)
+        File(name=f"File {n}", ref=ref, url=path)
+        if (path := emails.file_path(ref, form, id))
+        else File(name=f"File {n}", drive_id=ref, url=f"https://drive.google.com/open?id={quote(ref)}")
         for n, ref in enumerate(refs, 1)
     ]
 
 
-def answers(form: str, doc: dict) -> list[Answer]:
+def answers(form: str, id: str, doc: dict) -> list[Answer]:
     """The form's questions in its order, empty ones left out, as its first email lists them."""
     values = doc.get("answers") or {}
     if not values:
         return []
     if form == "requisition":
-        return requisition_answers(values)
+        return requisition_answers(values, id)
     if values.get("source") == "ourfos":
-        return form_answers(form, values)
+        return form_answers(form, id, values)
     spec, rows = FORMS[form].google_form, []
     for key, label in spec.labels.items():
         value = values.get(key)
         if not value:
             continue
         if key in spec.files:
-            rows.append(Answer(label=label, files=files(value)))
+            rows.append(Answer(label=label, files=files(value, form, id)))
         elif str(value).startswith(("http://", "https://")) and " " not in str(value).strip():
             rows.append(Answer(label=label, link=str(value).strip()))
         else:
@@ -81,7 +86,7 @@ def answers(form: str, doc: dict) -> list[Answer]:
     return rows
 
 
-def form_answers(form: str, values: dict) -> list[Answer]:
+def form_answers(form: str, id: str, values: dict) -> list[Answer]:
     """Our own form's, in its order, titled as it asks them. As stored, unchecked: a field it no longer asks is left out"""
     model, rows = FORMS[form].model, []
     for key, field in model.model_fields.items():
@@ -90,7 +95,7 @@ def form_answers(form: str, values: dict) -> list[Answer]:
             continue
         kind = kinds(model)[key]
         if kind == "files":
-            rows.append(Answer(label=field.title or key, files=files(value)))
+            rows.append(Answer(label=field.title or key, files=files(value, form, id)))
         elif kind == "amount":
             rows.append(Answer(label=field.title or key, text=f"${value:,.2f}"))
         elif str(value).startswith(("http://", "https://")) and " " not in str(value).strip():
@@ -104,7 +109,7 @@ def title(field: str) -> str:
     return RequisitionForm.model_fields[field].title or field
 
 
-def requisition_answers(values: dict) -> list[Answer]:
+def requisition_answers(values: dict, id: str) -> list[Answer]:
     try:
         r = Requisition.model_validate(values)
     except ValidationError:
@@ -122,7 +127,7 @@ def requisition_answers(values: dict) -> list[Answer]:
         rows.append(Answer(label=title("comment"), text=r.comment))
     for field, refs in r.files.model_dump().items():
         if refs:
-            rows.append(Answer(label=Files.label(field), files=files(refs)))
+            rows.append(Answer(label=Files.label(field), files=files(refs, "requisition", id)))
     return rows
 
 
@@ -216,7 +221,7 @@ def journal_entry(id: str, doc: dict) -> JournalEntry:
 
 def submission(form: str, id: str, doc: dict, runs: list[Run], entries: list[JournalEntry]) -> Submission:
     """The sheet: the row, its answers, every run newest first, and its entries in the order they were posted."""
-    shown = answers(form, doc)
+    shown = answers(form, id, doc)
     return Submission(
         **summary(form, id, doc).model_dump(),
         answers=shown,

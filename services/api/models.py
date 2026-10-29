@@ -9,10 +9,19 @@ class Model(BaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
 
+class Person(Model):
+    """Someone, as the UI shows them: by name, the email beside it."""
+
+    email: str
+    name: str | None
+
+
 class Me(Model):
     """Who's signed in, and where: one call before anything shows."""
 
     email: str
+    # Workspace's, if it has one
+    name: str | None = None
     environment: Literal["local", "dev", "prod"]
     # The commit the image was built from, for bug reports
     version: str
@@ -32,6 +41,19 @@ class SubmitRequest(BaseModel):
 
     answers: dict[str, Any]
     test: bool = False
+
+
+class ReverseRequest(BaseModel):
+    """Which entry, so a page that's out of date can't reverse a newer one, and why: the reply in its thread says."""
+
+    transaction_id: str
+    reason: str
+
+
+class Reversing(Model):
+    """The correction run that reverses it: the page watches it until it ends."""
+
+    run: str
 
 
 class DraftRequest(BaseModel):
@@ -93,6 +115,8 @@ class File(Model):
     drive_id: str | None = None
     # Ours, by its gs:// ref: the API streams it, at /api/files
     ref: str | None = None
+    # Where it opens: Drive's in Drive, ours as its emails link it
+    url: str
 
 
 class Answer(Model):

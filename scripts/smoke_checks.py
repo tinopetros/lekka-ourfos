@@ -140,10 +140,12 @@ check(
     entry(reversal),
 )
 check("the new entry is live", entry(new).get("status") == "live", entry(new))
+check("happy reads corrected", submission("happy").get("status") == "corrected", submission("happy").get("status"))
 
 # reverse-only, on happy-gcs: nothing live after
 s = submission("happy-gcs")
 check("happy-gcs has nothing live", "live_entry" in s and s["live_entry"] is None, s.get("live_entry"))
+check("happy-gcs reads reversed", s.get("status") == "reversed", s.get("status"))
 
 # mifos-off: no entry, and no third email
 s = submission("mifos-off")

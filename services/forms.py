@@ -139,8 +139,7 @@ class LoanApprovalForm(BaseModel):
     )
     referred_by: str | None = Field(None, title="Referred by")
     recommendation: Literal["Approve", "Decline"] = Field(title="Recommendation", description="Yours, personally")
-    client_folder: DriveFolder | None = Field(
-        None,
+    client_folder: DriveFolder = Field(
         title="Client folder",
         description="In Drive, Shared with me › Client Folders: right-click the client's folder, then Share › Copy link",
         json_schema_extra={"help_image": "client-folder.png"},
@@ -260,20 +259,6 @@ FORMS = {
         subject=("payable_to",),
         tracks_status=True,
     ),
-    "vehicle_log": Form(
-        collection="vehicle_logs",
-        workflow="intake",
-        model=VehicleLogForm,
-        google_form=GoogleForm(
-            model=text_form("VehicleLog", VEHICLE_LOG, ("trip_name_purpose",), ("vehicle_images",)),
-            labels=VEHICLE_LOG,
-            files=("vehicle_images",),
-        ),
-        title="Vehicle logs",
-        noun="vehicle log",
-        taker="someone",
-        subject=("trip_name_purpose", "purpose"),
-    ),
     "loan_approval": Form(
         collection="loan_approvals",
         workflow="intake",
@@ -300,5 +285,19 @@ FORMS = {
         noun="write-off request",
         taker="a director",
         subject=("client_full_name", "client_first_name", "client_last_name"),
+    ),
+    "vehicle_log": Form(
+        collection="vehicle_logs",
+        workflow="intake",
+        model=VehicleLogForm,
+        google_form=GoogleForm(
+            model=text_form("VehicleLog", VEHICLE_LOG, ("trip_name_purpose",), ("vehicle_images",)),
+            labels=VEHICLE_LOG,
+            files=("vehicle_images",),
+        ),
+        title="Vehicle logs",
+        noun="vehicle log",
+        taker="someone",
+        subject=("trip_name_purpose", "purpose"),
     ),
 }

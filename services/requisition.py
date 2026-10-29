@@ -28,14 +28,18 @@ class RequisitionForm(BaseModel):
 
     payable_to: str = Field(min_length=1, title="Payable to")
     amount: Amount = Field(gt=0, title="Amount")
-    disbursed_on: date | None = Field(None, title="Disbursed on")
-    # Mifos's reference too. Until there's one, Mifos gets the response number
-    reference_number: str | None = Field(
-        None, title="Reference number", description="The number on the paper requisition, if it has one"
+    disbursed_on: date = Field(title="Disbursed on")
+    # Mifos's reference too
+    reference_number: str = Field(
+        min_length=1, title="Reference number", description="The number on the paper requisition"
     )
     comment: LongText | None = Field(None, title="Comment")
     files: Files = Field(title="Files")
 
 
 class Requisition(RequisitionForm, Submission):
-    """A requisition as stored: what the form asks, and who sent it when. Nothing of its own."""
+    """A requisition as stored: what the form asks, and who sent it when. The Google Form's left the date and reference
+    out, so stored ones may lack them: until there's one, Mifos gets the response number"""
+
+    disbursed_on: date | None = Field(None, title="Disbursed on")
+    reference_number: str | None = Field(None, title="Reference number")

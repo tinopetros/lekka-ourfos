@@ -77,7 +77,7 @@ def suggest(id: str, body: dict):
         return sent
     simulate("suggest", body.get("simulate"))
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
-    html, text = emails.suggestion(doc["classification"])
+    html, text = emails.suggestion(doc["classification"], id)
     sent = send(
         FORM,
         "suggestion",
@@ -148,7 +148,7 @@ def confirm(id: str, body: dict):
         return sent
     simulate("confirm", body.get("simulate"))
     requisition = Requisition.model_validate(store.submission(FORM, id).get()["answers"])
-    html, text = emails.confirmation(doc["posted"]["lines"], body["mifos_transaction_id"])
+    html, text = emails.confirmation(id, doc["posted"], requisition.reference_number)
     sent = send(
         FORM,
         "confirmation",

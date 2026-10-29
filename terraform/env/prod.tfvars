@@ -19,7 +19,5 @@ mifos = {
   base_url   = "https://13.214.217.53/fineract-provider/api/v1"
   tenant_id  = "default"
   verify_ssl = false
-  # Until corrections are made from the UI, as prod's Google Form links have it
-  post = false
 }
 ui_access = ["domain:lekkacredit.com"]

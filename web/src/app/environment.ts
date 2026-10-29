@@ -18,6 +18,6 @@ export const ENVIRONMENTS: Record<Me['environment'], { banner?: string; tone?: s
 /** The tab's title and icon say it too, so a tab or a screenshot can't be mistaken. */
 export function markTab(environment: Me['environment']) {
   const { prefix = '' } = ENVIRONMENTS[environment];
-  document.title = `${prefix}OurFOS`;
+  document.title = `${prefix}Ourfos`;
   if (environment !== 'prod') document.querySelector('link[rel=icon]')?.setAttribute('href', '/favicon-dev.svg');
 }

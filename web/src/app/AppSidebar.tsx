@@ -59,7 +59,7 @@ export function AppSidebar({ version }: { version: string }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex-row items-center justify-between group-data-[collapsible=icon]:justify-center">
-        <span className="px-2 text-sm font-semibold group-data-[collapsible=icon]:hidden">OurFOS</span>
+        <span className="px-2 text-sm font-semibold group-data-[collapsible=icon]:hidden">Ourfos</span>
         <Tip label="Collapse or expand the sidebar">
           <SidebarTrigger />
         </Tip>

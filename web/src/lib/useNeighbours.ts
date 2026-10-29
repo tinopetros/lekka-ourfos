@@ -21,7 +21,7 @@ function searchOf(trail: string[]): string {
 }
 
 /** Previous and next through the list a record was opened from, into the neighbouring page when one runs out.
- * ← and → do the same, unless you're typing. */
+ * ← and → do the same, unless you're typing or something on the page took them. */
 export function useNeighbours<T, K extends QueryKey>({
   id,
   list,
@@ -33,7 +33,8 @@ export function useNeighbours<T, K extends QueryKey>({
   idOf: (item: T) => string;
   pathOf: (item: T) => string;
 }) {
-  const from = (useLocation().state as FromList | null)?.from ?? '';
+  const location = useLocation();
+  const from = (location.state as FromList | null)?.from ?? '';
   const trail = trailOf(from);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,8 +42,12 @@ export function useNeighbours<T, K extends QueryKey>({
   const items = page?.items ?? [];
   const i = items.findIndex((x) => idOf(x) === id);
 
+  // The tab you're on comes too, so you can read the same tab from one record to the next
   const go = (item: T, at: string[]) => {
-    void navigate(pathOf(item), { state: { from: searchOf(at) } satisfies FromList });
+    void navigate(
+      { pathname: pathOf(item), search: location.search },
+      { state: { from: searchOf(at) } satisfies FromList },
+    );
   };
   const hasPrev = i > 0 || (i === 0 && trail.length > 0);
   const hasNext = i >= 0 && (i < items.length - 1 || Boolean(page?.next));
@@ -70,7 +75,8 @@ export function useNeighbours<T, K extends QueryKey>({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]');
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Taken already, e.g. by a row of tabs, whose arrows move between them
+      if (typing || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'ArrowLeft' && hasPrev) void prev();
       if (e.key === 'ArrowRight' && hasNext) void next();
     };

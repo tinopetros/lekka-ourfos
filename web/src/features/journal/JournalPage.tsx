@@ -3,11 +3,12 @@ import { Lines } from '@/components/Lines';
 import { Pager } from '@/components/Pager';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
+import { Time } from '@/components/Time';
 import { StatusBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { JournalEntry } from '@/lib/api/types';
-import { day, money, when } from '@/lib/format';
+import { day, money } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
@@ -33,12 +34,12 @@ export function JournalPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Transaction</TableHead>
-                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead className="hidden sm:table-cell">Transaction date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden md:table-cell">By</TableHead>
                   <TableHead className="hidden lg:table-cell">Recorded</TableHead>
+                  <TableHead className="hidden md:table-cell">Recorded by</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -56,17 +57,19 @@ export function JournalPage() {
                           if (k.key === 'Enter') open(e.transaction_id);
                         }}
                       >
-                        <TableCell className="max-w-36 truncate font-mono text-xs sm:max-w-none">
+                        <TableCell className="max-w-36 truncate text-xs sm:max-w-none">
                           {e.transaction_id}
-                          {e.reverses && <span className="ml-2 font-sans text-muted-foreground">mirror</span>}
+                          {e.reverses && <span className="ml-2 text-muted-foreground">mirror</span>}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">{day(e.transaction_date)}</TableCell>
                         <TableCell className="text-right">{money(total(e), e.currency ?? 'USD')}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <Time at={e.recorded_at} />
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
                         <TableCell>
                           <StatusBadge status={e.status} />
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{when(e.recorded_at)}</TableCell>
                       </TableRow>
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-96">
