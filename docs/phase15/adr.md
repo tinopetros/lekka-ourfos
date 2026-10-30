@@ -88,7 +88,7 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   removed, and it submits only when debits equal credits. The API checks the same, and refuses an account that
   isn't postable in the entry's tenant
 - Accounts are Mifos's own, read through mifos-connector 0.1.0's `gl_accounts` and `postable` (DETAIL, enabled,
-  manual entries allowed). Partly #<issue>: the picker reads live accounts, expenser still reads its CSV
+  manual entries allowed). Partly #27: the picker reads live accounts, expenser still reads its CSV
 - ourfos-services reads them, not ourfos-api: the API keeps no Mifos credentials, so it still can't post. The API
   calls the services with its own identity, which Terraform lets invoke them
 - Kept 10 minutes per tenant, so a new account shows soon after it's made. A failed read falls back to the last
