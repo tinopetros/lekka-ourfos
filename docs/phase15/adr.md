@@ -89,7 +89,16 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   isn't postable in the entry's tenant
 - Accounts are Mifos's own, read through mifos-connector 0.1.0's `gl_accounts` and `postable` (DETAIL, enabled,
   manual entries allowed). Partly #27: the picker reads live accounts, expenser still reads its CSV
-- ourfos-services reads them, not ourfos-api: the API keeps no Mifos credentials, so it still can't post. The API
-  calls the services with its own identity, which Terraform lets invoke them
+- ourfos-services reads them, not ourfos-api: Mifos stays the services' alone, and the API holds no Mifos credentials,
+  read-only or otherwise. The API asks `GET /mifos/accounts` of the services, as its own account
+- So ourfos-api may invoke ourfos-services: Cloud Run's `run.invoker` can't be narrowed to one route. Before, only the
+  workflow could. The API is still what decides what a user can reach, each of its routes checks their permissions
+- The services narrow it themselves, for protection as we go: a call as ourfos-api reaches `/mifos/accounts` and is
+  refused, 403, anywhere else. Told apart by the ID token's email, which Cloud Run checked before letting it in. The
+  workflow's calls are as before
+- Writes still go through workflows: the API never calls a step such as `post` itself, it starts a run
+- Not taken: **passing the user's identity or permissions through to the services.** The services answer the same
+  whoever asks, so there's nothing for them to check. Revisit when they answer per person, or a third caller appears
+- Not taken: **a workflow to read the accounts.** Seconds more each time the dialog opens, for a read
 - Kept 10 minutes per tenant, so a new account shows soon after it's made. A failed read falls back to the last
   good one, and to an error only when there's none

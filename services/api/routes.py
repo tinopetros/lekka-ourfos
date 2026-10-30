@@ -39,7 +39,7 @@ from .permissions import allowed, granted, needs
 
 # Each route's operation named by its function: the generated TypeScript's names
 router = APIRouter(prefix="/api", generate_unique_id_function=lambda route: route.name)
-# journal.py's, not imported: it brings the Mifos connector, and nothing here reaches Mifos
+# journal.py's, not imported: it brings the Mifos connector, and Mifos is ourfos-services' alone
 JOURNAL = "journal_entries"
 User = Annotated[str, Depends(current_user)]
 Limit = Annotated[int, Query(ge=1, le=100)]

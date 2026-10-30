@@ -1,5 +1,6 @@
-# ourfos-api: what the UI reads, and the UI itself, behind IAP. Its own image, and its own account, which can read
-# the database and post nothing. In its own region, for its own domain: the rest of ourfos stays in var.region
+# ourfos-api: what the UI reads, and the UI itself, behind IAP. Its own image, and its own account, which reads the
+# database, starts workflows, and asks ourfos-services for what only they read, Mifos's accounts.
+# In its own region, for its own domain: the rest of ourfos stays in var.region
 data "google_project" "this" {}
 
 locals {

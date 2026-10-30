@@ -13,6 +13,8 @@
   - Writes outside us, to Mifos or by email, go through workflows: something has to retry, hand over, and never do it twice
   - Reads, and changes to our own data, the API does itself. Outside reads with read-only credentials where we can: Gmail's `gmail.readonly`, and a Mifos user that can only read. The existing Mifos user may do until release 1.0.0
   - A read that takes minutes, like Mifos's journal entries today, runs in the background, and the UI picks up the result
+- **Overridden** in part by phase 15 ADR 9: the API reads Mifos through ourfos-services, which it may now invoke, and
+  holds no Mifos credentials of its own, read-only or not
 
 ### 3. IAP for sign-in
 

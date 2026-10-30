@@ -1,5 +1,7 @@
 """The accounts a correction can post to: Mifos's postable ones, kept a while, and the last read when Mifos fails."""
 
+import base64
+import json
 import os
 
 import pytest
@@ -81,3 +83,19 @@ def test_the_route_marks_expenser_s_and_only_serves_ours(chart):
     got = TestClient(app).get("/mifos/accounts", params={"tenant": "demo"})
     assert {a["glId"]: a["expenser"] for a in got.json()} == {109: True, 200: False}
     assert TestClient(app).get("/mifos/accounts", params={"tenant": "other"}).status_code == 422
+
+
+def token(email):
+    claims = base64.urlsafe_b64encode(json.dumps({"email": email}).encode()).decode().rstrip("=")
+    return {"Authorization": f"Bearer h.{claims}.SIGNATURE_REMOVED_BY_GOOGLE"}
+
+
+def test_ourfos_api_reads_accounts_and_nothing_else(chart, monkeypatch):
+    monkeypatch.setenv("API_ACCOUNT", "ourfos-api@p.iam.gserviceaccount.com")
+    client = TestClient(app)
+    api = token("ourfos-api@p.iam.gserviceaccount.com")
+    assert client.get("/mifos/accounts", params={"tenant": "demo"}, headers=api).status_code == 200
+    assert client.post("/forms/requisition/r1/correction/post", json={}, headers=api).status_code == 403
+    # The workflow, as ever, past the check: what its route then says is its own
+    workflow = token("ourfos-workflow@p.iam.gserviceaccount.com")
+    assert client.post("/forms/requisition/r1/correction/post", json={}, headers=workflow).status_code != 403
