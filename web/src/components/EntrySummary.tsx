@@ -6,7 +6,7 @@ import { useCan } from '@/lib/api/queries';
 import { day } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 
-// A journal entry as both its pages show it: where it stands, its ID and date, then its lines. Anything to do with
+// A journal entry as both its pages show it: where it stands, its ID, date, reference and comments, then its lines. Anything to do with
 // it, e.g. going to it, sits to the right
 export function EntrySummary({ e, live, action }: { e: JournalEntry; live: boolean; action?: ReactNode }) {
   return (
@@ -21,6 +21,18 @@ export function EntrySummary({ e, live, action }: { e: JournalEntry; live: boole
           <dd>{e.transaction_id}</dd>
           <dt className="text-muted-foreground">Transaction date</dt>
           <dd>{day(e.transaction_date)}</dd>
+          {e.reference_number && (
+            <>
+              <dt className="text-muted-foreground">Reference number</dt>
+              <dd>{e.reference_number}</dd>
+            </>
+          )}
+          {e.comments && (
+            <>
+              <dt className="text-muted-foreground">Comments</dt>
+              <dd>{e.comments}</dd>
+            </>
+          )}
         </dl>
         {action && <div className="ml-auto flex gap-2">{action}</div>}
       </div>
@@ -48,7 +60,7 @@ function Linked({ to, children }: { to: string; children: ReactNode }) {
           {to}
         </Link>
       ) : (
-        { to }
+        to
       )}
     </>
   );

@@ -107,8 +107,6 @@ export function JournalEntryPage() {
                     <Entry id={e.reversed_by} />
                   </Field>
                 )}
-                <Field label="Reference number">{e.reference_number ?? '—'}</Field>
-                <Field label="Comments">{e.comments ?? '—'}</Field>
                 <Field label="Recorded by">{e.by ?? '—'}</Field>
                 <Field label="Source">{e.source ?? '—'}</Field>
                 <Field label="Posted on">{day(e.created_on)}</Field>
