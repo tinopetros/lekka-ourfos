@@ -1,5 +1,5 @@
 import { Loader2, PencilLine, Plus, X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Tip } from '@/components/Tip';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,21 +15,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { money } from '@/lib/format';
-import type { components } from '@/lib/api/schema';
+import { accountLabel as label, money } from '@/lib/format';
 import type { JournalEntry } from '@/lib/api/types';
+import { AccountPicker } from './AccountPicker';
 import { useAccounts, type useCorrection } from './api';
 
-type Account = components['schemas']['Account'];
 type Side = 'DEBIT' | 'CREDIT';
-// A line as it's being edited: its account picked by what's typed, its amount as typed
-type Row = { key: number; side: Side; account: string; amount: string };
+// A line as it's being edited: the account picked, what it was named on the entry, and its amount as typed
+type Row = { key: number; side: Side; glId?: number; shown?: string; amount: string };
 
 export const CORRECT_TIP =
   'Posts a reversal to Mifos, then the corrected lines you set here, on the same date. The corrected entry is then the live one, and the requisition’s thread is told why.';
 
-// Name first, as Mifos lists them, and what's searched by most
-const label = (a: { glCode?: string | null; name: string }) => `${a.name} (${a.glCode})`;
 const cents = (n: number) => Math.round(n * 100);
 
 let next = 0;
@@ -37,7 +34,8 @@ function rows(e: JournalEntry): Row[] {
   return e.lines.map((x) => ({
     key: next++,
     side: x.type ?? 'DEBIT',
-    account: label(x),
+    glId: x.glId ?? undefined,
+    shown: label(x),
     amount: String(x.amount),
   }));
 }
@@ -49,26 +47,22 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
   const [lines, setLines] = useState<Row[]>([]);
   const [reason, setReason] = useState('');
   const accounts = useAccounts(e.tenant, open);
-  const list = useId();
   const correcting = correction.isPending && !!correction.variables.lines;
 
-  // Only an account of the tenant's: picked from the list, or typed as its GL code or name. Anything else is refused
-  const known = new Map(
-    (accounts.data ?? []).flatMap((a) => [
-      [label(a), a],
-      [a.glCode, a],
-      [a.name.toLowerCase(), a],
-    ]),
-  );
-  const find = (typed: string) => known.get(typed.trim()) ?? known.get(typed.trim().toLowerCase());
-  const picked = lines.map((x) => ({ ...x, to: find(x.account), value: Number(x.amount) }));
+  // Only an account of the tenant's: one the entry had that Mifos no longer takes manual entries on must be re-picked
+  const known = new Map((accounts.data ?? []).map((a) => [a.glId, a]));
+  const picked = lines.map((x) => ({
+    ...x,
+    to: x.glId === undefined ? undefined : known.get(x.glId),
+    value: Number(x.amount),
+  }));
   const total = (side: Side) => picked.filter((x) => x.side === side).reduce((n, x) => n + cents(x.value || 0), 0);
   const [debits, credits] = [total('DEBIT'), total('CREDIT')];
-  const valid = picked.every((x) => x.to && x.value > 0);
-  const sides = picked.some((x) => x.side === 'DEBIT') && picked.some((x) => x.side === 'CREDIT');
   const same =
     JSON.stringify(picked.map((x) => [x.side, x.to?.glId, cents(x.value)])) ===
     JSON.stringify(e.lines.map((x) => [x.type, x.glId, cents(x.amount)]));
+  const valid = picked.every((x) => x.to && x.value > 0);
+  const sides = picked.some((x) => x.side === 'DEBIT') && picked.some((x) => x.side === 'CREDIT');
   const ready = valid && sides && debits === credits && debits > 0 && !same && !!reason.trim();
 
   const set = (key: number, change: Partial<Row>) => {
@@ -101,15 +95,10 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
             <DialogTitle>Correct journal entry</DialogTitle>
             <DialogDescription>
               Transaction <span className="text-foreground">{e.transaction_id}</span> will be reversed in Mifos, then
-              these lines posted on the same date{e.tenant === 'demo' ? ', in demo' : ''}. Search an account by its name
-              or GL code: only Mifos accounts that take manual entries are accepted.
+              these lines posted on the same date{e.tenant === 'demo' ? ', in demo' : ''}. Pick each line&apos;s account
+              from Mifos&apos;s, by its name or GL code: only those that take manual entries are listed.
             </DialogDescription>
           </DialogHeader>
-          <datalist id={list}>
-            {accounts.data?.map((a: Account) => (
-              <option key={a.glId} value={label(a)} />
-            ))}
-          </datalist>
           <div className="space-y-3">
             {picked.map((x) => (
               <div key={x.key} className="flex items-center gap-2">
@@ -127,18 +116,13 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
                     <SelectItem value="CREDIT">Credit</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input
-                  list={list}
-                  aria-label="Account"
-                  placeholder={accounts.isPending ? 'Loading accounts…' : 'Account name or GL code'}
-                  aria-invalid={!!x.account && !x.to && !accounts.isPending}
-                  className="min-w-0 flex-1"
-                  value={x.account}
-                  onChange={(ev) => {
-                    set(x.key, { account: ev.target.value });
-                  }}
-                  onBlur={() => {
-                    if (x.to) set(x.key, { account: label(x.to) });
+                <AccountPicker
+                  accounts={accounts.data ?? []}
+                  value={x.glId}
+                  shown={x.shown}
+                  loading={accounts.isPending}
+                  onPick={(a) => {
+                    set(x.key, { glId: a.glId });
                   }}
                 />
                 <Input
@@ -174,7 +158,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setLines((ls) => [...ls, { key: next++, side: 'DEBIT', account: '', amount: '' }]);
+                  setLines((ls) => [...ls, { key: next++, side: 'DEBIT', amount: '' }]);
                 }}
               >
                 <Plus /> Add line
