@@ -1,5 +1,5 @@
 import { Loader2, PencilLine, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Tip } from '@/components/Tip';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +46,10 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Row[]>([]);
   const [reason, setReason] = useState('');
+  // Once a correction's been tried, what's still in its way is said: the reason beside its box, the first of the rest
+  // by the button
+  const [tried, setTried] = useState(false);
+  const why = useRef<HTMLTextAreaElement>(null);
   const accounts = useAccounts(e.tenant, open);
   const correcting = correction.isPending && !!correction.variables.lines;
 
@@ -61,9 +65,14 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
   const same =
     JSON.stringify(picked.map((x) => [x.side, x.to?.glId, cents(x.value)])) ===
     JSON.stringify(e.lines.map((x) => [x.type, x.glId, cents(x.amount)]));
-  const valid = picked.every((x) => x.to && x.value > 0);
-  const sides = picked.some((x) => x.side === 'DEBIT') && picked.some((x) => x.side === 'CREDIT');
-  const ready = valid && sides && debits === credits && debits > 0 && !same && !!reason.trim();
+  const missing = !reason.trim();
+  const problems = [
+    !picked.every((x) => x.to) && 'Pick an account for every line',
+    !picked.every((x) => x.value > 0) && 'Give every line an amount over 0',
+    !(picked.some((x) => x.side === 'DEBIT') && picked.some((x) => x.side === 'CREDIT')) &&
+      'Have at least one debit and one credit',
+    debits !== credits && 'Make debits equal credits',
+  ].filter((x) => x !== false);
 
   const set = (key: number, change: Partial<Row>) => {
     setLines((ls) => ls.map((x) => (x.key === key ? { ...x, ...change } : x)));
@@ -81,6 +90,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
             onClick={() => {
               setLines(rows(e));
               setReason('');
+              setTried(false);
               setOpen(true);
             }}
           >
@@ -181,23 +191,44 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="correct-reason">Why it&apos;s corrected</Label>
+            <Label htmlFor="correct-reason">
+              Why it&apos;s corrected <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="correct-reason"
+              ref={why}
               rows={3}
+              placeholder="e.g. Booked to the wrong expense account"
+              aria-invalid={tried && missing}
               value={reason}
               onChange={(ev) => {
                 setReason(ev.target.value);
               }}
             />
+            {tried && missing && (
+              <p role="alert" className="text-sm text-destructive">
+                A reason is needed to correct it.
+              </p>
+            )}
           </div>
+          {tried && problems.length > 0 && (
+            <p role="alert" className="text-sm text-destructive">
+              {problems[0]}.
+            </p>
+          )}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button
-              disabled={!ready}
+              disabled={correction.isPending}
               onClick={() => {
+                // Lines left as they were need no word: the dialog's short, and that's plain
+                if (problems.length || same || missing) {
+                  setTried(true);
+                  if (missing) why.current?.focus();
+                  return;
+                }
                 setOpen(false);
                 correction.mutate({
                   transaction_id: e.transaction_id,

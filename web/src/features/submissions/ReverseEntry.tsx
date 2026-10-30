@@ -1,5 +1,5 @@
 import { Loader2, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Tip } from '@/components/Tip';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,10 @@ export function ReverseEntry({
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
+  // Said once a reversal's been tried without a reason
+  const [tried, setTried] = useState(false);
+  const why = useRef<HTMLTextAreaElement>(null);
+  const missing = !reason.trim();
   const reversing = correction.isPending && !correction.variables.lines;
   return (
     <>
@@ -40,6 +44,7 @@ export function ReverseEntry({
             size="sm"
             disabled={correction.isPending}
             onClick={() => {
+              setTried(false);
               setOpen(true);
             }}
           >
@@ -60,15 +65,25 @@ export function ReverseEntry({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="reverse-reason">Why it&apos;s reversed</Label>
+            <Label htmlFor="reverse-reason">
+              Why it&apos;s reversed <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="reverse-reason"
+              ref={why}
               rows={3}
+              placeholder="e.g. Posted twice"
+              aria-invalid={tried && missing}
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
               }}
             />
+            {tried && missing && (
+              <p role="alert" className="text-sm text-destructive">
+                A reason is needed to reverse it.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -76,8 +91,13 @@ export function ReverseEntry({
             </DialogClose>
             <Button
               variant="destructive"
-              disabled={!reason.trim()}
+              disabled={correction.isPending}
               onClick={() => {
+                if (missing) {
+                  setTried(true);
+                  why.current?.focus();
+                  return;
+                }
                 setOpen(false);
                 correction.mutate({ transaction_id: transaction, reason: reason.trim() });
               }}
