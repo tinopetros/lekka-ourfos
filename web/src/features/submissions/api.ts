@@ -66,7 +66,9 @@ export function useCorrection(id: string) {
         const s = await queryClient.query({ ...submissionQueries.one('requisition', id), staleTime: 0 });
         const ended = s.runs.find((r) => r.id === run && r.completed_at);
         if (!ended) continue;
-        if (ended.status !== 'done') throw new ApiError(0, `${not}: ${ended.reason ?? ended.status ?? 'it failed'}`);
+        // The run ends as what the requisition now is, not done
+        if (ended.status !== (lines ? 'corrected' : 'reversed'))
+          throw new ApiError(0, `${not}: ${ended.reason ?? ended.status ?? 'it failed'}`);
         return s;
       }
       throw new ApiError(0, `Still ${lines ? 'correcting' : 'reversing'}: check back in a few minutes`);
