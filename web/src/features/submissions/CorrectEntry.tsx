@@ -28,7 +28,8 @@ type Row = { key: number; side: Side; account: string; amount: string };
 export const CORRECT_TIP =
   'Posts a reversal to Mifos, then the corrected lines you set here, on the same date. The corrected entry is then the live one, and the requisition’s thread is told why.';
 
-const label = (a: { glCode?: string | null; name: string }) => `${a.glCode} · ${a.name}`;
+// Name first, as Mifos lists them, and what's searched by most
+const label = (a: { glCode?: string | null; name: string }) => `${a.name} (${a.glCode})`;
 const cents = (n: number) => Math.round(n * 100);
 
 let next = 0;
@@ -51,8 +52,16 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
   const list = useId();
   const correcting = correction.isPending && !!correction.variables.lines;
 
-  const byLabel = new Map((accounts.data ?? []).map((a) => [label(a), a]));
-  const picked = lines.map((x) => ({ ...x, to: byLabel.get(x.account), value: Number(x.amount) }));
+  // Only an account of the tenant's: picked from the list, or typed as its GL code or name. Anything else is refused
+  const known = new Map(
+    (accounts.data ?? []).flatMap((a) => [
+      [label(a), a],
+      [a.glCode, a],
+      [a.name.toLowerCase(), a],
+    ]),
+  );
+  const find = (typed: string) => known.get(typed.trim()) ?? known.get(typed.trim().toLowerCase());
+  const picked = lines.map((x) => ({ ...x, to: find(x.account), value: Number(x.amount) }));
   const total = (side: Side) => picked.filter((x) => x.side === side).reduce((n, x) => n + cents(x.value || 0), 0);
   const [debits, credits] = [total('DEBIT'), total('CREDIT')];
   const valid = picked.every((x) => x.to && x.value > 0);
@@ -87,13 +96,13 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
         </span>
       </Tip>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="gap-6 sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Correct journal entry</DialogTitle>
             <DialogDescription>
               Transaction <span className="text-foreground">{e.transaction_id}</span> will be reversed in Mifos, then
               these lines posted on the same date{e.tenant === 'demo' ? ', in demo' : ''}. Search an account by its name
-              or GL code.
+              or GL code: only Mifos accounts that take manual entries are accepted.
             </DialogDescription>
           </DialogHeader>
           <datalist id={list}>
@@ -101,7 +110,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
               <option key={a.glId} value={label(a)} />
             ))}
           </datalist>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {picked.map((x) => (
               <div key={x.key} className="flex items-center gap-2">
                 <Select
@@ -121,12 +130,15 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
                 <Input
                   list={list}
                   aria-label="Account"
-                  placeholder={accounts.isPending ? 'Loading accounts…' : 'Account'}
+                  placeholder={accounts.isPending ? 'Loading accounts…' : 'Account name or GL code'}
                   aria-invalid={!!x.account && !x.to && !accounts.isPending}
                   className="min-w-0 flex-1"
                   value={x.account}
                   onChange={(ev) => {
                     set(x.key, { account: ev.target.value });
+                  }}
+                  onBlur={() => {
+                    if (x.to) set(x.key, { account: label(x.to) });
                   }}
                 />
                 <Input
@@ -157,7 +169,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
                 </Tip>
               </div>
             ))}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-sm">
               <Button
                 variant="outline"
                 size="sm"
