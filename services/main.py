@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 
 from common import execution_id
 from integrations import mifos
-from routers import corrections, forms, requisitions, syncs
+from routers import accounts, corrections, forms, requisitions, syncs
 
 
 @asynccontextmanager
@@ -20,6 +20,7 @@ app.include_router(requisitions.router)
 app.include_router(corrections.router)
 app.include_router(forms.router)
 app.include_router(syncs.router)
+app.include_router(accounts.router)
 
 
 @app.middleware("http")

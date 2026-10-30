@@ -5,13 +5,14 @@ posts for real without touching the books. A fixture's simulate, dev only, keeps
 """
 
 import os
+import time
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from functools import cache
 
 import httpx
 from fastapi import HTTPException
-from mifos_connector import MifosApiError, MifosClient, MifosError, MifosNetworkError
+from mifos_connector import MifosApiError, MifosClient, MifosError, MifosNetworkError, postable
 
 from common import log, simulate
 
@@ -19,6 +20,11 @@ BOOKS = "default"
 # Where a test run posts, on dev and prod alike
 TEST_TENANT = "demo"
 STUB = "stub-txn-"
+# How long a read of the accounts is kept: long enough that a dialog's picker is quick, short enough that a new account
+# shows the same morning
+ACCOUNTS_FOR = 600
+# Each tenant's last good read, and when
+_accounts: dict[str, tuple[float, list]] = {}
 # Under call_service's 20s, so a slow Mifos is ours to call uncertain, not the workflow's
 TIMEOUT = 15
 
@@ -42,6 +48,30 @@ def client(tenant: str | None = None) -> MifosClient:
         timeout_seconds=TIMEOUT,
         verify_ssl=os.environ.get("MIFOS_VERIFY_SSL", "true") != "false",
     )
+
+
+def accounts(tenant: str) -> list:
+    """The accounts a journal entry can post to in this tenant, by GL code. A failed read falls back to the last good
+    one, and is an error only when there's none"""
+    kept = _accounts.get(tenant)
+    if kept and time.monotonic() - kept[0] < ACCOUNTS_FOR:
+        return kept[1]
+    try:
+        read = client(tenant).gl_accounts.list({"usage": 1, "disabled": False, "manualEntriesAllowed": True})
+    except MifosError as e:
+        if kept:
+            log(f"mifos accounts stale: {e!r}", "WARNING", tenant=tenant)
+            return kept[1]
+        raise read_failed(e) from e
+    found = sorted(
+        (
+            {"glId": a["id"], "glCode": a["glCode"], "name": a["name"], "type": a["type"]["value"]}
+            for a in postable(read)
+        ),
+        key=lambda a: a["glCode"],
+    )
+    _accounts[tenant] = (time.monotonic(), found)
+    return found
 
 
 def connect():

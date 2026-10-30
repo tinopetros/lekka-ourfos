@@ -39,6 +39,9 @@ resource "google_cloud_run_v2_service" "api" {
           REGION = var.region
           # A submission's workflow posts to Mifos only where this environment does
           POST_TO_MIFOS = tostring(var.mifos.post)
+          # What it reads but holds no credentials for, Mifos's accounts, it asks of these, as itself. Their URL by
+          # its pattern: the services already name this one's, and the two can't each wait on the other
+          SERVICES_URL = "https://ourfos-services-${data.google_project.this.number}.${var.region}.run.app"
           # What IAP's signed header must be for: this service, and no other
           IAP_AUDIENCE = "/projects/${data.google_project.this.number}/locations/${var.api_region}/services/ourfos-api"
         }

@@ -77,10 +77,17 @@ resource "google_cloud_run_v2_service" "services" {
   }
 }
 
-# Private: only the workflow can call it
-resource "google_cloud_run_v2_service_iam_member" "workflow_invokes_services" {
+# Private: only the workflow can call it, and ourfos-api, for what it reads through it
+resource "google_cloud_run_v2_service_iam_member" "invokes_services" {
+  for_each = { workflow = local.sa.workflow, api = local.sa.api }
+
   name     = google_cloud_run_v2_service.services.name
   location = var.region
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${local.sa.workflow}"
+  member   = "serviceAccount:${each.value}"
+}
+
+moved {
+  from = google_cloud_run_v2_service_iam_member.workflow_invokes_services
+  to   = google_cloud_run_v2_service_iam_member.invokes_services["workflow"]
 }

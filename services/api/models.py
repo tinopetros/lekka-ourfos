@@ -50,6 +50,35 @@ class ReverseRequest(BaseModel):
     reason: str
 
 
+class Account(Model):
+    """A GL account a correction can post to, as Mifos has it."""
+
+    glId: int
+    glCode: str
+    name: str
+    type: str
+    # One expenser picks from: listed first
+    expenser: bool
+
+
+class CorrectedLine(BaseModel):
+    """An account and an amount: the rest of the line is Mifos's, looked up."""
+
+    glId: int
+    amount: Annotated[float, Field(gt=0)]
+
+
+class CorrectedLines(BaseModel):
+    debit: Annotated[list[CorrectedLine], Field(min_length=1)]
+    credit: Annotated[list[CorrectedLine], Field(min_length=1)]
+
+
+class CorrectRequest(ReverseRequest):
+    """A reversal's, and the lines posted after it."""
+
+    lines: CorrectedLines
+
+
 class Reversing(Model):
     """The correction run that reverses it: the page watches it until it ends."""
 
