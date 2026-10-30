@@ -77,8 +77,8 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Left as they are:
   - Requisitions #1 and #2 have no signed requisition form, grandfathered: the UI shows their answers as kept
   - Vehicle logs' odometer readings that run backwards between trips, and distances that don't add up
-  - Requisition #875 (Expenses, ¥5000, a $5000 transfer) reached prod but broke: no number or answers, status handed_over
-  - Prod marks requisition #844 and loan approvals #628 and #629 as tests. #844 is a re-send of #843; the other two look real
+  - Requisition #875 (Expenses, ¥5000, a $5000 transfer) reached prod but broke: no number or answers, status handed_over. Accepted as it is
+  - Requisition #844 stays a test on prod: a re-send of #843. Loan approvals #628 and #629 were marked tests there but are real, so unmarked on Oct 30 2026
 - Gaps:
   - Vehicle logs: none from 20 Nov 2025 to 4 Feb 2026, and holes of over a month in Aug–Sep 2025, Mar–Apr 2026 and Apr–Jun 2026
   - Write-offs: their screenshots are in the emails, not in Drive. Chirawa's and Kurewa's are still open in Mifos
