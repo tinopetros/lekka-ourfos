@@ -46,7 +46,12 @@ export function EntrySummary({ e, live, action }: { e: JournalEntry; live: boole
 function Status({ e, live }: { e: JournalEntry; live: boolean }) {
   if (e.reverses) return <Linked to={e.reverses}>Reversal of</Linked>;
   if (e.reversed_by) return <Linked to={e.reversed_by}>Reversed by</Linked>;
-  if (live) return <span className="font-medium text-emerald-700 dark:text-emerald-400">Live in Mifos</span>;
+  if (live)
+    return (
+      <span className="font-medium text-emerald-700 dark:text-emerald-400">
+        Live in Mifos{e.tenant === 'demo' && <span className="font-normal text-muted-foreground"> (demo)</span>}
+      </span>
+    );
   return <span className="capitalize">{e.status ?? '—'}</span>;
 }
 

@@ -26,7 +26,7 @@ Our form ─▶ ourfos-api ─▶ Workflows execution ─▶ one thread of email
                  │            ├─ classify    (expense on: expenser, an ADK agent, in the services)
                  │            ├─ check       (deterministic, in the workflow)
                  │            ├─ suggest     (a reply: Lekkai's suggestion)
-                 │            ├─ post        (Mifos: demo on dev, the books on prod; never a test run)
+                 │            ├─ post        (Mifos: demo on dev, the books on prod; a test run to demo)
                  │            ├─ read back   (what Mifos has, line by line against what we posted)
                  │            └─ confirm     (a reply: Mifos's lines and its transaction id)
                  ▼

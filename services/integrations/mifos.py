@@ -1,6 +1,7 @@
 """Mifos, through our connector (docs/phase11/tdd.md). Dicts in and out, failures as HTTP statuses.
 
-Dev posts to the demo tenant, prod to default: the books. A fixture's simulate, dev only, keeps phase 5's stub.
+Dev posts to the demo tenant, prod to default: the books. A test run posts to demo on either, so prod's own smoke
+posts for real without touching the books. A fixture's simulate, dev only, keeps phase 5's stub.
 """
 
 import os
@@ -15,14 +16,21 @@ from mifos_connector import MifosApiError, MifosClient, MifosError, MifosNetwork
 from common import log, simulate
 
 BOOKS = "default"
+# Where a test run posts, on dev and prod alike
+TEST_TENANT = "demo"
 STUB = "stub-txn-"
 # Under call_service's 20s, so a slow Mifos is ours to call uncertain, not the workflow's
 TIMEOUT = 15
 
 
+def tenant(test: bool = False) -> str:
+    """Where a run posts: demo for a test, this environment's tenant otherwise."""
+    return TEST_TENANT if test else os.environ["MIFOS_TENANT_ID"]
+
+
 @cache
-def client() -> MifosClient:
-    tenant = os.environ["MIFOS_TENANT_ID"]
+def client(tenant: str | None = None) -> MifosClient:
+    tenant = tenant or os.environ["MIFOS_TENANT_ID"]
     # Terraform refuses this too, and dev's user doesn't exist in the books (docs/phase11/adr.md 4)
     if tenant == BOOKS and os.environ.get("GOOGLE_CLOUD_PROJECT") != "ourfos-prod":
         raise HTTPException(500, "only ourfos-prod posts to Mifos's default tenant")
@@ -47,16 +55,18 @@ def connect():
         log(f"mifos not connected: {e!r}", "ERROR", tenant=tenant)
 
 
-def post(reference: str, debit: list, credit: list, on: date, comments: str, code=None) -> dict:
+def post(
+    reference: str, debit: list, credit: list, on: date, comments: str, code=None, tenant: str | None = None
+) -> dict:
     # Logged before posting, so a timeout looks like a post that landed but answered late.
     # Counting these lines per execution is how we prove a timeout never posts twice
-    log("mifos post", reference=reference, debit=debit, credit=credit, on=on, stub=bool(code))
+    log("mifos post", reference=reference, debit=debit, credit=credit, on=on, stub=bool(code), tenant=tenant)
     if code:
         simulate("mifos_post", code)
         # Its own each time: a correction posts twice under one reference
         return {"mifos_transaction_id": f"{STUB}{uuid.uuid4().hex[:13]}"}
     try:
-        posted = client().journal_entries.create(
+        posted = client(tenant).journal_entries.create(
             {
                 "officeId": int(os.environ.get("MIFOS_OFFICE_ID", "1")),
                 "currencyCode": os.environ.get("MIFOS_CURRENCY", "USD"),

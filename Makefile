@@ -68,7 +68,7 @@ help:
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               the UI turns away whoever isn't signed in, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
 	@echo "                         not posted, jailbreak and 400 handed_over, every other form's happy done,"
-	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
+	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs). ENV=prod: test runs only, to demo"
 	@echo "make web [API_PORT=8000] [ACT_AS=<email>]  the UI on localhost:5173 and its API, on your ADC, reading dev's Firestore."
 	@echo "                         Installs, and generates the types, first"
 	@echo "make types               web's TypeScript types, from the API's OpenAPI (after changing services/api/models.py)"
@@ -189,6 +189,18 @@ doc:
 		print(json.dumps(ref.get().to_dict(), indent=2, default=str)); \
 		[print(f"runs/{run.id}", json.dumps(run.to_dict(), indent=2, default=str)) for run in ref.collection("runs").stream()]' $(FORM) $(ID)
 
+# Each env's cases, form/fixture:what it should end as, a correction's @ the case it corrects. Dev's stubs most of
+# Mifos and forces failures. Prod ignores simulate, so its are test runs only, which tell only lekkai@ and post to
+# demo: every form's happy, then happy corrected and reversed for real
+SMOKE_dev := requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done requisition/mifos-off:skipped \
+	requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over \
+	vehicle_log/happy:done loan_approval/happy:done write_off/happy:done \
+	correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:reversed \
+	correction/correct-unposted@mifos-off:refused correction/correct-timeout@google-doc:handed_over
+SMOKE_prod := requisition/happy:posted vehicle_log/happy:done loan_approval/happy:done write_off/happy:done \
+	correction/correct@happy:corrected correction/reverse-only@happy:reversed
+SMOKE_TEST := $(if $(filter prod,$(ENV)),TEST=1)
+
 # Up to three tries each: after a first deploy, IAM takes a minute to catch up. happy posts to Mifos's demo tenant,
 # for real: done, with a transaction that isn't the stub's. Each try its own submission, so a retry never runs on a
 # submission an earlier try posted. The one that passed is kept, so the corrections after know which to correct:
@@ -198,12 +210,7 @@ smoke: check-env
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' "$(API_URL)/api/me"); echo "ui, signed out: $$code"; \
 		case $$code in 302|401|403) ;; *) exit 1 ;; esac
 	@rm -rf .build/smoke && mkdir -p .build/smoke; stamp=$$(python3 -c 'import time; print(time.time_ns())'); \
-	for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done requisition/mifos-off:skipped \
-		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over \
-		vehicle_log/happy:done loan_approval/happy:done \
-		write_off/happy:done \
-		correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:reversed \
-		correction/correct-unposted@mifos-off:refused correction/correct-timeout@google-doc:handed_over; do \
+	for case in $(SMOKE_$(ENV)); do \
 		path=$${case%%:*}; want=$${case#*:}; form=$${path%%/*}; fixture=$${path#*/}; on=$${fixture#*@}; fixture=$${fixture%%@*}; \
 		for try in 1 2 3; do \
 			sub=smoke-$$fixture-$$stamp-$$try; \
@@ -211,7 +218,7 @@ smoke: check-env
 				sub=$$(cat .build/smoke/requisition-$$on.id); \
 				result=$$($(MAKE) -s wait WORKFLOW=correction ID=$$($(MAKE) -s correct-start FIXTURE=$$fixture ID=$$sub) 2>/dev/null); \
 			else \
-				result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture SUBMISSION=$$sub \
+				result=$$($(MAKE) -s wait FORM=$$form ID=$$($(MAKE) -s start FORM=$$form FIXTURE=$$fixture SUBMISSION=$$sub $(SMOKE_TEST) \
 					$$([ $$fixture = mifos-off ] && echo MIFOS=false)) 2>/dev/null); \
 			fi; \
 			echo "$$path: $$result"; echo "$$result" > .build/smoke/$$form-$$fixture.json; \

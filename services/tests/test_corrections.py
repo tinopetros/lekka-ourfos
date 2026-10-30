@@ -87,7 +87,7 @@ def docs(monkeypatch):
 @pytest.fixture
 def mifos_journal(monkeypatch):
     fake = Journal()
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": fake})())
+    monkeypatch.setattr(mifos, "client", lambda tenant=None: type("Client", (), {"journal_entries": fake})())
     return fake
 
 

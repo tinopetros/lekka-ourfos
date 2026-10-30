@@ -9,7 +9,7 @@ main:
           - requisition: ${args.submission}
           # Tells only lekkai@ and the submitter (docs/release1/adr.md 3)
           - test: ${default(map.get(args, "test"), false)}
-          # Off: nothing goes to Mifos and there's no last email, as on a test run (docs/phase12/adr.md 8)
+          # Off: nothing goes to Mifos and there's no last email
           - mifos: ${default(map.get(args, "mifos"), true)}
           - simulate: {}
           # The submission's document
@@ -61,7 +61,7 @@ process:
         assign:
           - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
           - thread: null
-          # Stays null on a test run, or with Mifos off: neither posts
+          # Stays null with Mifos off: nothing posts
           - mifos_transaction_id: null
     - run:
         try:
@@ -146,7 +146,7 @@ process:
                   run: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
                 result: posted
-            # A test run, or Mifos off: nothing posted, so nothing to confirm
+            # Mifos off: nothing posted, so nothing to confirm
             - posted:
                 switch:
                   - condition: ${map.get(posted, "skipped") != null}
