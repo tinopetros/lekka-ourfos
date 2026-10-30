@@ -46,7 +46,7 @@ steps:
     args:
       - -c
       - |
-        apt-get -qq update && apt-get -qq install -y make zip git >/dev/null
+        apt-get -qq update && apt-get -qq install -y make git >/dev/null
         git config --global url."https://x-access-token:$$MIFOS_CONNECTOR_TOKEN@github.com/".insteadOf "ssh://git@github.com/"
         make package
 

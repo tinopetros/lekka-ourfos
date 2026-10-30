@@ -1,10 +1,9 @@
 """Every form we take: where it's stored, which workflow runs it, what it asks, and what its emails call it.
 
 Each form's model is what our own form asks, strict: the UI draws the form from it, and the API checks what's sent
-against it. Until a form's Google Form closes, the trigger takes it too, through what that Google Form sent: the
-requisition's own model, the others' answers as text, strict only where the subject needs them. Their keys are the
-webhook's own, and their labels the Google Form's questions, which old submissions are still shown by. Copied into
-the trigger's zip, so it only imports pydantic.
+against it. The Google Forms are closed, but what they sent is still read: the requisition's own model, the others'
+answers as text, strict only where the subject needs them. Their keys are the webhook's own, and their labels the
+Google Form's questions, which their submissions are still shown by.
 """
 
 import datetime as dt
@@ -19,8 +18,7 @@ from submission import AccountNumber, Amount, DriveFolder, FileRefs, LongText, M
 
 @dataclass(frozen=True)
 class GoogleForm:
-    """What a form's Google Form sent, until it closes: the trigger's model, and the labels its submissions are
-    shown by."""
+    """What a form's Google Form sent: its model, and the labels its submissions are shown by."""
 
     model: type[Submission]
     # Text forms only: key to question, in the form's order

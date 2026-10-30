@@ -353,17 +353,13 @@ def reversed_only(id: str, reversal: dict, reversed_: str, reason: str, requeste
     return action("Lekkai's action: reversed", link, rows, reversal["lines"], disclaimer=False)
 
 
-def handover(form: str, reason: str, raw: dict | None = None, id: str | None = None) -> tuple[str, str]:
-    """Why a person needs to take it. With what the form sent, when that's what couldn't be read."""
+def handover(form: str, reason: str, id: str | None = None) -> tuple[str, str]:
+    """Why a person needs to take it."""
     spec = FORMS[form]
     heading = f"Lekkai failed to process this {spec.noun}: {spec.taker} needs to take it from here."
     link_html, link_text = view(form, id, "See what happened on Ourfos", "history") if id else ("", "")
     html = [f"<strong>{heading}</strong>", *([link_html] if link_html else []), f"<p>{escape(reason)}</p>"]
     text = [heading, *([link_text] if link_text else []), "", reason]
-    if raw:
-        rows = [(str(k), escape(str(v)), str(v)) for k, v in raw.items()]
-        html += ["<p>What the form sent:</p>", table(rows)]
-        text += ["", "What the form sent:"] + [f"{k}: {v}" for k, _, v in rows]
     html.append(f"<p><em>{DISCLAIMER}</em></p>")
     text += ["", DISCLAIMER]
     return "\n".join(html), "\n".join(text)

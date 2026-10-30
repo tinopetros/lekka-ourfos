@@ -45,7 +45,7 @@ call_service:
 # The one place every failure ends up: a reply, or a new email when there's no thread yet. If this fails too, the
 # execution goes red
 handover:
-  params: [at, e, thread, submission, raw, test, code: null]
+  params: [at, e, thread, submission, test, code: null]
   steps:
     - reason:
         assign:
@@ -68,12 +68,11 @@ handover:
               at: ${at}
               method: POST
               path: /handover
-              # Everything it needs, so it doesn't need the database. raw only when there's no submission
+              # Everything it needs, so it doesn't need the database
               body:
                 thread: ${thread}
                 error: ${reason}
                 submission: ${submission}
-                raw: ${if(submission == null, raw, null)}
                 test: ${test}
                 simulate: ${code}
           retry:

@@ -50,9 +50,9 @@ flowchart LR
   subgraph Browser
     UI[React app]
   end
-  UI --> IAP[Google IAP<br/>sign-in] --> API[ourfos-api<br/>FastAPI, reads only]
+  UI --> IAP[Google IAP<br/>sign-in] --> API[ourfos-api<br/>FastAPI]
   API --> FS[(Firestore<br/>the record)]
-  GF[Google Form] --> T[Trigger] --> WF[Cloud Workflows]
+  API --> WF[Cloud Workflows]
   WF --> S[ourfos-services<br/>FastAPI]
   S --> G[Gemini + Model Armor]
   S --> MF[Mifos<br/>the books]

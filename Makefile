@@ -27,10 +27,9 @@ API_SRC := $(shell find services web -type f ! -path '*/.venv/*' ! -path '*/__py
 API_TAG := $(shell cat $(API_SRC) | (sha1sum 2>/dev/null || shasum) | cut -c1-12)
 API_IMAGE := $(REGION)-docker.pkg.dev/$(PROJECT)/ourfos/ourfos-api:$(API_TAG)
 API_BUILD := .build/api
-TRIGGER_ZIP := .build/trigger.zip
 SERVICES_BUILD := .build/services
 WHEELS := .build/wheels
-REQUIREMENTS := services/requirements.txt functions/trigger/requirements.txt
+REQUIREMENTS := services/requirements.txt
 TF_ARGS ?=
 comma := ,
 # make evals: which cases (comma separated eval_ids, all when empty), and how many times over
@@ -38,13 +37,10 @@ CASE ?=
 RUNS ?= 1
 EVALS := expenser/evals
 TF_VARS := -var-file=env/$(ENV).tfvars -var services_image=$(IMAGE) -var api_image=$(API_IMAGE) -var build_version=$(VERSION) $(TF_ARGS)
-TRIGGER_URL = $$(gcloud functions describe trigger --region $(REGION) --project $(PROJECT) --format 'value(url)')
-# The trigger's ?workflow= names the form, as its webhook always has, and the form names its workflow
+# The form names its workflow
 WORKFLOW = $(if $(filter requisition,$(FORM)),expense,intake)
 # A fixture run's submission: its own each time, unless you name one to run on again
 SUBMISSION ?=
-# The trigger's bearer token, read when used and never echoed
-TOKEN = $$(gcloud secrets versions access latest --secret trigger-token --project $(PROJECT))
 SERVICES_URL = $$(gcloud run services describe ourfos-services --region $(REGION) --project $(PROJECT) --format 'value(status.url)')
 API_URL = $$(gcloud run services describe ourfos-api --region $(API_REGION) --project $(PROJECT) --format 'value(status.url)')
 # What the UI says it's on: the commit, from Cloud Build's SHORT_SHA or git, so a bug report names its build
@@ -70,8 +66,8 @@ help:
 	@echo "make sync [FROM=2026-01-01]  the nightly journal_entries sync, or with FROM the preload, and wait"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
-	@echo "make smoke               the UI turns away whoever isn't signed in, no token 401, no ?workflow= 400, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
-	@echo "                         not posted, jailbreak, 400 and invalid handed_over, every other form's happy done and invalid handed_over,"
+	@echo "make smoke               the UI turns away whoever isn't signed in, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
+	@echo "                         not posted, jailbreak and 400 handed_over, every other form's happy done,"
 	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs)"
 	@echo "make web [API_PORT=8000] [ACT_AS=<email>]  the UI on localhost:5173 and its API, on your ADC, reading dev's Firestore."
 	@echo "                         Installs, and generates the types, first"
@@ -80,8 +76,8 @@ help:
 	@echo "make evals [CASE=a,b] [RUNS=1]  adk eval: expenser against real requisitions, paid (docs/phase7)"
 	@echo "make eval-cases          the eval_ids CASE takes"
 	@echo "make eval-report         which cases failed which metric, and what they cost, in the last RUNS runs"
-	@echo "make test                the trigger's cleaners and token, the services' steps, emails and attachments"
-	@echo "make package             requirements.txt from uv.lock, and $(TRIGGER_ZIP)"
+	@echo "make test                the services' steps, emails and attachments"
+	@echo "make package             requirements.txt from uv.lock, and the connector's wheel"
 	@echo "make build               Cloud Build the services' and the API's images, each only if its hash is new"
 	@echo "make copy                build, then sync the repo to Cloud Shell"
 	@echo "make agent|agent-web     expenser locally, in the terminal or the browser"
@@ -103,14 +99,7 @@ $(WHEELS): services/uv.lock
 	rm -rf $@ && cd services && uvx -q --from pip pip wheel -q --no-deps -w ../$@ \
 		"$$(uv export --frozen --no-hashes --no-dev -q --only-emit-package mifos-connector | grep '^mifos-connector @')"
 
-# Fixed mtimes so the zip, and so the function, only changes when the code does
-# The models come from services/, so the trigger and the service share one shape
-$(TRIGGER_ZIP): functions/trigger/main.py functions/trigger/auth.py functions/trigger/form.py services/submission.py services/requisition.py services/forms.py functions/trigger/requirements.txt
-	rm -rf .build/trigger $@ && mkdir -p .build/trigger
-	cp $^ .build/trigger/
-	touch -t 198001010000 .build/trigger/* && cd .build/trigger && zip -q -X ../trigger.zip *
-
-package: $(REQUIREMENTS) $(TRIGGER_ZIP) $(WHEELS)
+package: $(REQUIREMENTS) $(WHEELS)
 
 # services/ with expenser and the connector's wheel beside it, as the image sees them. Never a local .env or venv,
 # and not ourfos-api's own code, which has its image
@@ -153,15 +142,16 @@ deploy: build tf-apply
 
 destroy: tf-destroy
 
-# An invalid form answers 400 but still starts a run, which hands over. Each run its own response_id, or every
+# Straight to the form's workflow, with the argument the API starts it with. Each run its own response_id, or every
 # run after the first would find the first's thread and send no first email. The submission's id goes to stderr
-start:
+start: check-env
 	@python3 -c 'import json, sys, time; d = json.load(open(sys.argv[1])); \
-		d["response_id"] = sys.argv[3] or f"fixture-{sys.argv[2]}-{time.time_ns()}"; print(json.dumps(d))' \
-		workflows/fixtures/$(FORM)/$(FIXTURE).json $(FIXTURE) "$(SUBMISSION)" \
-		| curl -s -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @- "$(TRIGGER_URL)?workflow=$(FORM)$(if $(TEST),&test=true)$(if $(MIFOS),&mifos=$(MIFOS))" \
-		| python3 -c 'import sys, json; r = json.load(sys.stdin); print("submission", r.get("id", "(the run\x27s own)"), file=sys.stderr); print(r["execution_id"])'
+		id = sys.argv[3] or f"fixture-{sys.argv[2]}-{time.time_ns()}"; d["submission"]["response_id"] = id; \
+		print("submission", id, file=sys.stderr); \
+		print(json.dumps(d | {"form": sys.argv[4], "id": id, "test": sys.argv[5] == "1", "mifos": sys.argv[6] != "false"}))' \
+		workflows/fixtures/$(FORM)/$(FIXTURE).json $(FIXTURE) "$(SUBMISSION)" $(FORM) "$(TEST)" "$(MIFOS)" \
+		| gcloud workflows execute $(WORKFLOW) --location $(REGION) --project $(PROJECT) --data "$$(cat)" --verbosity error \
+			--format 'value(name)' | awk -F/ '{print $$NF}'
 
 wait:
 	@gcloud workflows executions wait $(ID) --workflow $(WORKFLOW) --location $(REGION) --project $(PROJECT) \
@@ -207,15 +197,11 @@ doc:
 smoke: check-env
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' "$(API_URL)/api/me"); echo "ui, signed out: $$code"; \
 		case $$code in 302|401|403) ;; *) exit 1 ;; esac
-	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
-		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)?workflow=requisition"); echo "no token: $$code"; [ "$$code" = 401 ]
-	@code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer $(TOKEN)" \
-		--data @workflows/fixtures/requisition/happy.json "$(TRIGGER_URL)"); echo "no workflow: $$code"; [ "$$code" = 400 ]
 	@rm -rf .build/smoke && mkdir -p .build/smoke; stamp=$$(python3 -c 'import time; print(time.time_ns())'); \
 	for case in requisition/happy:posted requisition/happy-gcs:done requisition/google-doc:done requisition/mifos-off:skipped \
-		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over requisition/invalid:handed_over \
-		vehicle_log/happy:done vehicle_log/invalid:handed_over loan_approval/happy:done loan_approval/invalid:handed_over \
-		write_off/happy:done write_off/invalid:handed_over \
+		requisition/classify-jailbreak:handed_over requisition/classify-400:handed_over \
+		vehicle_log/happy:done loan_approval/happy:done \
+		write_off/happy:done \
 		correction/correct-stale@happy:refused correction/correct@happy:corrected correction/reverse-only@happy-gcs:reversed \
 		correction/correct-unposted@mifos-off:refused correction/correct-timeout@google-doc:handed_over; do \
 		path=$${case%%:*}; want=$${case#*:}; form=$${path%%/*}; fixture=$${path#*/}; on=$${fixture#*@}; fixture=$${fixture%%@*}; \
@@ -296,7 +282,6 @@ eval-cases:
 	@python3 -c 'import json; [print(c["eval_id"]) for c in json.load(open("agents/expenser/evals/requisitions.evalset.json"))["eval_cases"]]'
 
 test:
-	cd functions/trigger && uv run -q pytest -q
 	cd services && uv run -q pytest -q -p no:warnings
 
 lint:
@@ -305,12 +290,11 @@ lint:
 
 lock-check:
 	cd services && uv lock --check
-	cd functions/trigger && uv lock --check
 
 # Tracked files plus what package made, so Cloud Shell has the same build
 copy: build package
 	gcloud cloud-shell ssh --command "mkdir -p $(CLOUDSHELL_DEST)"
-	{ git ls-files; echo $(TRIGGER_ZIP) $(REQUIREMENTS) | tr ' ' '\n'; } \
+	{ git ls-files; echo $(REQUIREMENTS) | tr ' ' '\n'; } \
 		| COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf - -T - | gcloud cloud-shell ssh --command "tar -xzf - -C $(CLOUDSHELL_DEST)"
 
 copy-to-cloudshell: copy

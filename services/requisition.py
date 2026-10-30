@@ -1,4 +1,4 @@
-"""The requisition, clean. The trigger builds it from the form, and everything after it reads it through this."""
+"""The requisition, clean. The API builds it from the form, and everything after it reads it through this."""
 
 from datetime import date
 

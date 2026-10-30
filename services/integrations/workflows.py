@@ -1,4 +1,4 @@
-"""Starting a workflow's run, as the runtime account: what the trigger does for a Google Form, for our own forms."""
+"""Starting a workflow's run, as the runtime account."""
 
 import functools
 import json
@@ -20,7 +20,7 @@ def session() -> AuthorizedSession:
 
 
 def start(workflow: str, argument: dict) -> str:
-    """A run of the workflow, with its argument as the trigger gives it. Its execution id."""
+    """A run of the workflow, with its argument. Its execution id."""
     url = EXECUTIONS.format(project=os.environ["GOOGLE_CLOUD_PROJECT"], region=os.environ["REGION"], workflow=workflow)
     response = session().post(url, json={"argument": json.dumps(argument)}, timeout=TIMEOUT)
     response.raise_for_status()

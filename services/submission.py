@@ -1,7 +1,4 @@
-"""What every form's submission has, whichever form it is. The trigger builds it, and everything after it reads it.
-
-Copied into the trigger's zip by `make package`, with requisition.py and forms.py, so it only imports pydantic.
-"""
+"""What every form's submission has, whichever form it is. The API builds it, and everything after it reads it."""
 
 import functools
 import re

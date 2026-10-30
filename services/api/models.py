@@ -180,7 +180,7 @@ class ExpenseRun(RunBase):
     workflow: Literal["expense"] = "expense"
     classification: Classification | None = None
     mifos_transaction_id: str | None = None
-    # Posting turned off by the trigger says so
+    # A run with posting off says so
     skipped: str | None = None
     posted: list[Line] = []
 

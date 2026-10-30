@@ -141,14 +141,12 @@ def test_a_rejection_is_deferred_to_an_accountant_without_lines():
     assert emails.TAKE_OVER in html and emails.TAKE_OVER in text
 
 
-def test_a_handover_shows_what_the_form_sent_when_it_couldnt_be_read():
-    html, text = emails.handover(R, "total_amount: not a number", {"total_amount": "sixty <dollars>"})
+def test_a_handover_says_who_takes_it_and_why():
+    html, text = emails.handover(R, "POST /classify: 500")
     assert html.startswith(
         "<strong>Lekkai failed to process this requisition: an accountant needs to take it from here.</strong>"
     )
-    assert "total_amount: not a number" in html
-    assert "sixty &lt;dollars&gt;" in html
-    assert "total_amount: sixty <dollars>" in text
+    assert "POST /classify: 500" in html and "POST /classify: 500" in text
 
 
 def parsed(m) -> email.message.EmailMessage:
@@ -222,13 +220,11 @@ IDENTITY = {
 
 
 def submission(form: str, **changes):
-    """A form's happy fixture, as the trigger cleans it: text, empty answers dropped, uploads as Drive ids."""
-    raw = json.loads((FIXTURES / form / "happy.json").read_text())
-    spec = SPECS[form]
-    google_form = spec.google_form
-    answers = {k: raw[k] for k in google_form.labels if raw.get(k) and k not in google_form.files}
-    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in google_form.files if raw.get(k)}
-    return google_form.model(**IDENTITY, **answers | changes)
+    """A form's happy fixture, as its Google Form's model holds it: text, empty answers dropped, uploads as Drive ids."""
+    answers = json.loads((FIXTURES / form / "happy.json").read_text())["submission"]
+    google_form = SPECS[form].google_form
+    answers |= {k: ["1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"] for k in google_form.files if answers.get(k)}
+    return google_form.model(**answers | IDENTITY | changes)
 
 
 def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():
@@ -243,7 +239,8 @@ def test_every_new_forms_acknowledgement_is_its_answers_in_its_order():
 
 def test_a_loan_reads_as_the_add_ons_did():
     """#613's order: the case, then the recommendation, and the folder last."""
-    _, text = emails.acknowledgement("loan_approval", submission("loan_approval"))
+    # One line, so each of the text's lines is one answer
+    _, text = emails.acknowledgement("loan_approval", submission("loan_approval", overall_assessment="Recommended"))
     labels = [line.split(":")[0] for line in text.splitlines()[2:]]
     assert labels[:4] == [
         "Email address",

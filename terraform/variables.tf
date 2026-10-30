@@ -40,12 +40,6 @@ variable "ui_access" {
   type        = list(string)
 }
 
-variable "trigger_zip" {
-  description = "Packaged by `make package`"
-  type        = string
-  default     = "../.build/trigger.zip"
-}
-
 variable "notify_to" {
   description = "Per form: who its emails go to, beside whoever submitted it"
   type        = map(list(string))
