@@ -54,4 +54,32 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 
 ### 6. Backfilling the Google Forms' responses
 
-- Draft. What's backfilled, from which forms and dates, and what's left for later, is filled in as each dataset lands
+- Draft, on PR #48: written to dev as samples, not yet to prod. Responses only for now
+- Sources:
+  - Requisitions: [Requisition Approval Request Form (Responses)](https://docs.google.com/spreadsheets/d/1dk_bw9WBry0PA4FGnyGIYOkKT8M4_VLCrAvM54FQvzU/edit), #1–885, 17 Nov 2024 to 23 Oct 2026
+  - Loan approvals: [Loan Approvals Tracker](https://docs.google.com/spreadsheets/d/1JmPMUbdTm8iquUCKF68YHG9TqrnpNPWvomMQvfaRRDU/edit), #1–641, 5 Aug 2024 to 27 Oct 2026
+  - Vehicle logs: [Vehicle Log Form (Responses)](https://docs.google.com/spreadsheets/d/1VeYnFbeaSg91G3GKUlKB47_6q6AZLMJDuJhQxqawiNU/edit), #1–89, 7 Jan 2025 to 1 Oct 2026
+  - Write-offs never had a Google Form. Three emails from Leon Tanga, numbered #1–3 by date:
+    - #1 "Request for Loan Account Write-Off – Late Mr Mshawati", Gmail thread-f:1861083503068554811, 30 Mar 2026
+    - #2 "REQUEST FOR WRITE-OFF – VIRGINIA CHIRAWA ACCOUNT", thread-f:1877133247418167221, 23 Sep 2026
+    - #3 "REQUEST FOR WRITE-OFF – PANASHE KUREWA ACCOUNT", thread-f:1877133657395301900, 23 Sep 2026
+- Each keeps its Google Form's response number, tests too, so prod's numbers stay unique: ourfos's own carry on past the highest (requisitions from 886; the others' first will be 642 and 90), and prod's tests are below zero. A row already on prod from the webhook is left as it is
+  - The requisitions sheet's row 564 is empty and never took a number: without it, the sheet's numbers are prod's exactly
+  - The loan sheet's rows 2 and 3 are empty but did take numbers: filled as tests
+  - Write-offs go in before any real one from ourfos, which would otherwise take #1
+- Stored as the webhook's were: no `source`, the Google Form's answers and keys, so the UI shows them as it shows those. Ids are `backfill-<form>-<number>`, since the sheets don't have the Form's response ids. Status `backfilled`. What the answers don't hold goes under `backfill`: the source, the sheet row, why it's a test, the sheet's other columns (requisitions' Posted and items, the loan sheet's Approval, Approver and comment), what was fixed and what's still off
+- Timestamps are each sheet's own timezone, read off prod's matching rows: New York for requisitions and vehicle logs (prod's #885 is 7:15 in the sheet and 11:15 UTC), Harare for loan approvals (#641 is 11:45 and 09:45 UTC)
+- A test is a row that says "test" or "testing" in its name, payee, purpose or comments, a driving test aside, and vehicle log #89's 898989 odometer. Requisitions the sheet marks duplicate are tests for now, to be rejected once there's such a state: #7, #8, #9, #369, #370
+- Fixed:
+  - Requisition amounts to what their comments confirm: #236 "One thousand two hundred and seventeen dollars(1217)" to 1217, #565 "3/13/1901" to 438 ($430 laptop, $8 mouse)
+  - Vehicle logs: seven trips ending "AM" before they start, read as PM (#12, #17, #21, #30, #32, #34, #64); #3's end date 10/20/2025 to 1/20/2025; #26's start date 2/10/2025 to 3/10/2025
+  - Write-offs' client numbers from prod's Mifos: Chirawa 000000127, Kurewa 000000607
+- Left as they are:
+  - Requisitions #1 and #2 have no signed requisition form, grandfathered: the UI shows their answers as kept
+  - Vehicle logs' odometer readings that run backwards between trips, and distances that don't add up
+  - Requisition #875 (Expenses, ¥5000, a $5000 transfer) reached prod but broke: no number or answers, status handed_over
+  - Prod marks requisition #844 and loan approvals #628 and #629 as tests. #844 is a re-send of #843; the other two look real
+- Gaps:
+  - Vehicle logs: none from 20 Nov 2025 to 4 Feb 2026, and holes of over a month in Aug–Sep 2025, Mar–Apr 2026 and Apr–Jun 2026
+  - Write-offs: no loan account numbers, and Mr Mshawati isn't found in Mifos by name. Their screenshots are in the emails, not in Drive
+- Later: link each response to its email thread; link requisitions to the journal entries that look like theirs, and maybe expenser v1's suggestions; backfill journal entries from Mifos
