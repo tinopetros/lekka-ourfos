@@ -179,6 +179,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/forms/requisition/submissions/{id}/correct': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Correct
+     * @description A requisition's live entry corrected: its mirror, then these lines, on its date and in its tenant. Each line's
+     *     account must be one the entry's tenant can post to, and debits must equal credits
+     */
+    post: operations['correct'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/accounts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Accounts
+     * @description What a correction's lines can post to in an entry's tenant: expenser's accounts first, then by GL code
+     */
+    get: operations['accounts'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/journal_entries': {
     parameters: {
       query?: never;
@@ -258,6 +299,22 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
+     * Account
+     * @description A GL account a correction can post to, as Mifos has it.
+     */
+    Account: {
+      /** Glid */
+      glId: number;
+      /** Glcode */
+      glCode: string;
+      /** Name */
+      name: string;
+      /** Type */
+      type: string;
+      /** Expenser */
+      expenser: boolean;
+    };
+    /**
      * Answer
      * @description One of the form's questions, in its order. Empty ones are left out.
      */
@@ -298,6 +355,34 @@ export interface components {
        * @default []
        */
       credit: components['schemas']['Line'][];
+    };
+    /**
+     * CorrectRequest
+     * @description A reversal's, and the lines posted after it.
+     */
+    CorrectRequest: {
+      /** Transaction Id */
+      transaction_id: string;
+      /** Reason */
+      reason: string;
+      lines: components['schemas']['CorrectedLines'];
+    };
+    /**
+     * CorrectedLine
+     * @description An account and an amount: the rest of the line is Mifos's, looked up.
+     */
+    CorrectedLine: {
+      /** Glid */
+      glId: number;
+      /** Amount */
+      amount: number;
+    };
+    /** CorrectedLines */
+    CorrectedLines: {
+      /** Debit */
+      debit: components['schemas']['CorrectedLine'][];
+      /** Credit */
+      credit: components['schemas']['CorrectedLine'][];
     };
     /** CorrectionRequest */
     CorrectionRequest: {
@@ -1135,6 +1220,72 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Reversing'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  correct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CorrectRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Reversing'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  accounts: {
+    parameters: {
+      query?: {
+        tenant?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Account'][];
         };
       };
       /** @description Validation Error */

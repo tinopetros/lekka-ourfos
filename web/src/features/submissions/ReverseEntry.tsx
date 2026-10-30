@@ -1,5 +1,6 @@
 import { Loader2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
+import { Tip } from '@/components/Tip';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,27 +13,41 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useReverse } from './api';
+import type { useCorrection } from './api';
+
+export const REVERSE_TIP =
+  'Posts a reversal to Mifos: the same lines with debits and credits swapped, on the same date. Nothing is left live, and the requisition’s thread is told why.';
 
 // Undoes a requisition's live entry, once you've said why and that a mirror entry will be posted. You stay on the
 // page, and it shows the entry reversed when it is
-export function ReverseEntry({ id, transaction }: { id: string; transaction: string }) {
+export function ReverseEntry({
+  transaction,
+  correction,
+}: {
+  transaction: string;
+  correction: ReturnType<typeof useCorrection>;
+}) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
-  const reverse = useReverse(id);
+  const reversing = correction.isPending && !correction.variables.lines;
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={reverse.isPending}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        {reverse.isPending ? <Loader2 className="animate-spin" /> : <Undo2 />}
-        {reverse.isPending ? 'Reversing…' : 'Reverse journal entry'}
-      </Button>
+      <Tip label={REVERSE_TIP} delay={300}>
+        {/* A disabled button hears no hover: its wrapper does */}
+        <span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={correction.isPending}
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            {reversing ? <Loader2 className="animate-spin" /> : <Undo2 />}
+            {reversing ? 'Reversing…' : 'Reverse journal entry'}
+          </Button>
+        </span>
+      </Tip>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -45,9 +60,9 @@ export function ReverseEntry({ id, transaction }: { id: string; transaction: str
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="reason">Why it&apos;s reversed</Label>
+            <Label htmlFor="reverse-reason">Why it&apos;s reversed</Label>
             <Textarea
-              id="reason"
+              id="reverse-reason"
               rows={3}
               value={reason}
               onChange={(e) => {
@@ -64,7 +79,7 @@ export function ReverseEntry({ id, transaction }: { id: string; transaction: str
               disabled={!reason.trim()}
               onClick={() => {
                 setOpen(false);
-                reverse.mutate({ transaction_id: transaction, reason: reason.trim() });
+                correction.mutate({ transaction_id: transaction, reason: reason.trim() });
               }}
             >
               Reverse journal entry

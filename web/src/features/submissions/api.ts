@@ -3,6 +3,7 @@ import { api, ApiError, unwrap } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { PAGE_SIZE } from '@/lib/api/queries';
 import type { SubmissionSummary } from '@/lib/api/types';
+import type { components } from '@/lib/api/schema';
 
 export const submissionQueries = {
   list: (form: string, cursor?: string) =>
@@ -33,38 +34,48 @@ export const useSubmission = (form: string, id: string, row?: SubmissionSummary,
     placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null },
   });
 
-// How often, and how long, a reversal's run is watched: a cold start and Mifos can take a minute or two
+// How often, and how long, a correction's run is watched: a cold start and Mifos can take a minute or two
 const EVERY = 2000;
 const WAIT = 5 * 60_000;
 
-/** A requisition's live entry reversed: the run started, then watched until it ends. Done is the page as it is
- * after; anything else is why not. Its toasts are the mutation's, not the button's: the button goes once the entry
- * isn't live, which is before the run ends, and a component's own callbacks go with it */
-export function useReverse(id: string) {
+export type CorrectedLines = components['schemas']['CorrectedLines'];
+type Correction = { transaction_id: string; reason: string; lines?: CorrectedLines };
+
+/** A requisition's live entry reversed, or corrected when there are lines: the run started, then watched until it
+ * ends. Done is the page as it is after; anything else is why not. Its toasts are the mutation's, not the button's:
+ * the button goes once the entry isn't live, which is before the run ends, and a component's own callbacks go with it */
+export function useCorrection(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ transaction_id, reason }: { transaction_id: string; reason: string }) => {
+    mutationFn: async ({ transaction_id, reason, lines }: Correction) => {
       const { run } = await unwrap(
-        api.POST('/api/forms/requisition/submissions/{id}/reverse', {
-          params: { path: { id } },
-          body: { transaction_id, reason },
-        }),
+        lines
+          ? api.POST('/api/forms/requisition/submissions/{id}/correct', {
+              params: { path: { id } },
+              body: { transaction_id, reason, lines },
+            })
+          : api.POST('/api/forms/requisition/submissions/{id}/reverse', {
+              params: { path: { id } },
+              body: { transaction_id, reason },
+            }),
       );
+      const not = lines ? 'Not corrected' : 'Not reversed';
       const until = Date.now() + WAIT;
       while (Date.now() < until) {
         await new Promise((r) => setTimeout(r, EVERY));
         const s = await queryClient.query({ ...submissionQueries.one('requisition', id), staleTime: 0 });
         const ended = s.runs.find((r) => r.id === run && r.completed_at);
         if (!ended) continue;
-        if (ended.status !== 'done')
-          throw new ApiError(0, `Not reversed: ${ended.reason ?? ended.status ?? 'it failed'}`);
+        if (ended.status !== 'done') throw new ApiError(0, `${not}: ${ended.reason ?? ended.status ?? 'it failed'}`);
         return s;
       }
-      throw new ApiError(0, 'Still reversing: check back in a few minutes');
+      throw new ApiError(0, `Still ${lines ? 'correcting' : 'reversing'}: check back in a few minutes`);
     },
-    onMutate: ({ transaction_id }) => ({ waiting: toast.loading(`Reversing transaction ${transaction_id}…`) }),
-    onSuccess: (_, { transaction_id }, context) => {
-      toast.success(`Transaction ${transaction_id} reversed`, { id: context.waiting });
+    onMutate: ({ transaction_id, lines }) => ({
+      waiting: toast.loading(`${lines ? 'Correcting' : 'Reversing'} transaction ${transaction_id}…`),
+    }),
+    onSuccess: (_, { transaction_id, lines }, context) => {
+      toast.success(`Transaction ${transaction_id} ${lines ? 'corrected' : 'reversed'}`, { id: context.waiting });
     },
     // Why not is the error's own toast
     onError: (_, __, context) => {
@@ -77,3 +88,12 @@ export function useReverse(id: string) {
     },
   });
 }
+
+// What a correction's lines can post to, in the entry's tenant: read when the dialog opens, and kept a while
+export const useAccounts = (tenant: string | null | undefined, enabled: boolean) =>
+  useQuery({
+    queryKey: ['accounts', tenant ?? null],
+    queryFn: () => unwrap(api.GET('/api/accounts', { params: { query: { tenant } } })),
+    enabled,
+    staleTime: 10 * 60_000,
+  });

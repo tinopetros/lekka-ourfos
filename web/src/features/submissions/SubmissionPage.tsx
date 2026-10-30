@@ -21,7 +21,8 @@ import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { useTab } from '@/lib/useTab';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
-import { submissionQueries, useSubmission } from './api';
+import { submissionQueries, useCorrection, useSubmission } from './api';
+import { CorrectEntry } from './CorrectEntry';
 import { ReverseEntry } from './ReverseEntry';
 
 function AnswerValue({ answer }: { answer: Answer }) {
@@ -101,6 +102,8 @@ function JournalEntries({ s }: { s: Submission }) {
 
 function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submission: string }) {
   const can = useCan();
+  // One for both buttons: while either runs, neither starts another
+  const correction = useCorrection(submission);
   return (
     <EntrySummary
       e={e}
@@ -108,7 +111,12 @@ function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submis
       titled
       action={
         <>
-          {live && can('journal_entries:edit') && <ReverseEntry id={submission} transaction={e.transaction_id} />}
+          {live && can('journal_entries:edit') && (
+            <>
+              <CorrectEntry e={e} correction={correction} />
+              <ReverseEntry transaction={e.transaction_id} correction={correction} />
+            </>
+          )}
           {can('journal_entries:read') && (
             <Button asChild variant="outline" size="sm">
               <Link to={`/journal/${e.transaction_id}`}>
