@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import { Lines } from '@/components/Lines';
 import { Pager } from '@/components/Pager';
+import { Name } from '@/components/Person';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
 import { Time } from '@/components/Time';
@@ -37,8 +38,8 @@ export function JournalPage() {
                   <TableHead>Transaction ID</TableHead>
                   <TableHead className="hidden sm:table-cell">Transaction date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="hidden lg:table-cell">Recorded</TableHead>
                   <TableHead className="hidden md:table-cell">Recorded by</TableHead>
+                  <TableHead className="hidden lg:table-cell">Recorded</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -63,10 +64,12 @@ export function JournalPage() {
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">{day(e.transaction_date)}</TableCell>
                         <TableCell className="text-right">{money(total(e), e.currency ?? 'USD')}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <Name email={e.by} />
+                        </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <Time at={e.recorded_at} />
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
                         <TableCell>
                           <StatusBadge status={e.status} />
                         </TableCell>
