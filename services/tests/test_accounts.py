@@ -86,8 +86,12 @@ def test_the_route_marks_expenser_s_and_only_serves_ours(chart):
 
 
 def token(email):
-    claims = base64.urlsafe_b64encode(json.dumps({"email": email}).encode()).decode().rstrip("=")
-    return {"Authorization": f"Bearer h.{claims}.SIGNATURE_REMOVED_BY_GOOGLE"}
+    """An ID token as Cloud Run passes it on: checked, and its signature replaced"""
+    header, claims = (
+        base64.urlsafe_b64encode(json.dumps(x).encode()).decode().rstrip("=")
+        for x in ({"alg": "RS256", "typ": "JWT"}, {"email": email})
+    )
+    return {"Authorization": f"Bearer {header}.{claims}.SIGNATURE_REMOVED_BY_GOOGLE"}
 
 
 def test_ourfos_api_reads_accounts_and_nothing_else(chart, monkeypatch):
