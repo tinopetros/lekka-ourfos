@@ -15,8 +15,9 @@ EXPENSER = {int(row["GL ID"]) for row in ROWS}
 
 
 @router.get("/accounts")
-async def accounts(tenant: str):
-    """This environment's tenant or the test runs', no other"""
+async def accounts(tenant: str | None = None):
+    """This environment's tenant, unless asked for the test runs', and no other"""
+    tenant = tenant or os.environ["MIFOS_TENANT_ID"]
     if tenant not in (os.environ["MIFOS_TENANT_ID"], mifos.TEST_TENANT):
         raise HTTPException(422, f"No accounts for tenant {tenant} here")
     found = await run_in_threadpool(mifos.accounts, tenant)

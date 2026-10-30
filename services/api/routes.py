@@ -219,9 +219,8 @@ def correction(id: str, body: ReverseRequest, user: str, lines: dict | None = No
 
 
 def tenant_accounts(tenant: str | None) -> list[Account]:
-    # An entry from before entries kept their tenant posted to this environment's
-    tenant = tenant or ("default" if os.environ.get("ENVIRONMENT") == "prod" else "demo")
-    return [Account(**a) for a in services.get("/mifos/accounts", {"tenant": tenant})]
+    # Without one, an entry from before entries kept their tenant: the services' own, where the workflow posts it too
+    return [Account(**a) for a in services.get("/mifos/accounts", {"tenant": tenant} if tenant else {})]
 
 
 @router.get("/accounts")

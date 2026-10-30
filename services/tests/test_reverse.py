@@ -70,6 +70,14 @@ def lines(debit, credit):
     }
 
 
+def test_an_entry_without_a_tenant_leaves_it_to_the_services(started):
+    store.client().docs[("journal_entries", "T1")] = {}
+    body = {"transaction_id": "T1", "reason": "Advertising", "lines": lines([(66, 40), (200, 20)], [(109, 60)])}
+    assert TestClient(app).post(CORRECT, json=body).status_code == 200
+    # Theirs is where the workflow posts an entry like it: no guess here
+    assert started.asked == [("/mifos/accounts", {})]
+
+
 def test_a_correction_starts_one_with_mifos_s_own_accounts(started):
     body = {"transaction_id": "T1", "reason": "Advertising", "lines": lines([(66, 40), (200, 20)], [(109, 60)])}
     got = TestClient(app).post(CORRECT, json=body)
