@@ -10,7 +10,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - The page watches the run, every 2s for up to 5 minutes, and toasts how it ended. The toasts are the mutation's, not
   the button's: the button goes once the entry isn't live, before the run ends
 - A reason, always: the workflow refuses a correction without one, and it's what the thread is told
-- `journal_entries:reverse`: directors and consultant-zsaruchera@, as journal reads
+- `journal_entries:edit`: directors and consultant-zsaruchera@, as journal reads, and never lekkai@. Edit, not
+  reverse, so whatever else is done to an entry later, e.g. correcting it, falls under it
 - Not taken: **the API posting the mirror itself**. A second way to reverse, beside the workflow's retries and its
   "may have landed" guard
 

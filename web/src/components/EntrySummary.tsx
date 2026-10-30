@@ -6,36 +6,59 @@ import { useCan } from '@/lib/api/queries';
 import { day } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 
-// A journal entry as both its pages show it: where it stands, its ID, date, reference and comments, then its lines. Anything to do with
-// it, e.g. going to it, sits to the right
-export function EntrySummary({ e, live, action }: { e: JournalEntry; live: boolean; action?: ReactNode }) {
+// A journal entry as both its pages show it: where it stands, its ID, date, reference and comments, then its lines.
+// Anything to do with it, e.g. going to it, sits top right
+export function EntrySummary({
+  e,
+  live,
+  titled = false,
+  action,
+}: {
+  e: JournalEntry;
+  live: boolean;
+  // Its transaction ID on top, a little bigger: for a list of them, where nothing else names each
+  titled?: boolean;
+  action?: ReactNode;
+}) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-start gap-3">
-        <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 text-sm">
-          <dt className="text-muted-foreground">Status</dt>
-          <dd>
-            <Status e={e} live={live} />
-          </dd>
-          <dt className="text-muted-foreground">Transaction ID</dt>
-          <dd>{e.transaction_id}</dd>
-          <dt className="text-muted-foreground">Transaction date</dt>
-          <dd>{day(e.transaction_date)}</dd>
-          {e.reference_number && (
-            <>
-              <dt className="text-muted-foreground">Reference number</dt>
-              <dd>{e.reference_number}</dd>
-            </>
+      {(titled || action) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {titled && (
+            <p className="flex items-baseline gap-2">
+              <span className="text-sm text-muted-foreground">Transaction ID</span>
+              <span className="text-base font-semibold">{e.transaction_id}</span>
+            </p>
           )}
-          {e.comments && (
-            <>
-              <dt className="text-muted-foreground">Comments</dt>
-              <dd>{e.comments}</dd>
-            </>
-          )}
-        </dl>
-        {action && <div className="ml-auto flex gap-2">{action}</div>}
-      </div>
+          {action && <div className="ml-auto flex gap-2">{action}</div>}
+        </div>
+      )}
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 text-sm">
+        <dt className="text-muted-foreground">Status</dt>
+        <dd>
+          <Status e={e} live={live} />
+        </dd>
+        {!titled && (
+          <>
+            <dt className="text-muted-foreground">Transaction ID</dt>
+            <dd>{e.transaction_id}</dd>
+          </>
+        )}
+        <dt className="text-muted-foreground">Transaction date</dt>
+        <dd>{day(e.transaction_date)}</dd>
+        {e.reference_number && (
+          <>
+            <dt className="text-muted-foreground">Reference number</dt>
+            <dd>{e.reference_number}</dd>
+          </>
+        )}
+        {e.comments && (
+          <>
+            <dt className="text-muted-foreground">Comments</dt>
+            <dd>{e.comments}</dd>
+          </>
+        )}
+      </dl>
       <Lines lines={e.lines} currency={e.currency} />
     </div>
   );

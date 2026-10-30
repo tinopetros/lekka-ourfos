@@ -24,6 +24,8 @@ def test_everyone_at_lekka_reads_and_submits_tech_tests_and_directors_read_the_j
     assert not allowed("anyone@lekkacredit.com", "journal_entries:read")
     assert allowed("ada@lekkacredit.com", "forms:vehicle_log:test")
     assert allowed("bo@lekkacredit.com", "journal_entries:read")
+    assert allowed("bo@lekkacredit.com", "journal_entries:edit")
+    assert not allowed("anyone@lekkacredit.com", "journal_entries:edit")
     assert not allowed("someone@gmail.com", "forms:requisition:read")
 
 
@@ -45,9 +47,10 @@ def test_an_exclusion_wins_over_any_grant(policy, groups_of, monkeypatch):
     assert "journal_entries:read" not in granted("bo@lekkacredit.com")
 
 
-def test_lekkai_reads_no_journal_even_as_a_director(groups_of):
+def test_lekkai_reads_and_edits_no_journal_even_as_a_director(groups_of):
     groups_of["lekkai@lekkacredit.com"] = {"directors@lekkacredit.com"}
     assert not allowed("lekkai@lekkacredit.com", "journal_entries:read")
+    assert not allowed("lekkai@lekkacredit.com", "journal_entries:edit")
     assert allowed("lekkai@lekkacredit.com", "forms:requisition:read")
 
 

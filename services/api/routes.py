@@ -173,7 +173,7 @@ def submit(form: str, id: str, body: SubmitRequest, user: Annotated[str, needs("
 
 
 @router.post("/forms/requisition/submissions/{id}/reverse")
-def reverse(id: str, body: ReverseRequest, user: Annotated[str, needs("journal_entries:reverse")]) -> Reversing:
+def reverse(id: str, body: ReverseRequest, user: Annotated[str, needs("journal_entries:edit")]) -> Reversing:
     """A requisition's live entry undone: the correction workflow with no new lines posts its mirror, so the books
     balance, and replies in its thread. Asked here, so a page that's stale or a reason left blank start nothing"""
     if not (reason := body.reason.strip()):
