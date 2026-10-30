@@ -78,3 +78,18 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   against `demo` only), the same office id, and prod's Mifos user can sign in to it. Tino's first test submission on
   prod is the first check of all three
 - The cost: prod's journal list shows test entries beside real ones, told apart by their tenant
+
+### 9. Corrections from the UI, beside reversals
+
+- Two buttons on a live entry, each with a tooltip: Reverse journal entry posts its mirror and leaves nothing live;
+  Correct journal entry posts its mirror and then the lines it's given. Both need `journal_entries:edit`, and both
+  start the correction workflow, as phase 12 built it: no lines reverses, lines correct
+- The dialog starts from the live entry's lines. Each line picks its account and amount, lines can be added and
+  removed, and it submits only when debits equal credits. The API checks the same, and refuses an account that
+  isn't postable in the entry's tenant
+- Accounts are Mifos's own, read through mifos-connector 0.1.0's `gl_accounts` and `postable` (DETAIL, enabled,
+  manual entries allowed). Partly #<issue>: the picker reads live accounts, expenser still reads its CSV
+- ourfos-services reads them, not ourfos-api: the API keeps no Mifos credentials, so it still can't post. The API
+  calls the services with its own identity, which Terraform lets invoke them
+- Kept 10 minutes per tenant, so a new account shows soon after it's made. A failed read falls back to the last
+  good one, and to an error only when there's none
