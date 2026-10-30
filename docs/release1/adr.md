@@ -51,3 +51,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Only lekkacredit.com addresses are looked up: the directory knows nobody else
 - Not signing in with the profile scope: a second sign-in beside IAP, and it only ever knows who's signed in
 - **Revisit** with the admin page: a name someone picks for themselves would go beside the directory's, not instead of it
+
+### 6. Backfilling the Google Forms' responses
+
+- Draft. What's backfilled, from which forms and dates, and what's left for later, is filled in as each dataset lands
