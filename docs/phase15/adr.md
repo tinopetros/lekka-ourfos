@@ -79,26 +79,26 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   prod is the first check of all three
 - The cost: prod's journal list shows test entries beside real ones, told apart by their tenant
 
-### 9. Corrections from the UI, beside reversals
+### 9. ourfos-api reaches Mifos only through ourfos-services
 
-- Two buttons on a live entry, each with a tooltip: Reverse journal entry posts its mirror and leaves nothing live;
-  Correct journal entry posts its mirror and then the lines it's given. Both need `journal_entries:edit`, and both
-  start the correction workflow, as phase 12 built it: no lines reverses, lines correct
-- The dialog starts from the live entry's lines. Each line picks its account and amount, lines can be added and
-  removed, and it submits only when debits equal credits. The API checks the same, and refuses an account that
-  isn't postable in the entry's tenant
-- Accounts are Mifos's own, read through mifos-connector 0.1.0's `gl_accounts` and `postable` (DETAIL, enabled,
-  manual entries allowed). Partly #27: the picker reads live accounts, expenser still reads its CSV
-- ourfos-services reads them, not ourfos-api: Mifos stays the services' alone, and the API holds no Mifos credentials,
-  read-only or otherwise. The API asks `GET /mifos/accounts` of the services, as its own account
-- So ourfos-api may invoke ourfos-services: Cloud Run's `run.invoker` can't be narrowed to one route. Before, only the
-  workflow could. The API is still what decides what a user can reach, each of its routes checks their permissions
-- The services narrow it themselves, for protection as we go: a call as ourfos-api reaches `/mifos/accounts` and is
-  refused, 403, anywhere else. Told apart by the ID token's email, which Cloud Run checked before letting it in. The
-  workflow's calls are as before
-- Writes still go through workflows: the API never calls a step such as `post` itself, it starts a run
-- Not taken: **passing the user's identity or permissions through to the services.** The services answer the same
-  whoever asks, so there's nothing for them to check. Revisit when they answer per person, or a third caller appears
-- Not taken: **a workflow to read the accounts.** Seconds more each time the dialog opens, for a read
-- Kept 10 minutes per tenant, so a new account shows soon after it's made. A failed read falls back to the last
-  good one, and to an error only when there's none
+- ourfos-api holds no Mifos credentials, read-only or not: ourfos-services stays Mifos's one go-between. Overrides
+  phase 13 ADR 2 in part
+- So ourfos-api may invoke ourfos-services, a blanket `run.invoker`, as Cloud Run can't grant one route. The API still
+  decides what a user reaches, each route by permission
+- The services narrow it themselves: called as ourfos-api, only `GET /mifos/accounts` answers, anything else is a 403.
+  The caller is the ID token's email, which Cloud Run checked before the call reached us
+- Writes only go through workflows: the API starts a run, it never calls a step such as `post`
+- Not taken: **passing the user's identity through to the services.** They answer the same whoever asks. Revisit if
+  they answer per person, or a third caller turns up
+
+### 10. Corrections pick from Mifos's own accounts, kept in Firestore
+
+- Correct journal entry, beside Reverse: the same workflow, with lines. The picker offers Mifos's postable accounts
+  (detail, enabled, manual entries allowed), read live through mifos-connector 0.1.0. Partly #27: expenser still
+  reads its CSV
+- Kept on `mifos_accounts/{tenant}`, so restarts don't matter. They answer straight away, and once a day old are read
+  again in the background, never blocking the dialog; a failed read leaves them standing. Only a tenant never read
+  waits on Mifos. A refresh button in the admin section is #51
+- An entry's own tenant, or the services' when it has none. Prod reads `demo` only to correct a test entry, as it
+  posts there only for a test run (ADR 8)
+- Not taken: **reading them only at startup.** We scale to zero, so that would be more often, not less
