@@ -5,20 +5,27 @@ posts for real without touching the books. A fixture's simulate, dev only, keeps
 """
 
 import os
+import threading
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from functools import cache
 
 import httpx
 from fastapi import HTTPException
-from mifos_connector import MifosApiError, MifosClient, MifosError, MifosNetworkError
+from mifos_connector import MifosApiError, MifosClient, MifosError, MifosNetworkError, postable
 
+import store
 from common import log, simulate
 
 BOOKS = "default"
 # Where a test run posts, on dev and prod alike
 TEST_TENANT = "demo"
 STUB = "stub-txn-"
+# How old a tenant's saved accounts may be before Mifos is asked again: they change rarely, and a read is a few seconds
+ACCOUNTS_FOR = timedelta(days=1)
+# The tenants being read again, so one read is under way at a time per tenant
+_refreshing: set[str] = set()
+_lock = threading.Lock()
 # Under call_service's 20s, so a slow Mifos is ours to call uncertain, not the workflow's
 TIMEOUT = 15
 
@@ -42,6 +49,53 @@ def client(tenant: str | None = None) -> MifosClient:
         timeout_seconds=TIMEOUT,
         verify_ssl=os.environ.get("MIFOS_VERIFY_SSL", "true") != "false",
     )
+
+
+def accounts(tenant: str) -> list:
+    """The accounts a journal entry can post to in this tenant, by GL code, as last read from Mifos and kept on
+    mifos_accounts/{tenant}. Kept ones answer straight away, and are read again behind the answer once a day old, so
+    Mifos is asked about daily whatever the restarts: only a tenant never read waits on it"""
+    saved = store.client().collection("mifos_accounts").document(tenant).get()
+    if not saved.exists:
+        return read_accounts(tenant)
+    saved = saved.to_dict()
+    if datetime.now(UTC) - saved["read_at"] >= ACCOUNTS_FOR:
+        with _lock:
+            again = tenant not in _refreshing
+            _refreshing.add(tenant)
+        if again:
+            threading.Thread(target=refresh_accounts, args=(tenant,), daemon=True).start()
+    return saved["accounts"]
+
+
+def read_accounts(tenant: str) -> list:
+    """Mifos's postable accounts in this tenant, read now and saved"""
+    try:
+        read = client(tenant).gl_accounts.list({"usage": 1, "disabled": False, "manualEntriesAllowed": True})
+    except MifosError as e:
+        raise read_failed(e) from e
+    found = sorted(
+        (
+            {"glId": a["id"], "glCode": a["glCode"], "name": a["name"], "type": a["type"]["value"]}
+            for a in postable(read)
+        ),
+        key=lambda a: a["glCode"],
+    )
+    ref = store.client().collection("mifos_accounts").document(tenant)
+    ref.set({"tenant": tenant, "accounts": found, "read_at": datetime.now(UTC)})
+    log("mifos accounts read", tenant=tenant, accounts=len(found))
+    return found
+
+
+def refresh_accounts(tenant: str):
+    """read_accounts, behind an answer: a failure leaves the saved ones standing, stale rather than none"""
+    try:
+        read_accounts(tenant)
+    except Exception as e:  # noqa: BLE001  anything at all: the saved accounts still answer
+        log(f"mifos accounts stale: {e!r}", "WARNING", tenant=tenant)
+    finally:
+        with _lock:
+            _refreshing.discard(tenant)
 
 
 def connect():

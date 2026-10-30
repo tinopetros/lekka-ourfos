@@ -1709,8 +1709,8 @@ wheels = [
 
 [[package]]
 name = "mifos-connector"
-version = "0.0.0"
-source = { git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.0.0#7a750b23cc628605fa54b7f879bd2e55dcd7746d" }
+version = "0.1.0"
+source = { git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.1.0#88b17cc70530a9473857e66c5fc21ffa276ab01d" }
 dependencies = [
     { name = "httpx" },
     { name = "typing-extensions" },
@@ -2223,7 +2223,7 @@ requires-dist = [
     { name = "google-adk", extras = ["gcp"], specifier = "==2.10.0" },
     { name = "google-auth", extras = ["requests"] },
     { name = "google-cloud-firestore", specifier = ">=2.32.0" },
-    { name = "mifos-connector", git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.0.0" },
+    { name = "mifos-connector", git = "ssh://git@github.com/tinopetros/mifos-connector-py.git?tag=0.1.0" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "uvicorn", specifier = ">=0.53.0" },
 ]

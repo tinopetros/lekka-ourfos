@@ -10,6 +10,11 @@ export function Person({ email }: { email: string | null | undefined }) {
   return <Named email={email} />;
 }
 
+// Just the name, where a hover card would sit in another: a card in a card would close the first
+export function Name({ email }: { email: string | null | undefined }) {
+  return email ? <NameText email={email} /> : <>—</>;
+}
+
 function Named({ email }: { email: string }) {
   const name = useName(email);
   const [copied, setCopied] = useState(false);
@@ -47,4 +52,8 @@ function Named({ email }: { email: string }) {
       </HoverCardContent>
     </HoverCard>
   );
+}
+
+function NameText({ email }: { email: string }) {
+  return <>{useName(email)}</>;
 }

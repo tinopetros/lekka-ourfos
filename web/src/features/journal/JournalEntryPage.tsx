@@ -107,13 +107,15 @@ export function JournalEntryPage() {
                     <Entry id={e.reversed_by} />
                   </Field>
                 )}
-                <Field label="Recorded by">{e.by ?? '—'}</Field>
-                <Field label="Source">{e.source ?? '—'}</Field>
-                <Field label="Mifos tenant">{e.tenant ?? '—'}</Field>
-                <Field label="Posted on">{day(e.created_on)}</Field>
+                <Field label="Recorded by">
+                  <Person email={e.by} />
+                </Field>
                 <Field label="Recorded">
                   <Time at={e.recorded_at} />
                 </Field>
+                <Field label="Source">{e.source ?? '—'}</Field>
+                <Field label="Mifos tenant">{e.tenant ?? '—'}</Field>
+                <Field label="Posted on">{day(e.created_on)}</Field>
                 {e.run && <Field label="Workflow run">{e.run}</Field>}
               </dl>
             </TabsContent>

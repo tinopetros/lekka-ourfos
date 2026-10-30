@@ -11,13 +11,15 @@ from google.cloud import firestore
 import store
 from common import log
 from forms import FORMS
-from integrations import gcs, workflows
+from integrations import gcs, services, workflows
 from submission import ID
 
 from . import drafts, people, views
 from . import submit as submitting
 from .auth import current_user
 from .models import (
+    Account,
+    CorrectRequest,
     Draft,
     DraftRequest,
     FormInfo,
@@ -37,7 +39,7 @@ from .permissions import allowed, granted, needs
 
 # Each route's operation named by its function: the generated TypeScript's names
 router = APIRouter(prefix="/api", generate_unique_id_function=lambda route: route.name)
-# journal.py's, not imported: it brings the Mifos connector, and nothing here reaches Mifos
+# journal.py's, not imported: it brings the Mifos connector, and Mifos is ourfos-services' alone
 JOURNAL = "journal_entries"
 User = Annotated[str, Depends(current_user)]
 Limit = Annotated[int, Query(ge=1, le=100)]
@@ -176,15 +178,55 @@ def submit(form: str, id: str, body: SubmitRequest, user: Annotated[str, needs("
 def reverse(id: str, body: ReverseRequest, user: Annotated[str, needs("journal_entries:edit")]) -> Reversing:
     """A requisition's live entry undone: the correction workflow with no new lines posts its mirror, so the books
     balance, and replies in its thread. Asked here, so a page that's stale or a reason left blank start nothing"""
+    return correction(id, body, user)
+
+
+@router.post("/forms/requisition/submissions/{id}/correct")
+def correct(id: str, body: CorrectRequest, user: Annotated[str, needs("journal_entries:edit")]) -> Reversing:
+    """A requisition's live entry corrected: its mirror, then these lines, on its date and in its tenant. Each line's
+    account must be one the entry's tenant can post to, and debits must equal credits"""
+    debit, credit = (sum(x.amount for x in side) for side in (body.lines.debit, body.lines.credit))
+    if abs(debit - credit) > 0.005:
+        raise HTTPException(422, f"Debits ({debit:.2f}) and credits ({credit:.2f}) don't balance")
+    entry = store.client().collection(JOURNAL).document(body.transaction_id).get().to_dict() or {}
+    known = {a.glId: a for a in tenant_accounts(entry.get("tenant"))}
+    if unknown := sorted({x.glId for x in body.lines.debit + body.lines.credit} - known.keys()):
+        raise HTTPException(422, f"Not accounts this entry can post to: {', '.join(map(str, unknown))}")
+
+    def lines(side):
+        return [
+            {"name": known[x.glId].name, "glCode": known[x.glId].glCode, "glId": x.glId, "amount": x.amount}
+            for x in side
+        ]
+
+    return correction(id, body, user, {"debit": lines(body.lines.debit), "credit": lines(body.lines.credit)})
+
+
+def correction(id: str, body: ReverseRequest, user: str, lines: dict | None = None) -> Reversing:
+    """The correction workflow on the live entry, with lines or without: one run either way"""
+    what = "corrected" if lines else "reversed"
     if not (reason := body.reason.strip()):
-        raise HTTPException(422, "Say why it's reversed")
+        raise HTTPException(422, f"Say why it's {what}")
     doc = store.submission("requisition", id).get()
     if doc.get("live_entry") != body.transaction_id:
         raise HTTPException(409, f"{body.transaction_id} isn't this requisition's live entry")
     argument = {"id": id, "reason": reason, "requested_by": user, "transaction_id": body.transaction_id}
+    if lines:
+        argument["lines"] = lines
     run = workflows.start("correction", argument)
-    log("reversal asked", id=id, transaction_id=body.transaction_id, run=run)
+    log(f"{'correction' if lines else 'reversal'} asked", id=id, transaction_id=body.transaction_id, run=run)
     return Reversing(run=run)
+
+
+def tenant_accounts(tenant: str | None) -> list[Account]:
+    # Without one, an entry from before entries kept their tenant: the services' own, where the workflow posts it too
+    return [Account(**a) for a in services.get("/mifos/accounts", {"tenant": tenant} if tenant else {})]
+
+
+@router.get("/accounts")
+def accounts(_: Annotated[str, needs("journal_entries:edit")], tenant: str | None = None) -> list[Account]:
+    """What a correction's lines can post to in an entry's tenant: expenser's accounts first, then by GL code"""
+    return sorted(tenant_accounts(tenant), key=lambda a: (not a.expenser, a.glCode))
 
 
 @router.get("/journal_entries")
