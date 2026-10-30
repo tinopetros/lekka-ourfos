@@ -68,7 +68,7 @@ help:
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               the UI turns away whoever isn't signed in, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
 	@echo "                         not posted, jailbreak and 400 handed_over, every other form's happy done,"
-	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs). ENV=prod: test runs only, to demo"
+	@echo "                         happy corrected in demo, and the stub's corrections (what CI runs). ENV=prod: test runs only, to demo, by hand"
 	@echo "make web [API_PORT=8000] [ACT_AS=<email>]  the UI on localhost:5173 and its API, on your ADC, reading dev's Firestore."
 	@echo "                         Installs, and generates the types, first"
 	@echo "make types               web's TypeScript types, from the API's OpenAPI (after changing services/api/models.py)"

@@ -72,8 +72,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   to `demo` wherever it runs. Its emails still go to lekkai@ and its submitter only
 - Each entry keeps its `tenant`, so a reversal or correction posts where the entry is. The UI says "(demo)" beside
   Live in Mifos, and the entry's Details tab names the tenant
-- Prod smokes after every release, test runs only: every form's happy, then happy corrected and reversed in `demo`.
-  The stubbed and failing cases stay dev's: prod ignores `simulate`
+- `make smoke ENV=prod` smokes prod with test runs only: every form's happy, then happy corrected and reversed in
+  `demo`. By hand, by Tino, never in a build. The stubbed and failing cases stay dev's: prod ignores `simulate`
 - Taken on trust, not checked yet: `demo` has the same GL account ids as `default` (expenser's CSV was checked
   against `demo` only), the same office id, and prod's Mifos user can sign in to it. Prod's smoke is the first check
   of all three

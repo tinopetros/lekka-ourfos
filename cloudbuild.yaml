@@ -1,7 +1,7 @@
 # Run by both triggers in ourfos-prod (docs/phase2/tdd.md, "Bootstrapped, once"):
 #
 #   lekka-ourfos-dev   push to main  _ENV=dev   package, build, apply dev, smoke, plan prod
-#   lekka-ourfos-prod  tag 0.1.0     _ENV=prod  dev passed? package, build, apply prod, smoke (test runs, to demo)
+#   lekka-ourfos-prod  tag 0.1.0     _ENV=prod  dev passed? package, build, apply prod
 #
 # Every step is a make target, so a run by hand does what this does.
 # The PR has already run `make check`.
@@ -60,11 +60,11 @@ steps:
     entrypoint: sh
     args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} VERSION=${SHORT_SHA} TF_ARGS='-auto-approve -input=false'"]
 
-  # Real executions. On prod only test runs, which tell only lekkai@ and post to demo
+  # Dev only. Prod's smoke is run by hand, by Tino: `make smoke ENV=prod`
   - id: smoke
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
-    args: [-c, "apt-get -qq update && apt-get -qq install -y make >/dev/null && make smoke ENV=${_ENV}"]
+    args: [-c, "[ ${_ENV} = dev ] || exit 0; apt-get -qq update && apt-get -qq install -y make >/dev/null && make smoke ENV=dev"]
 
   # What tagging this commit would do to prod. Read it here before tagging
   - id: plan-prod
