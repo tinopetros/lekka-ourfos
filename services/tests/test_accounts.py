@@ -1,8 +1,10 @@
-"""The accounts a correction can post to: Mifos's postable ones, kept a while, and the last read when Mifos fails."""
+"""The accounts a correction can post to: Mifos's postable ones, kept in Firestore and read again behind the answer once
+a day old, the saved ones standing when Mifos fails."""
 
 import base64
 import json
 import os
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -11,8 +13,10 @@ from mifos_connector import MifosNetworkError
 
 os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates/t")
 
+import store
 from integrations import mifos
 from main import app
+from tests.firestore import Db
 
 
 def account(id, code, name, usage="DETAIL", disabled=False, manual=True):
@@ -51,38 +55,87 @@ class Accounts:
 def chart(monkeypatch):
     accounts = Accounts()
     monkeypatch.setattr(mifos, "client", lambda tenant=None: type("Client", (), {"gl_accounts": accounts})())
-    monkeypatch.setattr(mifos, "_accounts", {})
+    db = Db()
+    monkeypatch.setattr(store, "client", lambda: db)
     monkeypatch.setenv("MIFOS_TENANT_ID", "default")
     return accounts
+
+
+class Now:
+    """A thread that runs as it starts, so a refresh behind an answer is done by the next line"""
+
+    def __init__(self, target, args, daemon):
+        self.target, self.args = target, args
+
+    def start(self):
+        self.target(*self.args)
+
+
+@pytest.fixture
+def behind(monkeypatch):
+    monkeypatch.setattr(mifos.threading, "Thread", Now)
+
+
+def age(tenant, days):
+    ref = store.client().collection("mifos_accounts").document(tenant)
+    ref.set(ref.get().to_dict() | {"read_at": datetime.now(UTC) - timedelta(days=days)})
 
 
 def test_only_postable_accounts_by_code(chart):
     assert [(a["glId"], a["glCode"]) for a in mifos.accounts("demo")] == [(109, "10000000"), (200, "1500")]
 
 
-def test_a_read_is_kept_then_read_again(chart, monkeypatch):
+def test_saved_accounts_answer_and_survive_a_restart(chart):
     mifos.accounts("demo")
+    assert store.client().collection("mifos_accounts").document("demo").get().to_dict()["tenant"] == "demo"
+    # An instance's memory is no part of it: what's saved answers
     mifos.accounts("demo")
     assert len(chart.reads) == 1
-    monkeypatch.setattr(mifos, "ACCOUNTS_FOR", 0)
+
+
+def test_a_day_old_answers_then_is_read_again_behind_it(chart, behind):
+    first = mifos.accounts("demo")
+    age("demo", 1)
+    assert mifos.accounts("demo") == first
+    assert len(chart.reads) == 2
+    # Fresh again
     mifos.accounts("demo")
     assert len(chart.reads) == 2
 
 
-def test_mifos_down_falls_back_to_the_last_read(chart, monkeypatch):
+def test_mifos_down_leaves_the_saved_ones_standing(chart, behind):
     first = mifos.accounts("demo")
-    monkeypatch.setattr(mifos, "ACCOUNTS_FOR", 0)
+    age("demo", 2)
     chart.fail = True
     assert mifos.accounts("demo") == first
-    # Each tenant its own: nothing read yet for this one
+    assert not mifos._refreshing
+    # Each tenant its own: nothing read yet for this one, so there's nothing to answer with
     with pytest.raises(HTTPException):
         mifos.accounts("default")
+
+
+def test_one_refresh_at_a_time(chart, monkeypatch):
+    started = []
+    monkeypatch.setattr(
+        mifos.threading,
+        "Thread",
+        lambda target, args, daemon: type("T", (), {"start": lambda self: started.append(args)})(),
+    )
+    mifos.accounts("demo")
+    age("demo", 1)
+    mifos.accounts("demo")
+    mifos.accounts("demo")
+    assert started == [("demo",)]
+    mifos._refreshing.clear()
 
 
 def test_the_route_marks_expenser_s_and_only_serves_ours(chart):
     got = TestClient(app).get("/mifos/accounts", params={"tenant": "demo"})
     assert {a["glId"]: a["expenser"] for a in got.json()} == {109: True, 200: False}
     assert TestClient(app).get("/mifos/accounts", params={"tenant": "other"}).status_code == 422
+    # Unasked, this environment's own
+    TestClient(app).get("/mifos/accounts")
+    assert store.client().collection("mifos_accounts").document("default").get().exists
 
 
 def token(email):
