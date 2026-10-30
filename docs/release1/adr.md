@@ -73,7 +73,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Fixed:
   - Requisition amounts to what their comments confirm: #236 "One thousand two hundred and seventeen dollars(1217)" to 1217, #565 "3/13/1901" to 438 ($430 laptop, $8 mouse)
   - Vehicle logs: seven trips ending "AM" before they start, read as PM (#12, #17, #21, #30, #32, #34, #64); #3's end date 10/20/2025 to 1/20/2025; #26's start date 2/10/2025 to 3/10/2025
-  - Write-offs' client numbers from prod's Mifos: Chirawa 000000127, Kurewa 000000607
+  - Write-offs' client and loan account numbers, from prod's Mifos and on each record, each loan matching its email's balance. Mshawati is spelt Mshawatu in Mifos, where his salvaged loan is already written off
 - Left as they are:
   - Requisitions #1 and #2 have no signed requisition form, grandfathered: the UI shows their answers as kept
   - Vehicle logs' odometer readings that run backwards between trips, and distances that don't add up
@@ -81,5 +81,5 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
   - Prod marks requisition #844 and loan approvals #628 and #629 as tests. #844 is a re-send of #843; the other two look real
 - Gaps:
   - Vehicle logs: none from 20 Nov 2025 to 4 Feb 2026, and holes of over a month in Aug–Sep 2025, Mar–Apr 2026 and Apr–Jun 2026
-  - Write-offs: no loan account numbers, and Mr Mshawati isn't found in Mifos by name. Their screenshots are in the emails, not in Drive
+  - Write-offs: their screenshots are in the emails, not in Drive. Chirawa's and Kurewa's are still open in Mifos
 - Later: link each response to its email thread; link requisitions to the journal entries that look like theirs, and maybe expenser v1's suggestions; backfill journal entries from Mifos
