@@ -60,7 +60,7 @@ steps:
     entrypoint: sh
     args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} VERSION=${SHORT_SHA} TF_ARGS='-auto-approve -input=false'"]
 
-  # Dev only. Prod's smoke is run by hand, by Tino: `make smoke ENV=prod`
+  # Dev only. Prod is tested by hand, by Tino, on Ourfos
   - id: smoke
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
