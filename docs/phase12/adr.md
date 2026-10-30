@@ -45,6 +45,7 @@
 ### 8. `mifos=false` is per request, like `test`
 
 - Prod can be released with posting off, and turned on without a deploy
+- **Closed** by phase 15 ADR 6: prod posts, and with the Google Forms closed, no link carries `mifos=false`
 
 ### 9. Scheduler runs as `ourfos-trigger`
 
