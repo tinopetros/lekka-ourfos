@@ -42,7 +42,9 @@ def directory(email: str) -> str | None:
     response = session().get(f"{USERS}{email}", params={"fields": "name/fullName"}, timeout=TIMEOUT)
     if response.status_code == 404:
         return None
-    response.raise_for_status()
+    if not response.ok:
+        # The directory's own reason, e.g. which privilege is missing: a status alone says little
+        raise requests.HTTPError(f"{response.status_code}: {response.text[:300]}", response=response)
     return response.json().get("name", {}).get("fullName") or None
 
 
