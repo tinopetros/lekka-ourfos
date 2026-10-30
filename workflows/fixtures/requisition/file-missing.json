@@ -1,16 +1,22 @@
 {
-    "submitter_email_address": "lekkai@lekkacredit.com",
-    "comment": "",
-    "created_at": "1775828712000",
-    "date_disbursed": "Sep 18, 2026",
-    "invoices": "",
-    "signed_requisition_form": "<a href='https://drive.google.com/open?id=fixture-not-shared-with-lekkai'>File 1</a>",
-    "total_amount": "60",
-    "receipts": "<a href='https://drive.google.com/open?id=1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g'>File 1</a>",
-    "payable_to": "Mr Muchenje",
-    "form_id": "fixture-form",
-    "form_name": "Requisition Approval Request Form",
-    "response_number": "-482",
-    "response_date": "Apr 10, 2026, 3:45:12 PM",
-    "response_id": "fixture-response"
+    "submission": {
+        "response_number": -482,
+        "response_id": "fixture-response",
+        "form_id": "fixture-form",
+        "form_name": "Requisition Approval Request Form",
+        "submitted_by": "lekkai@lekkacredit.com",
+        "submitted_at": "2026-04-10T13:45:12Z",
+        "payable_to": "Mr Muchenje",
+        "amount": 60.0,
+        "disbursed_on": "2026-09-18",
+        "files": {
+            "signed_requisition_form": [
+                "fixture-not-shared-with-lekkai"
+            ],
+            "receipts": [
+                "1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"
+            ],
+            "invoices": []
+        }
+    }
 }

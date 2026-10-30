@@ -1,5 +1,5 @@
 """A submission from our own form: checked, numbered and stored in one transaction, then its workflow started with
-what the trigger would give it. Submitting again is safe: it answers with what was submitted the first time."""
+its argument. Submitting again is safe: it answers with what was submitted the first time."""
 
 import os
 from datetime import UTC, datetime
@@ -122,7 +122,7 @@ def submit(form: str, id: str, answers: dict, test: bool, user: str) -> dict:
     drafts.check_files(form, id, checked.model_dump())
     doc = transactional(record)(store.client().transaction(), form, id, checked, user, test)
     if not doc.get("execution_id"):
-        # Again, if starting it failed last time: the trigger's argument, with posting as this environment has it
+        # Again, if starting it failed last time, with posting as this environment has it
         submission = spec.submission.model_validate(doc["answers"])
         argument = {
             "form": form,

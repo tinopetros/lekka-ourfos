@@ -10,7 +10,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - The page watches the run, every 2s for up to 5 minutes, and toasts how it ended. The toasts are the mutation's, not
   the button's: the button goes once the entry isn't live, before the run ends
 - A reason, always: the workflow refuses a correction without one, and it's what the thread is told
-- `journal_entries:reverse`: directors and consultant-zsaruchera@, as journal reads
+- `journal_entries:edit`: directors and consultant-zsaruchera@, as journal reads, and never lekkai@. Edit, not
+  reverse, so whatever else is done to an entry later, e.g. correcting it, falls under it
 - Not taken: **the API posting the mirror itself**. A second way to reverse, beside the workflow's retries and its
   "may have landed" guard
 
@@ -51,4 +52,29 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - Release 0.43.0: `post = false` gone from prod.tfvars. The Google Forms are closed, so no `&mifos=false` link is
   left
 - A posting can be reversed from Ourfos (ADR 1); corrections with new lines are phase 16
-- Test runs still never post. Posting them to `demo` instead is #44
+- Test runs post too, to `demo` (ADR 8)
+
+### 7. The trigger is retired
+
+- The Google Forms are closed, so nothing calls it: our own form submits through ourfos-api, which starts the run
+- Gone with it: its function, public URL and token, the cleaner of a Google Form's payload, and the workflows'
+  `invalid` and `raw`. The API refuses an invalid form before any run starts, so a run always has its submission
+- Fixtures are the workflow's own argument now, converted once by the cleaner before it went. `make start` hands one
+  straight to the workflow, as `make correct` does. Smoke loses its token and `?workflow=` checks, and the invalid
+  fixtures
+- What the Google Forms sent is still read: their models stay, for the submissions they made
+- Scheduler's sync jobs, none yet, run as `ourfos-api`, which already starts workflows. The infra repo drops
+  `ourfos-trigger` and its sources bucket once this is on prod
+- `trigger-token`, made by hand, is deleted by hand
+
+### 8. A test run posts, to `demo`, on dev and prod alike
+
+- Closes #44. A test run was the one real run that never reached Mifos, so prod's posting went untested. Now it posts
+  to `demo` wherever it runs. Its emails still go to lekkai@ and its submitter only
+- Each entry keeps its `tenant`, so a reversal or correction posts where the entry is. The UI says "(demo)" beside
+  Live in Mifos, and the entry's Details tab names the tenant
+- Prod is never smoked, by a build or the Makefile: Tino tests it by hand, on Ourfos, with test submissions
+- Taken on trust, not checked yet: `demo` has the same GL account ids as `default` (expenser's CSV was checked
+  against `demo` only), the same office id, and prod's Mifos user can sign in to it. Tino's first test submission on
+  prod is the first check of all three
+- The cost: prod's journal list shows test entries beside real ones, told apart by their tenant

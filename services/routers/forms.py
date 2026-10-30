@@ -38,7 +38,6 @@ def receive(form: str, id: str, body: dict):
         form=form,
         source=source or "google-form",
         answers=submission.to_firestore(),
-        raw=body.get("raw"),
         test=test,
         response_number=submission.response_number,
         submitted_by=submission.submitted_by,
@@ -46,7 +45,7 @@ def receive(form: str, id: str, body: dict):
     )
     # Only ever set on dev: the prod workflow drops it
     simulate = {"simulate": body["simulate"]} if body.get("simulate") else {}
-    # Only kept when the trigger turned posting off (docs/phase12/adr.md 8)
+    # Only kept when posting is off
     off = {"mifos": False} if body.get("mifos") is False else {}
     store.run(form, id, run_id()).save(
         **simulate,
@@ -90,8 +89,7 @@ def acknowledge(form: str, id: str, body: dict):
     return thread
 
 
-# Needs nothing from the database, so someone still hears when the database is what broke. A form the trigger
-# couldn't clean comes here too, with no submission: only what the form sent
+# Needs nothing from the database, so someone still hears when the database is what broke
 @router.post("/handover")
 def handover(form: str, id: str, body: dict):
     known(form)
@@ -102,11 +100,9 @@ def handover(form: str, id: str, body: dict):
     except HTTPException:
         pass  # Sent anyway: someone has to hear
     simulate("handover", body.get("simulate"))
-    submission, raw, test = body.get("submission"), body.get("raw") or {}, body.get("test")
-    # A form's subject keys are the webhook's own, so raw names them too
-    answers = submission or raw
-    submitter = answers.get("submitted_by" if submission else "submitter_email_address")
-    html, text = emails.handover(form, body["error"], None if submission else raw, id)
+    answers, test = body.get("submission") or {}, body.get("test")
+    submitter = answers.get("submitted_by")
+    html, text = emails.handover(form, body["error"], id)
     sent = send(
         form,
         "handover",
@@ -119,8 +115,6 @@ def handover(form: str, id: str, body: dict):
         test,
     )
     run.record(emails={"handover": email(sent)})
-    if not submission:
-        store.submission(form, id).record(form=form, raw=raw, test=bool(test))
     return sent
 
 

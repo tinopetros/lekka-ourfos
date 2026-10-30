@@ -46,7 +46,7 @@ steps:
     args:
       - -c
       - |
-        apt-get -qq update && apt-get -qq install -y make zip git >/dev/null
+        apt-get -qq update && apt-get -qq install -y make git >/dev/null
         git config --global url."https://x-access-token:$$MIFOS_CONNECTOR_TOKEN@github.com/".insteadOf "ssh://git@github.com/"
         make package
 
@@ -60,7 +60,7 @@ steps:
     entrypoint: sh
     args: [-c, "apk add -q make && make tf-apply ENV=${_ENV} VERSION=${SHORT_SHA} TF_ARGS='-auto-approve -input=false'"]
 
-  # Dev only. Smoke runs real executions, and in prod those would reach real people and Mifos
+  # Dev only. Prod is tested by hand, by Tino, on Ourfos
   - id: smoke
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash

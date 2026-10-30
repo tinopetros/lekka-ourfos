@@ -532,6 +532,8 @@ export interface components {
       reverses: string | null;
       /** Reversed By */
       reversed_by: string | null;
+      /** Tenant */
+      tenant: string | null;
       /** Reversing */
       reversing: string | null;
       /** Form */

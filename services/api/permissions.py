@@ -25,19 +25,20 @@ POLICY: dict[str, list[str]] = {
     "forms:*:submit": [EVERYONE],
     "forms:*:test": ["group:tech@lekkacredit.com"],
     "journal_entries:read": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
-    "journal_entries:reverse": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
+    "journal_entries:edit": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
     "files:read": [EVERYONE],
 }
 
 EXCLUDE: dict[str, list[str]] = {
     "journal_entries:read": ["user:lekkai@lekkacredit.com"],
+    "journal_entries:edit": ["user:lekkai@lekkacredit.com"],
 }
 
 # Every permission there is, for /me to list
 PERMISSIONS = [
     *(f"forms:{form}:{action}" for form in FORMS for action in ("read", "submit", "test")),
     "journal_entries:read",
-    "journal_entries:reverse",
+    "journal_entries:edit",
     "files:read",
 ]
 

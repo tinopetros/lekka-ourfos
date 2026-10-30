@@ -6,38 +6,31 @@ main:
   steps:
     - init:
         assign:
-          # Null when the trigger couldn't clean the form: invalid says why, and the run only hands over
-          - requisition: ${default(map.get(args, "submission"), null)}
-          - invalid: ${default(map.get(args, "invalid"), null)}
-          # The form's payload as posted, beside the clean one while the cleaner is new (phase 5 ADR 2)
-          - raw: ${default(map.get(args, "raw"), null)}
+          - requisition: ${args.submission}
           # Tells only lekkai@ and the submitter (docs/release1/adr.md 3)
           - test: ${default(map.get(args, "test"), false)}
-          # Off: nothing goes to Mifos and there's no last email, as on a test run (docs/phase12/adr.md 8)
+          # Off: nothing goes to Mifos and there's no last email
           - mifos: ${default(map.get(args, "mifos"), true)}
           - simulate: {}
-          # The submission's document: its response_id, or this run's own id when the form couldn't give one
-          - at: '${"/forms/" + args.form + "/" + default(map.get(args, "id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID"))}'
+          # The submission's document
+          - at: '${"/forms/" + args.form + "/" + args.id}'
     - allow_simulate:
         switch:
           # Dev only. In prod a fixture's simulate is ignored, so the run is a real one
           - condition: ${sys.get_env("SIMULATE") == "on"}
             assign:
               - simulate: ${default(map.get(args, "simulate"), simulate)}
-    # map.get, not if(): Workflows evaluates both of if()'s branches, so a null requisition's lookup still runs
     - log_start:
         call: sys.log
         args:
           severity: INFO
-          json: { message: "requisition started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', at: '${at}', response_number: '${map.get(args, ["submission", "response_number"])}' }
+          json: { message: "requisition started", execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', at: '${at}', response_number: '${args.submission.response_number}' }
     - run:
         try:
           call: process
           args:
             at: ${at}
             requisition: ${requisition}
-            invalid: ${invalid}
-            raw: ${raw}
             test: ${test}
             mifos: ${mifos}
             simulate: ${simulate}
@@ -62,21 +55,17 @@ main:
 
 # Every step, and how it ends: done, rejected or handed over. Only a failed handover raises
 process:
-  params: [at, requisition, invalid, raw, test, mifos, simulate]
+  params: [at, requisition, test, mifos, simulate]
   steps:
     - init:
         assign:
           - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
           - thread: null
-          # Stays null on a test run, or with Mifos off: neither posts
+          # Stays null with Mifos off: nothing posts
           - mifos_transaction_id: null
     - run:
         try:
           steps:
-            - cleaned:
-                switch:
-                  - condition: ${requisition == null}
-                    raise: { tags: [Invalid], message: '${"The form could not be read: " + invalid}' }
             - receive:
                 try:
                   call: call_service
@@ -86,7 +75,6 @@ process:
                     path: ""
                     body:
                       submission: ${requisition}
-                      raw: ${raw}
                       test: ${test}
                       mifos: ${mifos}
                       simulate: ${simulate}
@@ -158,7 +146,7 @@ process:
                   run: ${execution_id}
                   code: ${map.get(simulate, "mifos_post")}
                 result: posted
-            # A test run, or Mifos off: nothing posted, so nothing to confirm
+            # Mifos off: nothing posted, so nothing to confirm
             - posted:
                 switch:
                   - condition: ${map.get(posted, "skipped") != null}
@@ -195,7 +183,6 @@ process:
                   e: ${e}
                   thread: ${thread}
                   submission: ${requisition}
-                  raw: ${raw}
                   test: ${test}
                   code: ${map.get(simulate, "handover")}
                 result: reason

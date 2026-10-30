@@ -137,7 +137,7 @@ def reverse(id: str, body: dict):
     # Before posting, and raised if it can't be written: a mirror that may have landed is never posted again
     entry.save(reversing=this.ref.id)
     try:
-        posted = mifos.post(reference, credit, debit, on, what, code)
+        posted = mifos.post(reference, credit, debit, on, what, code, original.get("tenant"))
     except HTTPException as e:
         # Certainly not posted, so nothing to check: the entry can be corrected again
         if e.status_code in (422, 503):
@@ -157,6 +157,7 @@ def reverse(id: str, body: dict):
         what,
         reverses=doc["entry"],
         by=doc["request"]["requested_by"],
+        tenant=original.get("tenant"),
     )
     return posted
 
@@ -176,7 +177,7 @@ def post(id: str, body: dict):
     on = date.fromisoformat(original["transaction_date"])
     reference = original.get("reference_number") or doc["entry"]
     what = said(id, this, doc, f"Correction of transaction {doc['entry']}")
-    posted = mifos.post(reference, request["debit"], request["credit"], on, what, code)
+    posted = mifos.post(reference, request["debit"], request["credit"], on, what, code, original.get("tenant"))
     transaction = posted["mifos_transaction_id"]
     this.record(
         status="posted",
@@ -194,6 +195,7 @@ def post(id: str, body: dict):
         reference,
         what,
         by=request["requested_by"],
+        tenant=original.get("tenant"),
     )
     return posted
 

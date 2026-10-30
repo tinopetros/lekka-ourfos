@@ -52,6 +52,7 @@
 - It already starts workflows, and the deployer already acts as it
 - Not taken: **an account of its own**. An infra change and a grant, for the same role
 - The cost: whatever runs as it can start any of our workflows, as the trigger already can
+- **Closed** by phase 15 ADR 7: the trigger is retired, and the jobs run as `ourfos-api`, which already starts workflows
 
 ### 10. Scheduler's jobs are in europe-west1
 

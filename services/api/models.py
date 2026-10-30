@@ -180,7 +180,7 @@ class ExpenseRun(RunBase):
     workflow: Literal["expense"] = "expense"
     classification: Classification | None = None
     mifos_transaction_id: str | None = None
-    # Posting turned off by the trigger says so
+    # A run with posting off says so
     skipped: str | None = None
     posted: list[Line] = []
 
@@ -228,6 +228,8 @@ class JournalEntry(Model):
     status: str | None = None
     reverses: str | None = None
     reversed_by: str | None = None
+    # The Mifos tenant it's in: demo for a test run's, on prod too
+    tenant: str | None = None
     # A mirror was posted without hearing back: check Mifos
     reversing: str | None = None
     form: str | None = None

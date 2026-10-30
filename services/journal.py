@@ -56,9 +56,10 @@ def posted(
     comments: str,
     reverses: str | None = None,
     by: str = "lekkai",
+    tenant: str | None = None,
 ):
     """We posted it: the entry, and on the submission, its list and which entry is live. by is lekkai, or the person
-    who asked for a correction.
+    who asked for a correction. tenant is the Mifos tenant it's in, so what undoes it posts there too.
 
     After the side effect, so a failure is logged and never raised: what happened already happened."""
     try:
@@ -73,6 +74,7 @@ def posted(
             run=run,
             status="live",
             **({"reverses": reverses} if reverses else {}),
+            **({"tenant": tenant} if tenant else {}),
             recorded_at=store.NOW,
         )
         if reverses:

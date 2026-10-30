@@ -17,7 +17,7 @@ resource "google_workflows_workflow" "this" {
   }
 }
 
-# Each night, one job a kind, as the trigger: it already starts workflows (docs/phase12/adr.md 9). With no mark yet a
+# Each night, one job a kind, as ourfos-api: it already starts workflows. With no mark yet a
 # sync does nothing, so prod's job is safe before its preload
 resource "google_cloud_scheduler_job" "sync" {
   for_each  = var.syncs
@@ -38,7 +38,7 @@ resource "google_cloud_scheduler_job" "sync" {
     headers     = { "Content-Type" = "application/json" }
 
     oauth_token {
-      service_account_email = local.sa.trigger
+      service_account_email = local.sa.api
       scope                 = "https://www.googleapis.com/auth/cloud-platform"
     }
   }

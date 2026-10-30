@@ -186,7 +186,7 @@ def expense(doc: dict) -> dict:
         if c
         else None,
         "mifos_transaction_id": doc.get("mifos_transaction_id"),
-        # Posting turned off by the trigger
+        # Posting was off for this run
         "skipped": "mifos" if doc.get("mifos") is False else None,
         "posted": posted(doc.get("posted")),
     }

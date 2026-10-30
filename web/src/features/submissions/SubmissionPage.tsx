@@ -105,9 +105,10 @@ function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submis
     <EntrySummary
       e={e}
       live={live}
+      titled
       action={
         <>
-          {live && can('journal_entries:reverse') && <ReverseEntry id={submission} transaction={e.transaction_id} />}
+          {live && can('journal_entries:edit') && <ReverseEntry id={submission} transaction={e.transaction_id} />}
           {can('journal_entries:read') && (
             <Button asChild variant="outline" size="sm">
               <Link to={`/journal/${e.transaction_id}`}>

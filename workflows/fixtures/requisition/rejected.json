@@ -1,18 +1,24 @@
 {
-    "submitter_email_address": "lekkai@lekkacredit.com",
-    "comment": "",
-    "created_at": "1775828712000",
-    "date_disbursed": "Apr 10, 2026",
-    "invoices": "",
-    "signed_requisition_form": "<a href='https://drive.google.com/open?id=193mibr1o-C9_QiCcgJQedHyzHVQLzTs1'>File 1</a>",
-    "total_amount": "20",
-    "receipts": "<a href='https://drive.google.com/open?id=1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g'>File 1</a>",
-    "payable_to": "City parking",
-    "form_id": "fixture-form",
-    "form_name": "Requisition Approval Request Form",
-    "response_number": "-482",
-    "response_date": "Apr 10, 2026, 3:45:12 PM",
-    "response_id": "fixture-response",
+    "submission": {
+        "response_number": -482,
+        "response_id": "fixture-response",
+        "form_id": "fixture-form",
+        "form_name": "Requisition Approval Request Form",
+        "submitted_by": "lekkai@lekkacredit.com",
+        "submitted_at": "2026-04-10T13:45:12Z",
+        "payable_to": "City parking",
+        "amount": 20.0,
+        "disbursed_on": "2026-04-10",
+        "files": {
+            "signed_requisition_form": [
+                "193mibr1o-C9_QiCcgJQedHyzHVQLzTs1"
+            ],
+            "receipts": [
+                "1x1lpayZJdJ17d1vXw9fnFTtmOej43s2g"
+            ],
+            "invoices": []
+        }
+    },
     "simulate": {
         "classify": "rejected"
     }

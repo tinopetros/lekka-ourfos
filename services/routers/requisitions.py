@@ -102,10 +102,7 @@ def post(id: str, body: dict):
     # Never twice: a retried post finds the first's transaction
     if posted := doc.get("mifos_transaction_id"):
         return {"mifos_transaction_id": posted}
-    # A test run never posts, on dev or prod, nor one with Mifos off
-    if doc.get("test"):
-        log("not posted: a test run")
-        return {"skipped": "test"}
+    # A test run posts to demo, on dev and prod alike. One with Mifos off never posts
     if doc.get("mifos") is False:
         log("not posted: mifos off")
         return {"skipped": "mifos"}
@@ -114,8 +111,15 @@ def post(id: str, body: dict):
     reference = requisition.reference_number or str(requisition.response_number)
     on = requisition.disbursed_on or datetime.now(HARARE).date()
     said = comments(requisition, this.ref.id)
+    tenant = mifos.tenant(bool(doc.get("test")))
     posted = mifos.post(
-        reference, classification["debit"], classification["credit"], on, said, "stub" if code == "unrecorded" else code
+        reference,
+        classification["debit"],
+        classification["credit"],
+        on,
+        said,
+        "stub" if code == "unrecorded" else code,
+        tenant,
     )
     transaction = posted["mifos_transaction_id"]
     # What the last email shows: what we sent, and Mifos's transaction id. Mifos isn't read back (docs/phase12/adr.md 11)
@@ -126,7 +130,16 @@ def post(id: str, body: dict):
         posted=journal.sent(transaction, classification["debit"], classification["credit"], on),
     )
     journal.posted(
-        FORM, id, this.ref.id, transaction, classification["debit"], classification["credit"], on, reference, said
+        FORM,
+        id,
+        this.ref.id,
+        transaction,
+        classification["debit"],
+        classification["credit"],
+        on,
+        reference,
+        said,
+        tenant=tenant,
     )
     return posted
 

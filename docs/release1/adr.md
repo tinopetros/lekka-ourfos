@@ -9,6 +9,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - At most 10 requests at once on it (`max_instance_request_concurrency`), about 10 runs mid-step. A classify holds its files about three times over, so a burst can't pile enough onto the one instance to run it out of memory. The eleventh waits, or gets a 429 the workflow retries
 - The trigger keeps Cloud Functions' default, 77 instances in `africa-south1`, one request each. It's public, but a flood costs little, and a cap risks refusing a real submission the form's add-on may not retry
 - **Revisit** if volume grows: a second instance, or 2 GiB, before any run waits on the limit
+- **Closed** in part by phase 15 ADR 7: the trigger is retired, so only the services' limit is left
 
 ### 2. Drive files in one call each, all at once (latency study 1)
 
@@ -30,6 +31,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 
 **Closed** by phase 14 ADR 9: who may send a test is a permission now, so a test also tells its submitter, whoever they are. `test_to` is gone
 - **Revisit** with Mifos: a test run must never post. Until then `post` is a stub, and a test run goes through it like any other
+- **Closed** by phase 15 ADR 8: a test run posts, to `demo`, on dev and prod alike
   - **Closed** by [phase 11](../phase11/tdd.md): a test run never posts, and its last email says so
 
 ### 4. Permissions stay in code, for now

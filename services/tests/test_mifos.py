@@ -81,9 +81,12 @@ def entry(gl, side, amount):
 @pytest.fixture
 def journal(monkeypatch):
     journal = Journal()
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"journal_entries": journal})())
+    monkeypatch.setattr(
+        mifos, "client", lambda tenant=None: type("Client", (), {"journal_entries": journal, "tenant": tenant})()
+    )
     monkeypatch.setenv("MIFOS_OFFICE_ID", "1")
     monkeypatch.setenv("MIFOS_CURRENCY", "USD")
+    monkeypatch.setenv("MIFOS_TENANT_ID", "demo")
     return journal
 
 
@@ -198,11 +201,28 @@ def test_a_post_is_referenced_by_the_requisitions_own_number_when_it_has_one(doc
     assert "REQ-0482" not in journal.created[0]["comments"]
 
 
-@pytest.mark.parametrize("field, value, skipped", [("test", True, "test"), ("mifos", False, "mifos")])
-def test_a_test_run_or_mifos_off_never_posts(docs, journal, field, value, skipped):
-    docs[("requisition", "r", "run-1")][field] = value
-    assert requisitions.post("r", {}) == {"skipped": skipped}
+def test_mifos_off_never_posts(docs, journal):
+    docs[("requisition", "r", "run-1")]["mifos"] = False
+    assert requisitions.post("r", {}) == {"skipped": "mifos"}
     assert journal.created == []
+
+
+def test_a_test_run_posts_to_demo_and_its_entry_says_so(docs, journal, sent, monkeypatch):
+    tenants = []
+    monkeypatch.setattr(
+        mifos, "client", lambda tenant=None: tenants.append(tenant) or type("C", (), {"journal_entries": journal})()
+    )
+    monkeypatch.setenv("MIFOS_TENANT_ID", "default")
+    docs[("requisition", "r", "run-1")]["test"] = True
+    assert requisitions.post("r", {}) == {"mifos_transaction_id": "L42"}
+    assert tenants == ["demo"]
+    assert docs[("journal_entries", "L42")]["tenant"] == "demo"
+
+
+def test_a_real_run_posts_to_its_environments_tenant(docs, journal, sent, monkeypatch):
+    monkeypatch.setenv("MIFOS_TENANT_ID", "default")
+    requisitions.post("r", {})
+    assert docs[("journal_entries", "L42")]["tenant"] == "default"
 
 
 def test_the_last_email_is_what_we_posted_and_its_id(docs, journal, sent):
@@ -241,11 +261,11 @@ class Office:
 def test_a_start_reads_our_office_and_logs_whether_mifos_answers(monkeypatch, capsys):
     monkeypatch.setenv("MIFOS_TENANT_ID", "demo")
     office = Office()
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": office})())
+    monkeypatch.setattr(mifos, "client", lambda tenant=None: type("Client", (), {"_http": office})())
     mifos.connect()
     assert office.asked == ["/offices/1"]
     failing = Office(fail=MifosNetworkError("refused", httpx.ConnectError("refused")))
-    monkeypatch.setattr(mifos, "client", lambda: type("Client", (), {"_http": failing})())
+    monkeypatch.setattr(mifos, "client", lambda tenant=None: type("Client", (), {"_http": failing})())
     mifos.connect()
     out = capsys.readouterr().out
     assert '"mifos connected"' in out and "mifos not connected" in out

@@ -56,9 +56,8 @@ def sent(monkeypatch):
 
 
 def test_receive_keeps_the_submission_and_starts_the_run(docs):
-    forms.receive("vehicle_log", "r", {"submission": SUBMISSION, "raw": {"x": "y"}, "workflow": "intake"})
+    forms.receive("vehicle_log", "r", {"submission": SUBMISSION, "workflow": "intake"})
     assert docs[("vehicle_log", "r")]["answers"]["trip_name_purpose"] == "CBD"
-    assert docs[("vehicle_log", "r")]["raw"] == {"x": "y"}
     assert docs[("vehicle_log", "r", "run-1")]["status"] == "received"
     assert docs[("vehicle_log", "r", "run-1")]["workflow"] == "intake"
     assert "mifos" not in docs[("vehicle_log", "r", "run-1")]
@@ -81,11 +80,6 @@ def test_a_handover_is_sent_when_the_database_cant_be_read(docs, sent):
     forms.handover("vehicle_log", "r", {"error": "boom", "submission": SUBMISSION})
     assert sent == ["handover"]
     assert "handover" in docs[("vehicle_log", "r", "run-1")]["emails"]
-
-
-def test_a_form_that_couldnt_be_read_is_kept_raw(docs, sent):
-    forms.handover("vehicle_log", "exec", {"error": "trip_name_purpose: field required", "raw": {"a": "b"}})
-    assert docs[("vehicle_log", "exec")]["raw"] == {"a": "b"}
 
 
 def test_an_unknown_form_is_a_404(docs):

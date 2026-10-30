@@ -159,7 +159,6 @@ process:
                   e: ${e}
                   thread: ${started.thread}
                   submission: ${started.submission}
-                  raw: null
                   test: ${started.test}
                   code: ${map.get(simulate, "handover")}
                 result: reason
