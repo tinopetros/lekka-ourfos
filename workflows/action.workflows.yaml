@@ -90,6 +90,10 @@ main:
           predicate: ${is_transient}
           max_retries: 3
           backoff: { initial_delay: 2, max_delay: 30, multiplier: 2 }
+    # An assign, since an expression can't hold a map literal
+    - add_email:
+        assign:
+          - asked.email: ${sent}
     - record:
         try:
           call: call_service
@@ -97,7 +101,7 @@ main:
             at: ${at}
             method: POST
             path: /action/record
-            body: '${map.merge(asked, {"email": sent})}'
+            body: ${asked}
         retry:
           predicate: ${is_transient}
           max_retries: 5
