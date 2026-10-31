@@ -186,20 +186,24 @@ def on(monkeypatch, day):
     monkeypatch.setattr(mifos_sync, "datetime", Today)
 
 
-def test_last_month_is_read_again_only_in_a_month_s_first_week():
+def test_a_night_reads_the_last_three_months():
     from datetime import date
 
-    assert mifos_sync.months(date(2026, 11, 3)) == [
+    assert mifos_sync.months(date(2026, 11, 20)) == [
+        (date(2026, 9, 1), date(2026, 9, 30)),
         (date(2026, 10, 1), date(2026, 10, 31)),
         (date(2026, 11, 1), date(2026, 11, 30)),
     ]
-    assert mifos_sync.months(date(2026, 11, 8)) == [(date(2026, 11, 1), date(2026, 11, 30))]
-    assert mifos_sync.months(date(2026, 3, 1))[0] == (date(2026, 2, 1), date(2026, 2, 28))
+    assert mifos_sync.months(date(2026, 3, 1)) == [
+        (date(2026, 1, 1), date(2026, 1, 31)),
+        (date(2026, 2, 1), date(2026, 2, 28)),
+        (date(2026, 3, 1), date(2026, 3, 31)),
+    ]
 
 
-def test_a_night_rewrites_only_this_month_and_counts_new_and_gone(world, monkeypatch):
+def test_a_night_rewrites_its_three_months_only_and_counts_new_and_gone(world, monkeypatch):
     on(monkeypatch, "2026-11-20")
-    older = "manual_journal_entries/from=2026-10-01/lines.jsonl"
+    older = "manual_journal_entries/from=2026-08-01/lines.jsonl"
     world["bucket"][older] = "untouched\n"
     this = "manual_journal_entries/from=2026-11-01/lines.jsonl"
     world["bucket"][this] = (
@@ -208,24 +212,19 @@ def test_a_night_rewrites_only_this_month_and_counts_new_and_gone(world, monkeyp
     world["journal"] = [
         line(1, "T1", "2026-11-02"),
         line(3, "T2", "2026-11-19", "lekkai@lekkacredit.com"),
-        line(4, "T0", "2026-10-30"),
+        # Booked today for September: found, since September is in the window
+        line(4, "T0", "2026-09-30"),
+        line(5, "T8", "2026-08-15"),
     ]
     result = mifos_sync.run("manual_journal_entries")
     assert world["bucket"][older] == "untouched\n"
     assert [x["transactionId"] for x in lines(world, this)] == ["T1", "T2"]
-    (record,) = result["ranges"]
-    assert (record["from"], record["to"], record["complete"]) == ("2026-11-01", "2026-11-30", False)
-    assert (record["transactions"], record["new"], record["gone"]) == (2, 1, 1)
-    assert record["people"] == ["ZSaruchera", "lekkai@lekkacredit.com"]
-    assert lines(world, "manual_journal_entries/_perf.jsonl")[-1]["from"] == "2026-11-01"
-
-
-def test_in_a_month_s_first_week_last_month_is_finished_off_first(world, monkeypatch):
-    on(monkeypatch, "2026-11-02")
-    world["journal"] = [line(1, "T1", "2026-10-31"), line(2, "T2", "2026-11-01")]
-    result = mifos_sync.run("manual_journal_entries")
-    assert [(r["from"], r["transactions"], r["complete"]) for r in result["ranges"]] == [
-        ("2026-10-01", 1, True),
-        ("2026-11-01", 1, False),
+    assert [x["transactionId"] for x in lines(world, "manual_journal_entries/from=2026-09-01/lines.jsonl")] == ["T0"]
+    assert [(r["from"], r["transactions"], r["new"], r["gone"], r["complete"]) for r in result["ranges"]] == [
+        ("2026-09-01", 1, 1, 0, True),
+        ("2026-10-01", 0, 0, 0, True),
+        ("2026-11-01", 2, 1, 1, False),
     ]
-    assert world["slept"] == [mifos_sync.PAUSE]
+    assert result["ranges"][-1]["people"] == ["ZSaruchera", "lekkai@lekkacredit.com"]
+    assert world["slept"] == [mifos_sync.PAUSE, mifos_sync.PAUSE]
+    assert lines(world, "manual_journal_entries/_perf.jsonl")[-1]["from"] == "2026-11-01"

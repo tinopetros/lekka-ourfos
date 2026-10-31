@@ -5,8 +5,8 @@ each night; _changes.jsonl, a line for each one new, changed or gone since the n
 timings and counts, failures too. Each record as Mifos lists it, plus _fetched_at.
 
 Manual journal entries, under manual_journal_entries/: from=<first day>/lines.jsonl, a calendar month a file, Mifos's
-lines as it lists them. Entries don't change once booked, so a night rewrites only this month's file, and in a month's
-first week last month's too, for entries booked late with past dates. Older months are left as they are.
+lines as it lists them. Entries are often booked with past dates, so a night rewrites the last three months' files,
+this one and the two before. Older months are left as they are.
 
 Mifos is easily overwhelmed, so a night reads it gently: a page at a time, a pause between, never retried. A failure
 writes nothing but its line in _perf.jsonl, and the next night compares against the last good list, so it catches up.
@@ -30,8 +30,9 @@ PAGE = 200
 JOURNAL_PAGE = 500
 # Mifos books in Harare's time, which has no daylight saving
 HARARE = timezone(timedelta(hours=2))
-# How many days into a month last month is read again, for entries booked late with past dates
-LATE = 7
+# Months a night reads again, this one included: a quarter of entries are booked over three months back, and those
+# wait for a sweep of older months
+WINDOW = 3
 # Between pages, so Mifos is never asked twice at once. Loans' 7 pages and pauses fit well within Cloud Run's 300s
 PAUSE = 15
 # A page slower than this means Mifos is struggling: stop rather than add to it
@@ -92,12 +93,11 @@ class SlowMifos(Exception):
 
 
 def months(today: date) -> list[tuple[date, date]]:
-    """This month, and last month too in a month's first week."""
-    first = today.replace(day=1)
-    ranges = [(first, month_end(first))]
-    if today.day <= LATE:
-        last = (first - timedelta(days=1)).replace(day=1)
-        ranges.insert(0, (last, month_end(last)))
+    """The last WINDOW months, oldest first, this one included."""
+    first, ranges = today.replace(day=1), []
+    for _ in range(WINDOW):
+        ranges.insert(0, (first, month_end(first)))
+        first = (first - timedelta(days=1)).replace(day=1)
     return ranges
 
 

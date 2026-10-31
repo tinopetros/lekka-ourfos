@@ -25,6 +25,6 @@ ui_access = ["domain:lekkacredit.com"]
 mifos_syncs = {
   clients = { schedule = "30 22 * * *" }
   loans   = { schedule = "45 22 * * *" }
-  # This month, and last month too in a month's first week
+  # This month and the two before
   manual_journal_entries = { schedule = "0 23 * * *" }
 }
