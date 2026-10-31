@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmContent } from '@/components/ConfirmContent';
+import { useFlag } from '@/lib/flags';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -111,6 +112,7 @@ export function SubmissionForm({
   const navigate = useNavigate();
   const { data: forms } = useForms();
   const can = useCan();
+  const testable = useFlag('testSubmissions');
   const spec = forms?.find((f) => f.key === form);
   const fs = useMemo(() => fields(form), [form]);
   const [test, setTest] = useState(draftTest);
@@ -356,7 +358,8 @@ export function SubmissionForm({
             ))}
           </FieldGroup>
           <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-4">
-            {can(`forms:${form}:test`) ? (
+            {/* Shown while it's a test too, so one marked before the flag went off can be unmarked */}
+            {can(`forms:${form}:test`) && (testable || test) ? (
               <div className="flex items-center gap-2">
                 <Switch
                   id="test"

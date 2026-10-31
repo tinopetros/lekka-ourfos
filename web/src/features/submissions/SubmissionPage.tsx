@@ -21,7 +21,8 @@ import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { useTab } from '@/lib/useTab';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
-import { submissionQueries, useCorrection, useSubmission } from './api';
+import { submissionQueries, useCorrection, useSubmission, useTests } from './api';
+import { useFlag } from '@/lib/flags';
 import { CorrectEntry } from './CorrectEntry';
 import { ReverseEntry } from './ReverseEntry';
 
@@ -102,6 +103,7 @@ function JournalEntries({ s }: { s: Submission }) {
 
 function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submission: string }) {
   const can = useCan();
+  const corrections = useFlag('corrections');
   // One for both buttons: while either runs, neither starts another
   const correction = useCorrection(submission);
   return (
@@ -113,7 +115,7 @@ function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submis
         <>
           {live && can('journal_entries:edit') && (
             <>
-              <CorrectEntry e={e} correction={correction} />
+              {corrections && <CorrectEntry e={e} correction={correction} />}
               <ReverseEntry transaction={e.transaction_id} correction={correction} />
             </>
           )}
@@ -238,9 +240,10 @@ export function SubmissionPage() {
 // Where it stands, and its history. A draft opened again is its form
 function Record({ form, id }: { form: string; id: string }) {
   const { data: forms } = useForms();
+  const tests = useTests(form);
   const neighbours = useNeighbours({
     id,
-    list: (cursor, tests) => submissionQueries.list(form, cursor, tests),
+    list: (cursor) => submissionQueries.list(form, cursor, tests),
     idOf: (row) => row.id,
     pathOf: (row) => `/forms/${form}/${row.id}`,
   });

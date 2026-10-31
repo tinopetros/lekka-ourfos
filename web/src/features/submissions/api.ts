@@ -1,7 +1,8 @@
 import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, unwrap } from '@/lib/api/client';
 import { toast } from 'sonner';
-import { PAGE_SIZE } from '@/lib/api/queries';
+import { PAGE_SIZE, useCan } from '@/lib/api/queries';
+import { useFlag } from '@/lib/flags';
 import type { SubmissionSummary } from '@/lib/api/types';
 import type { components } from '@/lib/api/schema';
 
@@ -24,6 +25,12 @@ export const submissionQueries = {
 };
 
 // The page you were on stays while the next one loads
+/** Whether a form's lists show tests: for whoever may make them, with Enable tests in lists on */
+export function useTests(form: string) {
+  const can = useCan();
+  return useFlag('testsInLists') && can(`forms:${form}:test`);
+}
+
 export const useSubmissions = (form: string, cursor?: string, tests = false) =>
   useQuery({ ...submissionQueries.list(form, cursor, tests), placeholderData: keepPreviousData });
 
@@ -33,7 +40,7 @@ export const useSubmission = (form: string, id: string, row?: SubmissionSummary,
   useQuery({
     ...submissionQueries.one(form, id),
     enabled,
-    placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null },
+    placeholderData: row && { ...row, answers: [], raw: null, runs: [], journal_entries: [], draft: null, actions: [] },
   });
 
 // How often, and how long, a correction's run is watched: a cold start and Mifos can take a minute or two

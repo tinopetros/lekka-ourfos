@@ -118,8 +118,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 ### 13. Tests are left out of lists, on dev and prod
 
 - Submissions and the journal leave out tests: a test submission and its entries. Whoever may make them
-  (`forms:<form>:test`, the journal by requisitions') can show them, with a toggle at the list's foot, as in the form.
-  It's in the URL, so the way back and previous/next keep it
+  (`forms:<form>:test`, the journal by requisitions') can show them with Enable tests in lists (ADR 15), and
+  previous/next on a record then walks the list it came from
 - Left out by the API, which reads on until a page is full: filtered in the UI, a page could come back empty
 - An entry says it's a test from now on. One recorded before is a test if its submission is, read with its page
 - A record opened by its link still shows, test or not
@@ -132,3 +132,15 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - So each post opens its own connection and closes it after. Reads keep one client a tenant, its connections reused
 - Tried on dev, ten corrections in a row, before it went to prod. If it hadn't held, corrections would have gone
   behind a flag, leaving reversals
+
+### 15. Feature flags, off until switched on in a browser
+
+- What isn't for everyone yet sits behind a flag, named "Enable …": corrections, approvals and comments, tests in
+  lists, and test submissions. Each is off on dev and prod alike until someone switches it on, for themselves
+- Kept in the browser only, never in the database. The switches are on the build number at the sidebar's foot,
+  underlined for whoever holds `features:edit`: tech, for now
+- Through OpenFeature, the open standard, with its in-memory provider over the browser's storage. A provider that
+  serves flags from elsewhere, per person or per environment, can take over without touching what reads them
+- A flag hides, it doesn't grant: the API still checks each permission. A draft already marked a test keeps its
+  switch while the flag is off, so it can be unmarked
+- Corrections are behind one after a post Mifos dropped (ADR 14): reversals stay for everyone who may edit entries

@@ -19,7 +19,7 @@ import { LINK } from '@/lib/styles';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
-import { submissionQueries, useSubmissions } from './api';
+import { submissionQueries, useSubmissions, useTests } from './api';
 
 // Yours alone, unsubmitted, above the list: a draft is in no list until it's submitted
 function YourDrafts({ form }: { form: string }) {
@@ -77,7 +77,8 @@ function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boo
 // A form's submissions, the newest we received first. A row opens its own page
 export function SubmissionsPage() {
   const { form = '' } = useParams();
-  const { cursor, search, tests } = usePages();
+  const { cursor, search } = usePages();
+  const tests = useTests(form);
   const navigate = useNavigate();
   const { data: forms } = useForms();
   const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor, tests);
@@ -154,7 +155,7 @@ export function SubmissionsPage() {
               </TableBody>
             </Table>
           </div>
-          <Pager next={data.next} fetching={isFetching} tests={`forms:${form}:test`} />
+          <Pager next={data.next} fetching={isFetching} />
         </>
       )}
     </div>

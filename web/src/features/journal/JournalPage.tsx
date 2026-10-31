@@ -13,13 +13,16 @@ import { day, money } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
+import { useTests } from '@/features/submissions/api';
 import { useJournalEntries } from './api';
 
 const total = (e: JournalEntry) => e.lines.filter((l) => l.type === 'DEBIT').reduce((sum, l) => sum + l.amount, 0);
 
 // The journal entries we posted to Mifos, latest first. Mifos itself is never read
 export function JournalPage() {
-  const { cursor, search, tests } = usePages();
+  const { cursor, search } = usePages();
+  // Entries are requisitions': whoever may make test requisitions may see their entries
+  const tests = useTests('requisition');
   const navigate = useNavigate();
   const { data, error, isFetching, isPlaceholderData } = useJournalEntries(cursor, tests);
   const open = (id: string) => void navigate(`/journal/${id}`, { state: { from: search } satisfies FromList });
@@ -95,8 +98,7 @@ export function JournalPage() {
               </TableBody>
             </Table>
           </div>
-          {/* Entries are requisitions': whoever may make test requisitions may see their entries */}
-          <Pager next={data.next} fetching={isFetching} tests="forms:requisition:test" />
+          <Pager next={data.next} fetching={isFetching} />
         </>
       )}
     </div>
