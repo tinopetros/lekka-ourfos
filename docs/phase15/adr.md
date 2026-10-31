@@ -144,3 +144,19 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - A flag hides, it doesn't grant: the API still checks each permission. A draft already marked a test keeps its
   switch while the flag is off, so it can be unmarked
 - Corrections are behind one after a post Mifos dropped (ADR 14): reversals stay for everyone who may edit entries
+
+### 16. Actions: done, approve, disapprove and comment, side effects first
+
+- A person acts on a submission from its page's top row, each button named in full: Mark as done on a handed-over
+  requisition (directors and zsaruchera, a comment required); Approve, Disapprove and Comment on loan approvals and
+  write-offs; Disapprove on a requisition, which reverses its live entry first. All but Mark as done are behind
+  Enable approvals and comments (ADR 15). Files can go with any, linked in the email by their ref, as form files are
+- One workflow, `action`, started by ourfos-api as it starts the rest, so ourfos-api still writes only through
+  workflows and never emails (ADR 9 holds). Its side effects come first: a requisition's reversal, then the reply in
+  its thread, and only then the record. One that fails leaves nothing recorded, and the page says why
+- Kept on `actions/{execution}` under the submission, beside its runs, as what a person did rather than what a
+  workflow did: who, what, their comment, files and when. History shows both, newest first. Approve and disapprove set
+  the status, shown even on forms whose status isn't otherwise tracked; a comment leaves it
+- The page waits for the record, as it does for a correction: the action's execution says if it failed, and why
+- Not taken: **recording first and emailing after.** A record of something nobody was told is the worse failure. Nor
+  ourfos-api asking the services to email: a second route, and a write, through the caller check
