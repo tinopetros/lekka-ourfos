@@ -12,3 +12,5 @@ export type ExpenseRun = Schemas['ExpenseRun'];
 export type CorrectionRun = Schemas['CorrectionRun'];
 export type Line = Schemas['Line'];
 export type JournalEntry = Schemas['JournalEntry'];
+export type Action = Schemas['Action'];
+export type ActionKind = Schemas['ActionRequest']['kind'];

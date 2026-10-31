@@ -78,16 +78,35 @@ def entry(gl, side, amount):
     }
 
 
+class Connection:
+    """A post's own client: closed once it's posted"""
+
+    def __init__(self, journal):
+        self.journal_entries, self.closed = journal, False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+
+
 @pytest.fixture
 def journal(monkeypatch):
     journal = Journal()
-    monkeypatch.setattr(
-        mifos, "client", lambda tenant=None: type("Client", (), {"journal_entries": journal, "tenant": tenant})()
-    )
+    monkeypatch.setattr(mifos, "connection", lambda tenant=None: Connection(journal))
     monkeypatch.setenv("MIFOS_OFFICE_ID", "1")
     monkeypatch.setenv("MIFOS_CURRENCY", "USD")
     monkeypatch.setenv("MIFOS_TENANT_ID", "demo")
     return journal
+
+
+def test_each_post_has_a_connection_of_its_own_closed_after(journal, monkeypatch):
+    opened = []
+    monkeypatch.setattr(mifos, "connection", lambda tenant=None: opened.append(Connection(journal)) or opened[-1])
+    mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject")
+    mifos.post("run-1", DEBIT, CREDIT, date(2026, 10, 5), "Subject")
+    assert len(opened) == 2 and all(c.closed for c in opened)
 
 
 def test_a_post_is_a_journal_entry_with_our_reference(journal):
@@ -209,9 +228,7 @@ def test_mifos_off_never_posts(docs, journal):
 
 def test_a_test_run_posts_to_demo_and_its_entry_says_so(docs, journal, sent, monkeypatch):
     tenants = []
-    monkeypatch.setattr(
-        mifos, "client", lambda tenant=None: tenants.append(tenant) or type("C", (), {"journal_entries": journal})()
-    )
+    monkeypatch.setattr(mifos, "connection", lambda tenant=None: tenants.append(tenant) or Connection(journal))
     monkeypatch.setenv("MIFOS_TENANT_ID", "default")
     docs[("requisition", "r", "run-1")]["test"] = True
     assert requisitions.post("r", {}) == {"mifos_transaction_id": "L42"}

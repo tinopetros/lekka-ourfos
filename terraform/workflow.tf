@@ -1,8 +1,9 @@
 # expense for requisitions, intake for every form that's only received and acknowledged (docs/phase10/tdd.md),
-# correction for a posted requisition and sync for Mifos into our record (docs/phase12/tdd.md).
+# correction for a posted requisition and sync for Mifos into our record (docs/phase12/tdd.md), action for what a
+# person does from the UI, such as marking a handed-over requisition done.
 # Each gets lib's plumbing under its own steps: all are maps of subworkflows (docs/phase10/adr.md 2)
 resource "google_workflows_workflow" "this" {
-  for_each                = toset(["expense", "intake", "correction", "sync"])
+  for_each                = toset(["expense", "intake", "correction", "sync", "action"])
   name                    = each.key
   region                  = var.region
   service_account         = local.sa.workflow

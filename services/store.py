@@ -27,6 +27,11 @@ def run(form: str, id: str, run: str) -> "Doc":
     return Doc(parent.collection("runs").document(run), parent)
 
 
+def action(form: str, id: str, run: str) -> "Doc":
+    """What a person did to a submission from the UI, named by its run's execution id."""
+    return Doc(submission(form, id).ref.collection("actions").document(run))
+
+
 class Doc:
     def __init__(self, ref, parent=None):
         self.ref, self.parent = ref, parent

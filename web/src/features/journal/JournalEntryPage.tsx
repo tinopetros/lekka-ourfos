@@ -14,7 +14,7 @@ import { day } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
 import { useTab } from '@/lib/useTab';
-import { useSubmission } from '@/features/submissions/api';
+import { useSubmission, useTests } from '@/features/submissions/api';
 import { journalQueries, useJournalEntry } from './api';
 
 function Entry({ id }: { id: string }) {
@@ -41,9 +41,10 @@ function Posted({ form, id, s }: { form: string; id: string; s: Submission | und
 
 export function JournalEntryPage() {
   const { id = '' } = useParams();
+  const tests = useTests('requisition');
   const neighbours = useNeighbours({
     id,
-    list: journalQueries.list,
+    list: (cursor) => journalQueries.list(cursor, tests),
     idOf: (e) => e.transaction_id,
     pathOf: (e) => `/journal/${e.transaction_id}`,
   });

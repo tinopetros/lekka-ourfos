@@ -2,12 +2,14 @@ import '@/index.css';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
+import { OpenFeatureProvider } from '@openfeature/react-sdk';
 import { RouterProvider } from 'react-router';
 import { router } from '@/app/router';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
+import '@/lib/flags';
 
 const queryClient = new QueryClient({
   // An action that fails says so, wherever you are. Not what's wrong with a form's answers: it shows that by each field
@@ -38,9 +40,11 @@ if (!root) throw new Error('No #root in index.html');
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={300}>
-        <RouterProvider router={router} />
-      </TooltipProvider>
+      <OpenFeatureProvider suspendUntilReady={false}>
+        <TooltipProvider delayDuration={300}>
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </OpenFeatureProvider>
       {/* Bottom right, 5 seconds. Done is green, as the buttons that do it are; a failure keeps its rich red */}
       <Toaster
         richColors

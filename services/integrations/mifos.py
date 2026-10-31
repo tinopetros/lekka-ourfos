@@ -35,8 +35,8 @@ def tenant(test: bool = False) -> str:
     return TEST_TENANT if test else os.environ["MIFOS_TENANT_ID"]
 
 
-@cache
-def client(tenant: str | None = None) -> MifosClient:
+def connection(tenant: str | None = None) -> MifosClient:
+    """A client of its own, with its own connections: close it after"""
     tenant = tenant or os.environ["MIFOS_TENANT_ID"]
     # Terraform refuses this too, and dev's user doesn't exist in the books (docs/phase11/adr.md 4)
     if tenant == BOOKS and os.environ.get("GOOGLE_CLOUD_PROJECT") != "ourfos-prod":
@@ -49,6 +49,12 @@ def client(tenant: str | None = None) -> MifosClient:
         timeout_seconds=TIMEOUT,
         verify_ssl=os.environ.get("MIFOS_VERIFY_SSL", "true") != "false",
     )
+
+
+@cache
+def client(tenant: str | None = None) -> MifosClient:
+    """One per tenant for reads, its connections kept alive between them"""
+    return connection(tenant)
 
 
 def accounts(tenant: str) -> list:
@@ -120,19 +126,22 @@ def post(
         # Its own each time: a correction posts twice under one reference
         return {"mifos_transaction_id": f"{STUB}{uuid.uuid4().hex[:13]}"}
     try:
-        posted = client(tenant).journal_entries.create(
-            {
-                "officeId": int(os.environ.get("MIFOS_OFFICE_ID", "1")),
-                "currencyCode": os.environ.get("MIFOS_CURRENCY", "USD"),
-                "transactionDate": on.isoformat(),
-                "dateFormat": "yyyy-MM-dd",
-                "locale": "en",
-                "referenceNumber": reference,
-                "comments": comments,
-                "debits": [{"glAccountId": d["glId"], "amount": d["amount"]} for d in debit],
-                "credits": [{"glAccountId": c["glId"], "amount": c["amount"]} for c in credit],
-            }
-        )
+        # A connection of its own, closed after: Mifos drops idle ones, and a post sent on one it has dropped can't
+        # be told from one that landed
+        with connection(tenant) as fresh:
+            posted = fresh.journal_entries.create(
+                {
+                    "officeId": int(os.environ.get("MIFOS_OFFICE_ID", "1")),
+                    "currencyCode": os.environ.get("MIFOS_CURRENCY", "USD"),
+                    "transactionDate": on.isoformat(),
+                    "dateFormat": "yyyy-MM-dd",
+                    "locale": "en",
+                    "referenceNumber": reference,
+                    "comments": comments,
+                    "debits": [{"glAccountId": d["glId"], "amount": d["amount"]} for d in debit],
+                    "credits": [{"glAccountId": c["glId"], "amount": c["amount"]} for c in credit],
+                }
+            )
     except MifosError as e:
         raise failed(e, reference) from e
     log("mifos posted", reference=reference, mifos_transaction_id=posted["transactionId"])

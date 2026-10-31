@@ -102,3 +102,72 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - An entry's own tenant, or the services' when it has none. Prod reads `demo` only to correct a test entry, as it
   posts there only for a test run (ADR 8)
 - Not taken: **reading them only at startup.** We scale to zero, so that would be more often, not less
+
+### 11. Google's APIs bill the caller's own project
+
+- The directory and groups reads name no project to bill. On Cloud Run, ourfos-api@ bills its own, which takes no
+  right. Naming one takes `serviceusage.services.use`, so every name lookup was a 403 and showed the email
+- Locally, your ADC names its own, once: `gcloud auth application-default set-quota-project ourfos-dev`
+- Not taken: **granting ourfos-api@ `serviceUsageConsumer`.** A right it needs only because the code asked for it
+
+### 12. A name is asked for again after a week
+
+- Names rarely change: a day asked the directory seven times as often for nothing. Overrides release 1 ADR 5 in part
+- As before, a name saved stands when the directory can't say, and local reads dev's, so it falls back to it too
+
+### 13. Tests are left out of lists, on dev and prod
+
+- Submissions and the journal leave out tests: a test submission and its entries. Whoever may make them
+  (`forms:<form>:test`, the journal by requisitions') can show them with Enable tests in lists (ADR 15), and
+  previous/next on a record then walks the list it came from
+- Left out by the API, which reads on until a page is full: filtered in the UI, a page could come back empty
+- An entry says it's a test from now on. One recorded before is a test if its submission is, read with its page
+- A record opened by its link still shows, test or not
+
+### 14. Each Mifos post has a connection of its own
+
+- A correction's lines went out 0.3s after its reversal, on the connection the reversal had used, and Mifos closed it
+  without answering. Nothing landed, but a dropped post can't say so: the run was handed over, the books left without
+  the expense
+- So each post opens its own connection and closes it after. Reads keep one client a tenant, its connections reused
+- Tried on dev, ten corrections in a row, before it went to prod. If it hadn't held, corrections would have gone
+  behind a flag, leaving reversals
+
+### 15. Feature flags, off until switched on in a browser
+
+- What isn't for everyone yet sits behind a flag, named "Enable …": corrections, approvals and comments, tests in
+  lists, and test submissions. Each is off on dev and prod alike until someone switches it on, for themselves
+- Kept in the browser only, never in the database. The switches are on the build number at the sidebar's foot,
+  underlined for whoever holds `features:edit`: tech, for now
+- Through OpenFeature, the open standard, with its in-memory provider over the browser's storage. A provider that
+  serves flags from elsewhere, per person or per environment, can take over without touching what reads them
+- A flag hides, it doesn't grant: the API still checks each permission. A draft already marked a test keeps its
+  switch while the flag is off, so it can be unmarked
+- Corrections are behind one after a post Mifos dropped (ADR 14): reversals stay for everyone who may edit entries
+
+### 16. Actions: done, approve, disapprove and comment, side effects first
+
+- A person acts on a submission from its page's top row, each button named in full: Mark as done on a handed-over
+  requisition (directors and zsaruchera, a comment required); Approve, Disapprove and Comment on loan approvals and
+  write-offs; Disapprove on a requisition, which reverses its live entry first. All but Mark as done are behind
+  Enable approvals and comments (ADR 15). Files can go with any, linked in the email by their ref, as form files are
+- One workflow, `action`, started by ourfos-api as it starts the rest, so ourfos-api still writes only through
+  workflows and never emails (ADR 9 holds). Its side effects come first: a requisition's reversal, then the reply in
+  its thread, and only then the record. One that fails leaves nothing recorded, and the page says why
+- Kept on `actions/{execution}` under the submission, beside its runs, as what a person did rather than what a
+  workflow did: who, what, their comment, files and when. History shows both, newest first. Approve and disapprove set
+  the status, shown even on forms whose status isn't otherwise tracked; a comment leaves it
+- Who, for now, in the policy: Mark as done and a requisition's Disapprove for whoever may reverse entries (directors,
+  zsaruchera); Approve and Disapprove on loan approvals and write-offs for directors; Comment for everyone who can read
+  them. Lekkai@ is kept out of deciding anything
+- The page waits for the record, as it does for a correction: the action's execution says if it failed, and why
+- Not taken: **recording first and emailing after.** A record of something nobody was told is the worse failure. Nor
+  ourfos-api asking the services to email: a second route, and a write, through the caller check
+
+### 17. A dialog that changes something is left only by its own buttons
+
+- Correct, Reverse, every action, and the form's discard and submit: no ×, and neither a click outside nor Escape
+  closes them, so a slip loses nothing and does nothing. Cancel is said on purpose
+- They say what's in the way when you try, beside what's missing: a comment or reason, an account, debits that don't
+  balance, or corrected lines still the entry's own. A reason alone corrects nothing
+- Weightier ones become steps, with a review before anything is sent: #53

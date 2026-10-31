@@ -10,7 +10,7 @@ os.environ.setdefault("MODEL_ARMOR_TEMPLATE", "projects/p/locations/eu/templates
 
 import httpx
 from test_forms import Doc
-from test_mifos import CREDIT, DEBIT, REQUISITION
+from test_mifos import CREDIT, DEBIT, REQUISITION, Connection
 
 import emails
 import journal
@@ -87,7 +87,7 @@ def docs(monkeypatch):
 @pytest.fixture
 def mifos_journal(monkeypatch):
     fake = Journal()
-    monkeypatch.setattr(mifos, "client", lambda tenant=None: type("Client", (), {"journal_entries": fake})())
+    monkeypatch.setattr(mifos, "connection", lambda tenant=None: Connection(fake))
     return fake
 
 

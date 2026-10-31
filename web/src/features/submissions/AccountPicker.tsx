@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { components } from '@/lib/api/schema';
 import { accountLabel as label } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,13 @@ export function AccountPicker({
 }) {
   const [open, setOpen] = useState(false);
   const picked = accounts.find((a) => a.glId === value);
+  // Nothing to pick from yet: a placeholder, not a picker
+  if (loading)
+    return (
+      <Skeleton className="flex h-9 min-w-0 flex-1 items-center px-3 text-sm text-muted-foreground">
+        Loading accounts…
+      </Skeleton>
+    );
   const groups = [
     { heading: 'Expenser’s accounts', items: accounts.filter((a) => a.expenser) },
     { heading: 'Other accounts', items: accounts.filter((a) => !a.expenser) },
@@ -53,11 +61,11 @@ export function AccountPicker({
           role="combobox"
           aria-label="Account"
           aria-expanded={open}
-          aria-invalid={!picked && !loading}
+          aria-invalid={!picked}
           className="min-w-0 flex-1 justify-between font-normal"
         >
           <span className={cn('truncate', !picked && 'text-muted-foreground')}>
-            {picked ? label(picked) : loading ? 'Loading accounts…' : (shown ?? 'Pick an account')}
+            {picked ? label(picked) : (shown ?? 'Pick an account')}
           </span>
           <ChevronsUpDown className="opacity-50" />
         </Button>
@@ -66,7 +74,7 @@ export function AccountPicker({
         <Command filter={matches}>
           <CommandInput placeholder="Search by name or GL code" />
           <CommandList>
-            <CommandEmpty>{loading ? 'Loading accounts…' : 'No account matches'}</CommandEmpty>
+            <CommandEmpty>No account matches</CommandEmpty>
             {groups.map((g) => (
               <CommandGroup key={g.heading} heading={g.heading}>
                 {g.items.map((a) => (

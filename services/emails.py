@@ -363,3 +363,33 @@ def handover(form: str, reason: str, id: str | None = None) -> tuple[str, str]:
     html.append(f"<p><em>{DISCLAIMER}</em></p>")
     text += ["", DISCLAIMER]
     return "\n".join(html), "\n".join(text)
+
+
+# What each action says it did, and its line for when
+ACTED = {
+    "done": ("marked this {noun} done", "Marked done"),
+    "approve": ("approved this {noun}", "Approved"),
+    "disapprove": ("disapproved this {noun}", "Disapproved"),
+    "comment": ("commented on this {noun}", "Commented"),
+}
+
+
+def acted(
+    kind: str, form: str, id: str, by: str, comment: str, files: list[str], at: str, reversal: dict | None = None
+) -> tuple[str, str]:
+    """What someone did to a submission from Ourfos: who, what, when, their comment, the entry it reversed if it did,
+    and anything they added. A person's words, so no disclaimer."""
+    did, when = ACTED[kind]
+    heading = f"{by} {did.format(noun=FORMS[form].noun)}."
+    link_html, link_text = view(form, id, "See it on Ourfos", "history")
+    rows = [(when, at), ("By", by), *([("Comment", comment)] if comment else [])]
+    if reversal:
+        rows += [("Reversed", reversal["entry"]), ("By transaction", reversal["by"])]
+    rows_html, rows_text = details(rows)
+    html = [f"<strong>{escape(heading)}</strong>", *([link_html] if link_html else []), rows_html]
+    text = [heading, *([link_text] if link_text else []), "", rows_text]
+    if files:
+        links_html, links_text = file_links(files, form, id)
+        html.append(f"<p>Files: {links_html}</p>")
+        text += ["", f"Files: {links_text}"]
+    return "\n".join(html), "\n".join(text)

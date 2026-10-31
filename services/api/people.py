@@ -1,9 +1,8 @@
 """Someone's full name, from Workspace's directory, as ourfos-api@: ourfos user reader, a custom admin role assigned to
-it in the Admin console, Users → Read only. Kept on users/{email} and checked again after a day, never deleted: when
+it in the Admin console, Users → Read only. Kept on users/{email} and checked again after a week, never deleted: when
 the directory can't say, the name last seen stands, and without one, the email."""
 
 import functools
-import os
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -18,8 +17,8 @@ from common import log
 
 USERS = "https://admin.googleapis.com/admin/directory/v1/users/"
 DOMAIN = "@lekkacredit.com"
-# How old a saved name may be before the directory is asked again
-FRESH = timedelta(days=1)
+# How old a saved name may be before the directory is asked again: names rarely change
+FRESH = timedelta(days=7)
 # On an instance, so a page of submissions isn't a read a row
 TTL = 300
 TIMEOUT = 10
@@ -30,10 +29,9 @@ _lock = threading.Lock()
 
 @functools.cache
 def session() -> AuthorizedSession:
-    credentials, project = google.auth.default(scopes=["https://www.googleapis.com/auth/admin.directory.user.readonly"])
-    # Locally, your own account's, as for groups: the Admin SDK bills a quota project too
-    if not getattr(credentials, "quota_project_id", None) and hasattr(credentials, "with_quota_project"):
-        credentials = credentials.with_quota_project(os.environ.get("GOOGLE_CLOUD_PROJECT", project))
+    # Billed to the account's own project: naming one takes serviceusage.services.use, which ourfos-api@ hasn't. Locally,
+    # your ADC names its own, as for groups
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/admin.directory.user.readonly"])
     return AuthorizedSession(credentials)
 
 

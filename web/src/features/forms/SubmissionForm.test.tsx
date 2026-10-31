@@ -1,3 +1,4 @@
+import { OpenFeatureTestProvider } from '@openfeature/react-sdk';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -28,6 +29,7 @@ const RECORD: Submission = {
   runs: [],
   journal_entries: [],
   draft: null,
+  actions: [],
 };
 
 function open(
@@ -72,9 +74,11 @@ function open(
   });
   render(
     <QueryClientProvider client={client}>
-      <TooltipProvider>
-        <RouterProvider router={router} />
-      </TooltipProvider>
+      <OpenFeatureTestProvider>
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </OpenFeatureTestProvider>
     </QueryClientProvider>,
   );
   return Object.assign(sent, { saves });

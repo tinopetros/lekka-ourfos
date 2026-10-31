@@ -23,7 +23,7 @@ class Ref:
         self.id = path[-1]
 
     def get(self, transaction=None):
-        return Snap(self.db.docs.get(self.path))
+        return Snap(self.db.docs.get(self.path), self.id)
 
     def set(self, data, merge=False):
         # The server's time, as the server would set it
@@ -40,6 +40,7 @@ class Ref:
 class Collection:
     def __init__(self, db, name):
         self.db, self.name, self.field, self.descending, self.n, self.filters = db, name, None, False, None, []
+        self.after = None
 
     def document(self, id):
         return Ref(self.db, (self.name, id))
@@ -52,10 +53,23 @@ class Collection:
         self.filters.append((filter.field_path, filter.value))
         return self
 
+    def start_after(self, snap):
+        self.after = snap.id
+        return self
+
     def stream(self):
-        for (c, id), d in list(self.db.docs.items()):
-            if c == self.name and all(d.get(f) == v for f, v in self.filters):
-                yield Snap(d, id)
+        docs = [
+            (id, d)
+            for (c, id), d in list(self.db.docs.items())
+            if c == self.name and all(d.get(f) == v for f, v in self.filters)
+        ]
+        if self.field:
+            docs = [(id, d) for id, d in docs if self.field in d]
+            docs.sort(key=lambda x: x[1][self.field], reverse=self.descending)
+        if self.after:
+            docs = docs[[id for id, _ in docs].index(self.after) + 1 :]
+        for id, d in docs[: self.n]:
+            yield Snap(d, id)
 
     def limit(self, n):
         self.n = n
