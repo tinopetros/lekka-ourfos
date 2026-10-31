@@ -1,5 +1,4 @@
-"""What a person does to a submission from the UI, beside its workflows: marks it done, approves or disapproves it, or
-comments. The thread hears first, and the action is kept only once it has, so nothing is recorded that nobody was told.
+"""What a person does to a submission from the UI, beside its workflows: approves or closes it, or comments. The thread hears first, and the action is kept only once it has, so nothing is recorded that nobody was told.
 
 The run is the action's workflow execution, which names the action too: actions/{run}.
 """
@@ -17,7 +16,7 @@ from routers.forms import email, known, run_id, send
 router = APIRouter(prefix="/forms/{form}/{id}/action")
 
 # Each kind, and the status it leaves the submission in: a comment leaves it as it was
-KINDS = {"done": "done", "approve": "approved", "disapprove": "disapproved", "comment": None}
+KINDS = {"approve": "approved", "close": "closed", "comment": None}
 # An approval may go without a word; anything else says why
 QUIET = {"approve"}
 
@@ -58,7 +57,7 @@ def tell(form: str, id: str, body: dict):
 
 @router.post("/record")
 def record(form: str, id: str, body: dict):
-    """The action, once its email went: kept under the submission, and done is its status. A retry writes the same"""
+    """The action, once its email went: kept under the submission, and its status set. A retry writes the same"""
     known(form)
     kind, by, comment = asked(body)
     run = run_id()

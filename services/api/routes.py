@@ -25,6 +25,7 @@ from .models import (
     Action,
     ActionRequest,
     ActionState,
+    CorrectedLines,
     CorrectRequest,
     Draft,
     DraftRequest,
@@ -33,6 +34,7 @@ from .models import (
     JournalEntryPage,
     Me,
     Person,
+    PostRequest,
     ReverseRequest,
     Reversing,
     Submission,
@@ -223,15 +225,14 @@ async def upload_action_file(form: str, id: str, name: str, request: Request, us
 
 
 # Each action's permission, the statuses it may be taken from (any but a draft, if None), and whether it needs a
-# comment. Who holds each, per form, is the policy's: a requisition is disapproved, never approved
+# comment. Who holds each, per form, is the policy's: a requisition is closed, never approved
 ACTIONS = {
-    "done": ("resolve", {"handed_over"}, True),
     "approve": ("approve", None, False),
-    "disapprove": ("disapprove", None, True),
+    "close": ("close", None, True),
     "comment": ("comment", None, True),
 }
-# Decided: not approved or disapproved again
-DECIDED = {"approved", "disapproved"}
+# Decided: not approved or closed again. Disapproved is what closed was called on dev
+DECIDED = {"approved", "closed", "disapproved"}
 
 
 @router.post("/forms/{form}/submissions/{id}/actions")
@@ -250,14 +251,14 @@ def act(form: str, id: str, body: ActionRequest, user: User) -> Acting:
     if not doc.exists or status == drafts.DRAFT:
         raise HTTPException(404, f"No {FORMS[form].noun} {id}")
     if statuses is not None and status not in statuses:
-        raise HTTPException(409, f"Only a handed-over {FORMS[form].noun} is marked done")
-    if body.kind in ("approve", "disapprove") and status in DECIDED:
+        raise HTTPException(409, f"Not from {status}")
+    if body.kind in ("approve", "close") and status in DECIDED:
         raise HTTPException(409, f"This {FORMS[form].noun} is already {status}")
     own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{drafts.prefix(form, id)}actions/"
     if any(not f.startswith(own) or "/" in f.removeprefix(own) for f in body.files):
         raise HTTPException(422, "Only files uploaded for this action")
-    # A requisition disapproved has its live entry reversed first, if it has one
-    live = (doc.to_dict() or {}).get("live_entry") if form == "requisition" and body.kind == "disapprove" else None
+    # A requisition closed has its live entry reversed first, if it has one
+    live = (doc.to_dict() or {}).get("live_entry") if form == "requisition" and body.kind == "close" else None
     argument = {
         "form": form,
         "id": id,
@@ -319,21 +320,49 @@ def reverse(id: str, body: ReverseRequest, user: Annotated[str, needs("journal_e
 def correct(id: str, body: CorrectRequest, user: Annotated[str, needs("journal_entries:edit")]) -> Reversing:
     """A requisition's live entry corrected: its mirror, then these lines, on its date and in its tenant. Each line's
     account must be one the entry's tenant can post to, and debits must equal credits"""
-    debit, credit = (sum(x.amount for x in side) for side in (body.lines.debit, body.lines.credit))
+    entry = store.client().collection(JOURNAL).document(body.transaction_id).get().to_dict() or {}
+    return correction(id, body, user, priced(body.lines, entry.get("tenant")))
+
+
+@router.post("/forms/requisition/submissions/{id}/post")
+def post_entry(id: str, body: PostRequest, user: Annotated[str, needs("journal_entries:edit")]) -> Reversing:
+    """Lines for a requisition with nothing live, filed as given: the correction workflow with nothing to reverse.
+    Refused where something is live, so a stale page can't post it twice, or where it's closed"""
+    doc = store.submission("requisition", id).get()
+    if live := doc.get("live_entry"):
+        raise HTTPException(409, f"Transaction {live} is already live for this requisition: correct it instead")
+    if doc.get("status") in views.CLOSED or doc.get("status") == drafts.DRAFT:
+        raise HTTPException(409, f"This requisition is {doc.get('status')}")
+    filed = {"reference": body.reference.strip(), "comments": body.comments.strip()}
+    if not all(filed.values()):
+        raise HTTPException(422, "Give its reference and comments")
+    lines = priced(body.lines, "demo" if doc.get("test") else None)
+    argument = {
+        "id": id,
+        "requested_by": user,
+        "lines": lines,
+        "post": filed | {"transaction_date": body.transaction_date.isoformat()},
+    }
+    run = workflows.start("correction", argument)
+    log("post asked", id=id, run=run)
+    return Reversing(run=run)
+
+
+def priced(lines: CorrectedLines, tenant: str | None) -> dict:
+    """Balanced lines, each account one the tenant can post to, named and coded as Mifos has it"""
+    debit, credit = (sum(x.amount for x in side) for side in (lines.debit, lines.credit))
     if abs(debit - credit) > 0.005:
         raise HTTPException(422, f"Debits ({debit:.2f}) and credits ({credit:.2f}) don't balance")
-    entry = store.client().collection(JOURNAL).document(body.transaction_id).get().to_dict() or {}
-    known = {a.glId: a for a in tenant_accounts(entry.get("tenant"))}
-    if unknown := sorted({x.glId for x in body.lines.debit + body.lines.credit} - known.keys()):
+    known = {a.glId: a for a in tenant_accounts(tenant)}
+    if unknown := sorted({x.glId for x in lines.debit + lines.credit} - known.keys()):
         raise HTTPException(422, f"Not accounts this entry can post to: {', '.join(map(str, unknown))}")
 
-    def lines(side):
+    def side(xs):
         return [
-            {"name": known[x.glId].name, "glCode": known[x.glId].glCode, "glId": x.glId, "amount": x.amount}
-            for x in side
+            {"name": known[x.glId].name, "glCode": known[x.glId].glCode, "glId": x.glId, "amount": x.amount} for x in xs
         ]
 
-    return correction(id, body, user, {"debit": lines(body.lines.debit), "credit": lines(body.lines.credit)})
+    return {"debit": side(lines.debit), "credit": side(lines.credit)}
 
 
 def correction(id: str, body: ReverseRequest, user: str, lines: dict | None = None) -> Reversing:

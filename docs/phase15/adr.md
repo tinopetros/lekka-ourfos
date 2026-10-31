@@ -198,13 +198,15 @@ Changed: Mark as done is replaced by Post journal entry (ADR 19), and Disapprove
   live entry set and the requisition done. A test requisition's goes to demo, as its first post would have. Who:
   whoever may edit entries, as for corrections
 - Mark as done's records stay in History, still labelled as they were
+- Disapprove is renamed Close here already, everywhere and in the store (kind `close`, status `closed`, permission
+  `forms:<form>:close`), since it was only ever used on dev; who may close is unchanged until follow-up 5
 
 ### 20. Close, Comment for anyone, and every email's available next steps (planned: follow-up 5)
 
 Decided here so it isn't lost; built in phase 15's fifth follow-up.
 
 - **Close replaces Disapprove**, everywhere and in the store: kind `close`, status `closed`, permission
-  `forms:<form>:close`. It's for whatever is disapproved, a mistake or a duplicate. Closing a requisition reverses its
+  `forms:<form>:close`, renamed already in follow-up 4. It's for whatever is disapproved, a mistake or a duplicate. Closing a requisition reverses its
   live entry first, so Reverse journal entry goes. Disapprovals already kept on dev keep their label in History; none
   were made on prod
 - **Who:** Comment for anyone who can read the record, every form, requisitions included; the API checks nothing
