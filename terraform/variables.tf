@@ -82,12 +82,18 @@ variable "mifos" {
   }
 }
 
-variable "syncs" {
-  description = "What's synced from Mifos each night, and when, in Harare's time (docs/phase12/tdd.md, step 7)"
+variable "mifos_syncs" {
+  description = "Mifos's lists kept in the mifos bucket each night, and when, in New York's time. Prod only"
   type        = map(object({ schedule = string }))
-  # None for now: Mifos takes minutes to list even a day's entries (docs/phase12/adr.md 11). Journal entries were
-  # journal_entries = { schedule = "0 23 * * *" }
-  default = {}
+  default     = {}
+  validation {
+    condition     = alltrue([for k in keys(var.mifos_syncs) : contains(["clients", "loans", "manual_journal_entries"], k)])
+    error_message = "The mifos sync knows clients, loans and manual_journal_entries only."
+  }
+  validation {
+    condition     = length(var.mifos_syncs) == 0 || var.project_id == "ourfos-prod"
+    error_message = "Only ourfos-prod mirrors Mifos: dev's tenant is a copy of prod's, and overloaded already."
+  }
 }
 
 variable "scheduler_region" {

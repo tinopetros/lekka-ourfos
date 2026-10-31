@@ -35,7 +35,7 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       dynamic "env" {
-        for_each = {
+        for_each = merge({
           GOOGLE_GENAI_USE_VERTEXAI = "true"
           GOOGLE_CLOUD_PROJECT      = var.project_id
           GOOGLE_CLOUD_LOCATION     = "global"
@@ -54,7 +54,10 @@ resource "google_cloud_run_v2_service" "services" {
           # ourfos-api may invoke the services, but reads only accounts: it's told apart by this
           API_ACCOUNT = local.sa.api
           UI_URL      = var.api_domain == null ? google_cloud_run_v2_service.api.uri : "https://${var.api_domain}"
-        }
+          },
+          # Where the mifos sync writes, only where it's scheduled: anywhere else its route refuses
+          length(var.mifos_syncs) > 0 ? { MIFOS_BUCKET = "${var.project_id}-mifos" } : {},
+        )
         content {
           name  = env.key
           value = env.value

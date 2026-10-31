@@ -35,7 +35,7 @@ def tenant(test: bool = False) -> str:
     return TEST_TENANT if test else os.environ["MIFOS_TENANT_ID"]
 
 
-def connection(tenant: str | None = None) -> MifosClient:
+def connection(tenant: str | None = None, timeout: float = TIMEOUT) -> MifosClient:
     """A client of its own, with its own connections: close it after"""
     tenant = tenant or os.environ["MIFOS_TENANT_ID"]
     # Terraform refuses this too, and dev's user doesn't exist in the books (docs/phase11/adr.md 4)
@@ -46,7 +46,7 @@ def connection(tenant: str | None = None) -> MifosClient:
         username=os.environ["MIFOS_USERNAME"],
         password=os.environ["MIFOS_PASSWORD"],
         tenant_id=tenant,
-        timeout_seconds=TIMEOUT,
+        timeout_seconds=timeout,
         verify_ssl=os.environ.get("MIFOS_VERIFY_SSL", "true") != "false",
     )
 
@@ -158,67 +158,10 @@ def failed(e: MifosError, reference: str) -> HTTPException:
     return HTTPException(504, f"Mifos didn't confirm the post: {e}")
 
 
-def read(mifos_transaction_id: str) -> dict:
-    """One transaction as Mifos has it, in our record's shape"""
-    try:
-        lines = client().journal_entries.list_all({"transactionId": mifos_transaction_id, "manualEntriesOnly": True})
-    except MifosError as e:
-        raise read_failed(e) from e
-    return entry(mifos_transaction_id, lines)
-
-
-def manual_entries(since: date, params: dict) -> list:
-    """A page of Mifos's manual journal entries, its lines that is, booked since then. Always manual and always a range:
-    Mifos has hundreds of thousands of entries, most of them loans' and savings' own"""
-    # A year ahead: an entry can be booked in the future
-    until = (datetime.now(UTC) + timedelta(days=366)).date()
-    window = {"fromDate": since.isoformat(), "toDate": until.isoformat(), "dateFormat": "yyyy-MM-dd", "locale": "en"}
-    try:
-        return client().journal_entries.list({**params, **window, "manualEntriesOnly": True})["pageItems"]
-    except MifosError as e:
-        raise read_failed(e) from e
-
-
-def ours() -> str:
-    """Our Mifos user, whose entries the step that posts records"""
-    return os.environ["MIFOS_USERNAME"]
-
-
 def read_failed(e: MifosError) -> HTTPException:
     # A read, so the workflow may retry it
     status = e.status_code if isinstance(e, MifosApiError) else 503
     return HTTPException(503 if status >= 500 else 500, f"mifos read: {e}")
-
-
-def entry(mifos_transaction_id: str, lines: list) -> dict:
-    """Mifos's lines of one transaction, as one entry. What's on every line is kept once, from the first."""
-    first = lines[0] if lines else {}
-    return {
-        "transaction_id": mifos_transaction_id,
-        "transaction_date": day(first.get("transactionDate")),
-        "created_on": day(first.get("createdDate")),
-        "office": {"id": first.get("officeId"), "name": first.get("officeName")},
-        "currency": (first.get("currency") or {}).get("code"),
-        "reference_number": first.get("referenceNumber"),
-        "comments": first.get("comments"),
-        "created_by": first.get("createdByUserName"),
-        "lines": [
-            {
-                "glId": x["glAccountId"],
-                "glCode": x["glAccountCode"],
-                "name": x["glAccountName"],
-                "type": x["entryType"]["value"].upper(),
-                "amount": x["amount"],
-            }
-            for x in lines
-        ],
-        "entry_ids": [x["id"] for x in lines if "id" in x],
-    }
-
-
-def day(value) -> str | None:
-    """Fineract's [2026, 10, 5], as 2026-10-05."""
-    return date(*value).isoformat() if value else None
 
 
 def line(d: dict, side: str) -> dict:
