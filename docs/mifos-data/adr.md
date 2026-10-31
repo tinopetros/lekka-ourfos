@@ -44,7 +44,7 @@ Draft.
   entries booked late with past dates
 - Calendar months from April 2026. A month read in 2.9s as a week did: Mifos's slowness comes in spells, not with
   the data, so fewer, wider reads mean fewer chances to hit one. Before that, weeks from 29 Dec 2025, 16 Feb–15 Mar
-  and 16–31 Mar, as the backfill went. The month still open is rewritten each night
+  and 16–31 Mar, as the backfill went. The last three months are rewritten each night (ADR 9)
 - Clients and loans change: each fetch is the whole list, compared with the one before (ADR 6)
 
 ### 6. Clients and loans: the first snapshot, the latest, and a log of what changed
@@ -91,9 +91,8 @@ Draft.
 
 - Named for what it does and where from: `mifos-sync`, the workflow, `/mifos-sync/{kind}` on the services, one Cloud
   Scheduler job a kind. Kept as ADR 6 says, under `clients/` and `loans/`. #55
-- Manual journal entries too: this month's file rewritten each night, and in a month's first 7 days last month's
-  too, for entries booked late with past dates. Months by Harare's date, as Mifos books. Every older month is left as
-  the backfill wrote it
+- Manual journal entries too: the last three months' files rewritten each night, this one and the two before, by
+  Harare's date as Mifos books. Every older month is left as the backfill wrote it (ADR 11)
 - 22:30 for clients, 22:45 for loans and 23:00 for manual journal entries, **New York time**: 05:30–05:45 in Harare in winter, 04:30–04:45 in summer.
   Quiet in both, Harare above all since most use is there. After Mifos's own midnight jobs in Harare (accruals,
   penalties, arrears ageing, running balances, done by 00:08 on Oct 31), so the night's overdue figures are that day's,
@@ -115,3 +114,18 @@ Draft.
 - Expenser v1's suggestions were kept in MongoDB. They were also sent in each requisition's email thread
 - So they come along once requisitions are linked to their threads (#56), and aren't backfilled separately. The
   MongoDB copy stays where it is, in case a thread is missing one
+
+### 11. Backdated manual entries: a three-month window now, one last full run later
+
+- Manual entries are often booked with past dates. Of the 2,852 backfilled, created date against transaction date:
+  39% over a month back, 25% over three, 13% over six, 1.4% over a year; median 11 days, the most 900. Created in
+  2026: 26% over three months
+- Mifos can't filter by created date, and reading every date at once is too heavy for it. A newest-id-first read is as
+  cheap as any, 2.8s for October, but only within the range it's given
+- So each night re-reads three months (ADR 9): about three quarters of new entries are caught the next morning. Those
+  booked further back are missed until a wider read. Not taken: 13 months a night, or a rotating sweep of older
+  months, three or more times the load for the rest
+- Manual entries are moving into ourfos, which posts dated as submitted. When Mifos's manual entry screen is switched
+  off, one more full historical run, a month a read as on Oct 31, catches everything booked back before then
+- Until then each night's `_perf.jsonl` counts transactions new to months already fetched, showing how much is missed.
+  If the switch-off is far off, the rotating sweep is the fallback. #59
