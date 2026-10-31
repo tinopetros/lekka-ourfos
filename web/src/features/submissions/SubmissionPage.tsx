@@ -15,7 +15,7 @@ import { StatusBadge, SubmissionStatus, TestBadge } from '@/components/StatusBad
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useCan, useForms } from '@/lib/api/queries';
-import type { Answer, JournalEntry, Run, Submission } from '@/lib/api/types';
+import type { Action, ActionKind, Answer, JournalEntry, Run, Submission } from '@/lib/api/types';
 import { money } from '@/lib/format';
 import { LINK } from '@/lib/styles';
 import { useNeighbours } from '@/lib/useNeighbours';
@@ -23,6 +23,8 @@ import { useTab } from '@/lib/useTab';
 import { SubmissionForm } from '@/features/forms/SubmissionForm';
 import { submissionQueries, useCorrection, useSubmission, useTests } from './api';
 import { useFlag } from '@/lib/flags';
+import { useAction } from './actions';
+import { ActionButton } from './ActionButton';
 import { CorrectEntry } from './CorrectEntry';
 import { ReverseEntry } from './ReverseEntry';
 
@@ -203,15 +205,66 @@ function Event({ run }: { run: Run }) {
   );
 }
 
-// Its runs, oldest first, as a story
-function History({ s }: { s: Submission }) {
+const DID: Record<ActionKind, string> = {
+  done: 'Marked done',
+  approve: 'Approved',
+  disapprove: 'Disapproved',
+  comment: 'Commented',
+};
+
+// Something a person did from Ourfos: who, when, what they said, and what they added
+function Acted({ action }: { action: Action }) {
   return (
-    <ol className="ml-1.5 border-l pl-0">
-      {s.runs.map((r) => (
-        <Event key={r.id} run={r} />
-      ))}
-    </ol>
+    <li className="relative rounded-r-md py-3 pr-3 pl-6 transition-colors hover:bg-muted/50">
+      <span className="absolute top-[18px] -left-[5px] size-2.5 rounded-full border-2 border-foreground/40 bg-background" />
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium">
+          {(DID as Record<string, string | undefined>)[action.kind] ?? action.kind} by <Person email={action.by} />
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          <Time at={action.at} />
+        </span>
+      </div>
+      <div className="mt-1 space-y-1 text-sm text-muted-foreground">
+        {action.comment && <p>&ldquo;{action.comment}&rdquo;</p>}
+        {action.files.length > 0 && (
+          <p className="flex flex-wrap gap-x-3">
+            {action.files.map((ref, n) => (
+              <a key={ref} href={`/files?ref=${encodeURIComponent(ref)}`} className={LINK}>
+                File {n + 1}
+              </a>
+            ))}
+          </p>
+        )}
+      </div>
+    </li>
   );
+}
+
+// Its runs and what people did, newest first, as a story
+function History({ s }: { s: Submission }) {
+  const story = [
+    ...s.runs.map((r) => ({ at: r.started_at, item: <Event key={r.id} run={r} /> })),
+    ...s.actions.map((a) => ({ at: a.at, item: <Acted key={a.id} action={a} /> })),
+  ].sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''));
+  return <ol className="ml-1.5 border-l pl-0">{story.map((x) => x.item)}</ol>;
+}
+
+// What you may do to it, now: mark a handed-over one done, and with approvals on, decide it or comment
+function Actions({ form, s, noun }: { form: string; s: Submission; noun: string }) {
+  const can = useCan();
+  const approvals = useFlag('approvals');
+  const action = useAction(form, s.id);
+  const decided = s.status === 'approved' || s.status === 'disapproved';
+  const kinds: ActionKind[] = [
+    ...(s.status === 'handed_over' && can(`forms:${form}:resolve`) ? (['done'] as const) : []),
+    ...(approvals && !decided && can(`forms:${form}:approve`) ? (['approve'] as const) : []),
+    ...(approvals && !decided && can(`forms:${form}:disapprove`) ? (['disapprove'] as const) : []),
+    ...(approvals && can(`forms:${form}:comment`) ? (['comment'] as const) : []),
+  ];
+  return kinds.map((kind) => (
+    <ActionButton key={kind} kind={kind} noun={noun} reverses={s.live_entry} action={action} />
+  ));
 }
 
 /** A submission on its own page. Its form while it's new or a draft, the same page throughout: what's typed stays
@@ -250,6 +303,7 @@ function Record({ form, id }: { form: string; id: string }) {
   const { data: s, error, isPlaceholderData } = useSubmission(form, id);
   const spec = forms?.find((f) => f.key === form);
   const list = spec?.title ?? 'Back';
+  const noun = spec ? spec.title.toLowerCase().replace(/s$/, '') : 'submission';
   // Requisitions post; anything else only if something of it has
   const posts = form === 'requisition' || (s?.journal_entries.length ?? 0) > 0;
   const [tab, setTab] = useTab(posts ? ['overview', 'journal', 'history'] : ['overview', 'history']);
@@ -265,8 +319,9 @@ function Record({ form, id }: { form: string; id: string }) {
         listPath={`/forms/${form}`}
         from={neighbours.from}
         current={current}
-        noun={spec ? spec.title.toLowerCase().replace(/s$/, '') : 'submission'}
+        noun={noun}
         neighbours={neighbours}
+        actions={s && !isPlaceholderData ? <Actions form={form} s={s} noun={noun} /> : undefined}
       />
       {!s || isPlaceholderData ? (
         <QueryState error={error} loading={<RecordSkeleton />} />
@@ -296,7 +351,7 @@ function Record({ form, id }: { form: string; id: string }) {
                   {s.journal_entries.length === 1 ? 'Journal entry' : 'Journal entries'} ({s.journal_entries.length})
                 </RecordTab>
               )}
-              <RecordTab value="history">History ({s.runs.length})</RecordTab>
+              <RecordTab value="history">History ({s.runs.length + s.actions.length})</RecordTab>
             </RecordTabs>
             <TabsContent value="overview" className="pt-6">
               <Overview s={s} />
