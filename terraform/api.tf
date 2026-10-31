@@ -40,6 +40,8 @@ resource "google_cloud_run_v2_service" "api" {
           REGION = var.region
           # A submission's workflow posts to Mifos only where this environment does
           POST_TO_MIFOS = tostring(var.mifos.post)
+          # Each form's name, so a requisition posted by hand is filed under the subject Lekkai's posts have
+          FORMS = jsonencode(local.forms)
           # What it reads but holds no credentials for, Mifos's accounts, it asks of these, as itself. Their URL by
           # its pattern: the services already name this one's, and the two can't each wait on the other
           SERVICES_URL = "https://ourfos-services-${data.google_project.this.number}.${var.region}.run.app"

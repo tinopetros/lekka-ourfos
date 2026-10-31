@@ -1,5 +1,6 @@
 """What the correction workflow does to a posted requisition: post its live entry's mirror, then the corrected lines,
-and reply in its thread (docs/phase12/tdd.md, step 4).
+and reply in its thread (docs/phase12/tdd.md, step 4). Or, to one with nothing live, post its lines as Lekkai would
+have, with no mirror first.
 
 A run of its own on the submission, beside the run that posted (docs/phase12/adr.md 3). Each step is safe to retry:
 what it did is on the run, and a retried post finds it.
@@ -27,11 +28,15 @@ def run(id: str) -> store.Doc:
 
 @router.post("")
 def start(id: str, body: dict):
-    """The run, what it was asked, and the entry it corrects. Refused, 409 or 422, when there's nothing to do."""
+    """The run, what it was asked, and the entry it corrects. Refused, 409 or 422, when there's nothing to do. A post
+    corrects nothing: it needs lines, where to file them, and nothing live"""
     reason, requested_by = (body.get("reason") or "").strip(), (body.get("requested_by") or "").strip()
-    if not reason or not requested_by:
+    posting = filed(body.get("post"))
+    if not requested_by or not (reason or posting):
         raise HTTPException(422, "A correction needs a reason and who asked for it")
     debit, credit = balanced(body.get("lines"))
+    if posting and not debit:
+        raise HTTPException(422, "A post needs its lines")
     submission = store.submission(FORM, id).get()
     this = run(id)
     # Only ever set on dev: the prod workflow drops it
@@ -48,9 +53,10 @@ def start(id: str, body: dict):
             "transaction_id": body.get("transaction_id"),
             "debit": debit,
             "credit": credit,
+            **({"post": posting} if posting else {}),
         },
     )
-    entry = correctable(submission, body.get("transaction_id"))
+    entry = postable(submission) if posting else correctable(submission, body.get("transaction_id"))
     this.save(entry=entry)
     log("correction started", entry=entry, lines=len(debit) + len(credit))
     # What a handover needs, so the workflow can say what failed in the thread
@@ -61,6 +67,26 @@ def start(id: str, body: dict):
         "test": bool(submission.get("test")),
         "has_lines": bool(debit),
     }
+
+
+def filed(post) -> dict | None:
+    """Where a post is filed in Mifos: its reference, date and comments, each given"""
+    if post is None:
+        return None
+    keys = ("reference", "transaction_date", "comments")
+    if not isinstance(post, dict) or any(not str(post.get(k) or "").strip() for k in keys):
+        raise HTTPException(422, f"A post needs its {', '.join(keys)}")
+    try:
+        date.fromisoformat(post["transaction_date"])
+    except ValueError:
+        raise HTTPException(422, "A post's transaction_date is a date, as 2026-10-31") from None
+    return {k: str(post[k]).strip() for k in keys}
+
+
+def postable(submission: dict) -> None:
+    """Nothing to correct: a requisition with nothing live, so a post doesn't book it twice"""
+    if live := submission.get("live_entry"):
+        raise HTTPException(409, f"Transaction {live} is already live for this requisition: correct it instead")
 
 
 def correctable(submission: dict, given: str | None) -> str:
@@ -173,11 +199,19 @@ def post(id: str, body: dict):
     request = doc["request"]
     if not request["debit"]:
         return {"skipped": "reversal only"}
-    original = journal.entry(doc["entry"]).get()
-    on = date.fromisoformat(original["transaction_date"])
-    reference = original.get("reference_number") or doc["entry"]
-    what = said(id, this, doc, f"Correction of transaction {doc['entry']}")
-    posted = mifos.post(reference, request["debit"], request["credit"], on, what, code, original.get("tenant"))
+    if posting := request.get("post"):
+        # Filed as given, then the run, as Lekkai's posts end; in the tenant its first post would have gone to
+        on = date.fromisoformat(posting["transaction_date"])
+        reference = posting["reference"]
+        what = f"{posting['comments']} Workflow run: {this.ref.id}"
+        tenant = mifos.tenant(bool(store.submission(FORM, id).get().get("test")))
+    else:
+        original = journal.entry(doc["entry"]).get()
+        on = date.fromisoformat(original["transaction_date"])
+        reference = original.get("reference_number") or doc["entry"]
+        what = said(id, this, doc, f"Correction of transaction {doc['entry']}")
+        tenant = original.get("tenant")
+    posted = mifos.post(reference, request["debit"], request["credit"], on, what, code, tenant)
     transaction = posted["mifos_transaction_id"]
     this.record(
         status="posted",
@@ -195,7 +229,7 @@ def post(id: str, body: dict):
         reference,
         what,
         by=request["requested_by"],
-        tenant=original.get("tenant"),
+        tenant=tenant,
     )
     return posted
 
@@ -211,7 +245,9 @@ def confirm(id: str, body: dict):
     submission = store.submission(FORM, id).get()
     requisition = Requisition.model_validate(submission["answers"])
     request = doc["request"]
-    if doc.get("mifos_transaction_id"):
+    if posting := request.get("post"):
+        html, text = emails.posted_by_hand(id, doc["posted"], posting["reference"], request["requested_by"])
+    elif doc.get("mifos_transaction_id"):
         html, text = emails.corrected(
             id,
             doc["posted"],

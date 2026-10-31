@@ -1,4 +1,4 @@
-"""Actions: the thread told first, then the action kept and the submission done; and the API that starts them."""
+"""Actions: the thread told first, then the action kept and the submission's status set; and the API that starts them."""
 
 from datetime import UTC, datetime
 
@@ -18,7 +18,7 @@ from integrations import workflows
 from routers import actions
 from tests.firestore import Db
 
-DONE = {"kind": "done", "by": "tino@lekkacredit.com", "by_name": "Tino Petros", "comment": "Posted it by hand"}
+DONE = {"kind": "close", "by": "tino@lekkacredit.com", "by_name": "Tino Petros", "comment": "Duplicate of #6"}
 BUCKET = "ourfos-dev-attachments"
 FILE = f"gs://{BUCKET}/requisition/r/actions/ab12cd34.pdf"
 
@@ -47,24 +47,24 @@ def sent(monkeypatch):
     return sent
 
 
-def test_the_thread_hears_who_marked_it_done_how_and_its_files(docs, sent):
+def test_the_thread_hears_who_closed_it_why_and_its_files(docs, sent):
     actions.tell("requisition", "r", DONE | {"files": [FILE]})
     [(kind, html, text, thread)] = sent
-    assert kind == "done" and thread == {"thread_id": "t1"}
-    assert "Tino Petros marked this requisition done." in text and "Posted it by hand" in text
+    assert kind == "close" and thread == {"thread_id": "t1"}
+    assert "Tino Petros closed this requisition." in text and "Duplicate of #6" in text
     assert "/api/files?ref=gs%3A%2F%2Fourfos-dev-attachments%2Frequisition%2Fr%2Factions%2Fab12cd34.pdf" in html
     assert "history" in text
 
 
-def test_once_told_the_action_is_kept_and_the_requisition_is_done(docs):
+def test_once_told_the_action_is_kept_and_the_requisition_is_closed(docs):
     actions.record("requisition", "r", DONE | {"email": {"message_id": "m1", "thread_id": "t1"}})
     action = docs[("requisition", "r", "actions", "run-9")]
-    assert (action["kind"], action["by"], action["comment"]) == ("done", "tino@lekkacredit.com", "Posted it by hand")
+    assert (action["kind"], action["by"], action["comment"]) == ("close", "tino@lekkacredit.com", "Duplicate of #6")
     assert action["email"]["message_id"] == "m1"
-    assert docs[("requisition", "r")]["status"] == "done"
+    assert docs[("requisition", "r")]["status"] == "closed"
 
 
-@pytest.mark.parametrize("change", [{"comment": "  "}, {"kind": "close"}, {"by": ""}])
+@pytest.mark.parametrize("change", [{"comment": "  "}, {"kind": "done"}, {"kind": "disapprove"}, {"by": ""}])
 def test_an_action_needs_its_kind_who_and_a_comment(docs, sent, change):
     with pytest.raises(HTTPException) as e:
         actions.tell("requisition", "r", DONE | change)
@@ -102,39 +102,39 @@ def as_(monkeypatch, email):
 URL = "/api/forms/requisition/submissions/r/actions"
 
 
-def test_a_director_marks_a_handed_over_requisition_done_through_the_action_workflow(db, started, monkeypatch):
-    response = as_(monkeypatch, TINO).post(
-        URL, json={"kind": "done", "comment": " Posted it by hand ", "files": [FILE]}
-    )
+def test_a_director_closes_a_requisition_through_the_action_workflow(db, started, monkeypatch):
+    response = as_(monkeypatch, TINO).post(URL, json={"kind": "close", "comment": " Duplicate of #6 ", "files": [FILE]})
     assert response.json() == {"run": "e1"}
     [(workflow, argument)] = started
     assert workflow == "action"
     assert argument == {
         "form": "requisition",
         "id": "r",
-        "kind": "done",
+        "kind": "close",
         "by": TINO,
         "by_name": "Tino Petros",
-        "comment": "Posted it by hand",
+        "comment": "Duplicate of #6",
         "files": [FILE],
     }
 
 
 def test_nobody_else_may(db, started, monkeypatch):
-    assert as_(monkeypatch, ADA).post(URL, json={"kind": "done", "comment": "Done"}).status_code == 403 and not started
+    assert as_(monkeypatch, ADA).post(URL, json={"kind": "close", "comment": "Dup"}).status_code == 403 and not started
 
 
-def test_only_a_handed_over_one_with_a_comment_and_its_own_files(db, started, monkeypatch):
+def test_only_with_a_comment_its_own_files_and_not_once_closed(db, started, monkeypatch):
     client = as_(monkeypatch, TINO)
-    assert client.post(URL, json={"kind": "done", "comment": " "}).status_code == 422
+    assert client.post(URL, json={"kind": "close", "comment": " "}).status_code == 422
     assert (
         client.post(
-            URL, json={"kind": "done", "comment": "Done", "files": [f"gs://{BUCKET}/requisition/x/a.pdf"]}
+            URL, json={"kind": "close", "comment": "Dup", "files": [f"gs://{BUCKET}/requisition/x/a.pdf"]}
         ).status_code
         == 422
     )
-    db.docs[("requisitions", "r")]["status"] = "done"
-    assert client.post(URL, json={"kind": "done", "comment": "Done"}).status_code == 409
+    assert client.post(URL, json={"kind": "done", "comment": "Done"}).status_code == 422
+    for status in ("closed", "disapproved"):
+        db.docs[("requisitions", "r")]["status"] = status
+        assert client.post(URL, json={"kind": "close", "comment": "Dup"}).status_code == 409
     assert not started
 
 
@@ -147,7 +147,7 @@ def test_an_action_is_done_once_recorded_and_failed_with_its_runs_reason(db, mon
         "state": "failed",
         "reason": "gmail: 500",
     }
-    db.docs[("requisitions/r/actions", "e1")] = {"kind": "done"}
+    db.docs[("requisitions/r/actions", "e1")] = {"kind": "close"}
     assert client.get("/api/forms/requisition/submissions/r/actions/e1").json()["state"] == "done"
 
 
@@ -165,18 +165,18 @@ def test_a_submission_shows_its_actions_newest_first(db, monkeypatch):
 LOANS = "/api/forms/loan_approval/submissions/l/actions"
 
 
-def test_a_director_approves_without_a_word_but_disapproves_with_one(db, started, monkeypatch):
+def test_a_director_approves_without_a_word_but_closes_with_one(db, started, monkeypatch):
     db.docs[("loan_approvals", "l")] = {"status": "done"}
     client = as_(monkeypatch, TINO)
     assert client.post(LOANS, json={"kind": "approve"}).status_code == 200
-    assert client.post(LOANS, json={"kind": "disapprove"}).status_code == 422
-    assert client.post(LOANS, json={"kind": "disapprove", "comment": "Too large"}).status_code == 200
-    assert [a["kind"] for _, a in started] == ["approve", "disapprove"]
+    assert client.post(LOANS, json={"kind": "close"}).status_code == 422
+    assert client.post(LOANS, json={"kind": "close", "comment": "Too large"}).status_code == 200
+    assert [a["kind"] for _, a in started] == ["approve", "close"]
 
 
 def test_a_decided_one_isnt_decided_again_but_anyone_may_comment(db, started, monkeypatch):
     db.docs[("loan_approvals", "l")] = {"status": "approved"}
-    assert as_(monkeypatch, TINO).post(LOANS, json={"kind": "disapprove", "comment": "No"}).status_code == 409
+    assert as_(monkeypatch, TINO).post(LOANS, json={"kind": "close", "comment": "No"}).status_code == 409
     assert as_(monkeypatch, ADA).post(LOANS, json={"kind": "approve"}).status_code == 403
     assert as_(monkeypatch, ADA).post(LOANS, json={"kind": "comment", "comment": "Checked"}).status_code == 200
 
@@ -190,7 +190,7 @@ def test_a_requisition_is_neither_approved_nor_commented_on(db, started, monkeyp
     ("kind", "status", "said"),
     [
         ("approve", "approved", "approved this"),
-        ("disapprove", "disapproved", "disapproved this"),
+        ("close", "closed", "closed this"),
         ("comment", None, "commented on this"),
     ],
 )
@@ -202,20 +202,20 @@ def test_each_kind_says_what_it_did_and_leaves_its_status(docs, sent, kind, stat
     assert docs[("loan_approval", "l")]["status"] == (status or "done")
 
 
-def test_a_requisition_disapproved_has_its_live_entry_reversed_first(db, started, monkeypatch):
+def test_a_requisition_closed_has_its_live_entry_reversed_first(db, started, monkeypatch):
     db.docs[("requisitions", "r")] = {"status": "done", "live_entry": "L1"}
-    assert as_(monkeypatch, TINO).post(URL, json={"kind": "disapprove", "comment": "Not ours"}).status_code == 200
+    assert as_(monkeypatch, TINO).post(URL, json={"kind": "close", "comment": "Not ours"}).status_code == 200
     [(_, argument)] = started
-    assert argument["transaction_id"] == "L1" and argument["kind"] == "disapprove"
+    assert argument["transaction_id"] == "L1" and argument["kind"] == "close"
 
 
-def test_one_with_nothing_live_is_only_disapproved(db, started, monkeypatch):
+def test_one_with_nothing_live_is_only_closed(db, started, monkeypatch):
     db.docs[("requisitions", "r")] = {"status": "handed_over"}
-    as_(monkeypatch, TINO).post(URL, json={"kind": "disapprove", "comment": "Not ours"})
+    as_(monkeypatch, TINO).post(URL, json={"kind": "close", "comment": "Not ours"})
     assert "transaction_id" not in started[0][1]
 
 
 def test_its_email_names_the_reversal(docs, sent):
-    actions.tell("requisition", "r", DONE | {"kind": "disapprove", "reversal": {"entry": "L1", "by": "L2"}})
+    actions.tell("requisition", "r", DONE | {"reversal": {"entry": "L1", "by": "L2"}})
     text = sent[-1][2]
-    assert "disapproved this requisition." in text and "Reversed: L1" in text and "By transaction: L2" in text
+    assert "closed this requisition." in text and "Reversed: L1" in text and "By transaction: L2" in text

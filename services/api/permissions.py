@@ -26,15 +26,13 @@ POLICY: dict[str, list[str]] = {
     "forms:*:test": ["group:tech@lekkacredit.com"],
     "journal_entries:read": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
     "journal_entries:edit": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
-    # Finishing a handed-over requisition, as whoever corrects its entries may
-    "forms:requisition:resolve": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
-    # Deciding loan approvals and write-offs, and commenting on them. A requisition disapproved has its entry reversed,
-    # so it's for whoever may reverse one
+    # Deciding loan approvals and write-offs, and commenting on them. A requisition closed has its entry reversed, so
+    # it's for whoever may reverse one
     "forms:loan_approval:approve": ["group:directors@lekkacredit.com"],
     "forms:write_off:approve": ["group:directors@lekkacredit.com"],
-    "forms:loan_approval:disapprove": ["group:directors@lekkacredit.com"],
-    "forms:write_off:disapprove": ["group:directors@lekkacredit.com"],
-    "forms:requisition:disapprove": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
+    "forms:loan_approval:close": ["group:directors@lekkacredit.com"],
+    "forms:write_off:close": ["group:directors@lekkacredit.com"],
+    "forms:requisition:close": ["group:directors@lekkacredit.com", "user:consultant-zsaruchera@lekkacredit.com"],
     "forms:loan_approval:comment": [EVERYONE],
     "forms:write_off:comment": [EVERYONE],
     # The UI's feature flags, kept in each browser
@@ -45,9 +43,8 @@ POLICY: dict[str, list[str]] = {
 EXCLUDE: dict[str, list[str]] = {
     "journal_entries:read": ["user:lekkai@lekkacredit.com"],
     "journal_entries:edit": ["user:lekkai@lekkacredit.com"],
-    "forms:requisition:resolve": ["user:lekkai@lekkacredit.com"],
     "forms:*:approve": ["user:lekkai@lekkacredit.com"],
-    "forms:*:disapprove": ["user:lekkai@lekkacredit.com"],
+    "forms:*:close": ["user:lekkai@lekkacredit.com"],
 }
 
 # Every permission there is, for /me to list
@@ -55,7 +52,7 @@ PERMISSIONS = [
     *(
         f"forms:{form}:{action}"
         for form in FORMS
-        for action in ("read", "submit", "test", "resolve", "approve", "disapprove", "comment")
+        for action in ("read", "submit", "test", "approve", "close", "comment")
     ),
     "journal_entries:read",
     "journal_entries:edit",

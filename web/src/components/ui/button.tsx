@@ -19,6 +19,8 @@ const buttonVariants = cva(
 					'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
 				// Ours: what commits, like a form's submit. Destructive is what takes away, outline what's neither
 				success: 'bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500',
+				// Ours: a dialog's confirm for what takes away, solid so it's the step that looks weighty
+				danger: 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500',
 				link: 'text-primary underline-offset-4 hover:underline',
 			},
 			size: {

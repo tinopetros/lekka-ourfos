@@ -4,7 +4,6 @@ import { OpenFeature, TypedInMemoryProvider } from '@openfeature/web-sdk';
 /** What's not for everyone yet. Each is off until someone who may switches it on, for themselves, in this browser:
  * kept here only, never in the database. OpenFeature, so a provider that serves them from elsewhere can take over */
 export const FLAGS = {
-  corrections: { key: 'enable-corrections', label: 'Enable corrections' },
   approvals: { key: 'enable-approvals', label: 'Enable approvals and comments' },
   testsInLists: { key: 'enable-tests-in-lists', label: 'Enable tests in lists' },
   testSubmissions: { key: 'enable-test-submissions', label: 'Enable test submissions' },

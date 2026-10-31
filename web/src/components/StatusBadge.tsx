@@ -4,6 +4,7 @@ const TONES: Record<string, string> = {
   done: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   approved: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   disapproved: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
+  closed: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
   posted: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   corrected: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   live: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
@@ -25,7 +26,7 @@ export function StatusBadge({ status }: { status: string | null }) {
 }
 
 // Said by a person on Ourfos, so shown whether or not ourfos tracks the form
-const DECIDED = new Set(['approved', 'disapproved']);
+const DECIDED = new Set(['approved', 'closed', 'disapproved']);
 
 /** A submission's status, where ourfos tracks it or someone decided it. Elsewhere only that it was received: the rest
  * is in its emails */

@@ -2,6 +2,7 @@
 lack fields: a submission that failed validation has no answers. So whatever is missing comes back empty, never as an
 error. No database here: tests hand it documents of every shape."""
 
+from datetime import date
 from urllib.parse import quote
 
 from pydantic import ValidationError
@@ -24,6 +25,7 @@ from .models import (
     IntakeRun,
     JournalEntry,
     Line,
+    Posting,
     Run,
     RunBase,
     Submission,
@@ -32,7 +34,7 @@ from .models import (
 )
 
 # Each workflow's run, by the name the store gives it
-# An action's only run is a disapproved requisition's reversal, a correction with no lines
+# An action's only run is a closed requisition's reversal, a correction with no lines
 RUNS: dict[str, type[RunBase]] = {
     "expense": ExpenseRun,
     "correction": CorrectionRun,
@@ -138,6 +140,32 @@ def requisition_answers(values: dict, id: str) -> list[Answer]:
     return rows
 
 
+# Closed, under what closing was called on dev too: nothing more is posted
+CLOSED = {"closed", "disapproved"}
+
+
+def posting(form: str, doc: dict) -> Posting | None:
+    """A requisition with nothing live, as Lekkai would have posted it: filed under its reference number or response
+    number, on its disbursed date, its comments its subject and response number. The run is added as it posts"""
+    if form != "requisition" or doc.get("live_entry") or doc.get("status") in CLOSED or doc.get("status") == "draft":
+        return None
+    answers = doc.get("answers") or {}
+    number = answers.get("response_number")
+    try:
+        name = emails.form_name(form)
+    except KeyError:
+        # Run without Terraform's form names, as locally
+        name = FORMS[form].title
+    subject = " - ".join(str(p) for p in (name, answers.get("payable_to"), number and f"#{number}") if p)
+    disbursed = answers.get("disbursed_on")
+    return Posting(
+        reference=answers.get("reference_number") or (str(number) if number is not None else None),
+        transaction_date=date.fromisoformat(disbursed) if isinstance(disbursed, str) and disbursed else None,
+        comments=" ".join([f"Subject: {subject}.", *([f"Response number: {number}."] if number is not None else [])]),
+        tenant="demo" if doc.get("test") else None,
+    )
+
+
 def lines(xs: list[dict] | None) -> list[Line]:
     return [Line.model_validate(x) for x in xs or []]
 
@@ -208,6 +236,7 @@ def correction(doc: dict) -> dict:
             transaction_id=r.get("transaction_id"),
             debit=lines(r.get("debit")),
             credit=lines(r.get("credit")),
+            post=r.get("post"),
         )
         if r
         else None,
@@ -240,4 +269,5 @@ def submission(
         journal_entries=entries,
         draft=doc.get("draft") if doc.get("status") == "draft" else None,
         actions=sorted(actions, key=lambda a: (a.at is not None, a.at), reverse=True),
+        posting=posting(form, doc),
     )

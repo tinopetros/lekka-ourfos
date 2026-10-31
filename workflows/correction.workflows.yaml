@@ -1,7 +1,8 @@
 # A posted requisition, corrected: its live entry's mirror, then the corrected lines, and a reply in its thread. A run of its own on the submission. Its plumbing is lib.workflows.yaml's.
 #
 # Started through the Workflows API, with: id, the requisition's submission; reason; requested_by; and optionally
-# lines {debit, credit}, none for a reversal only, and transaction_id, which must be the live entry
+# lines {debit, credit}, none for a reversal only, and transaction_id, which must be the live entry. Or, where
+# nothing is live, post {reference, transaction_date, comments} with its lines and no reason: posted with no mirror
 
 main:
   params: [args]
@@ -65,6 +66,8 @@ process:
           - execution_id: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}
           - started: { thread: null, submission: null, test: false }
           - mifos_transaction_id: null
+          # A post reverses nothing
+          - reversal: { mifos_transaction_id: null }
     - run:
         try:
           steps:
@@ -82,6 +85,7 @@ process:
                         requested_by: ${map.get(args, "requested_by")}
                         lines: ${map.get(args, "lines")}
                         transaction_id: ${map.get(args, "transaction_id")}
+                        post: ${map.get(args, "post")}
                         simulate: ${simulate}
                         workflow: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")}
                         revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
@@ -103,6 +107,11 @@ process:
                               }
                     - rethrow:
                         raise: ${e}
+            # Nothing live: a post, with nothing to reverse first
+            - has_entry:
+                switch:
+                  - condition: ${started.entry == null}
+                    next: post
             - reverse:
                 call: post
                 args:
@@ -145,7 +154,7 @@ process:
             - done:
                 return:
                   {
-                    status: '${if(started.has_lines, "corrected", "reversed")}',
+                    status: '${if(started.entry == null, "done", if(started.has_lines, "corrected", "reversed"))}',
                     reversal: "${reversal.mifos_transaction_id}",
                     mifos_transaction_id: "${mifos_transaction_id}",
                   }

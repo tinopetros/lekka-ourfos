@@ -26,6 +26,7 @@ import { useFlag } from '@/lib/flags';
 import { useAction } from './actions';
 import { ActionButton } from './ActionButton';
 import { CorrectEntry } from './CorrectEntry';
+import { PostEntry } from './PostEntry';
 import { ReverseEntry } from './ReverseEntry';
 
 function AnswerValue({ answer }: { answer: Answer }) {
@@ -97,38 +98,28 @@ function JournalEntries({ s }: { s: Submission }) {
     // One under another, a line between them, the one you're over shaded
     <div className="divide-y [&>*]:-mx-3 [&>*]:rounded-md [&>*]:p-3 [&>*]:transition-colors [&>*:hover]:bg-muted/50">
       {entries.map((e) => (
-        <Entry key={e.transaction_id} e={e} live={e.transaction_id === s.live_entry} submission={s.id} />
+        <Entry key={e.transaction_id} e={e} live={e.transaction_id === s.live_entry} />
       ))}
     </div>
   );
 }
 
-function Entry({ e, live, submission }: { e: JournalEntry; live: boolean; submission: string }) {
+// Corrected, reversed or posted from the requisition's top row: here only a way to the entry's own page
+function Entry({ e, live }: { e: JournalEntry; live: boolean }) {
   const can = useCan();
-  const corrections = useFlag('corrections');
-  // One for both buttons: while either runs, neither starts another
-  const correction = useCorrection(submission);
   return (
     <EntrySummary
       e={e}
       live={live}
       titled
       action={
-        <>
-          {live && can('journal_entries:edit') && (
-            <>
-              {corrections && <CorrectEntry e={e} correction={correction} />}
-              <ReverseEntry transaction={e.transaction_id} correction={correction} />
-            </>
-          )}
-          {can('journal_entries:read') && (
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/journal/${e.transaction_id}`}>
-                Go to journal entry <ArrowRight />
-              </Link>
-            </Button>
-          )}
-        </>
+        can('journal_entries:read') && (
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/journal/${e.transaction_id}`}>
+              Go to journal entry <ArrowRight />
+            </Link>
+          </Button>
+        )
       }
     />
   );
@@ -148,7 +139,11 @@ function Event({ run }: { run: Run }) {
       <span className="absolute top-[18px] -left-[5px] size-2.5 rounded-full border-2 border-foreground/40 bg-background" />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">
-          {run.workflow === 'unknown' ? (run.name ?? TITLES.unknown) : TITLES[run.workflow]}
+          {run.workflow === 'unknown'
+            ? (run.name ?? TITLES.unknown)
+            : run.workflow === 'correction' && run.request?.post
+              ? 'Posted'
+              : TITLES[run.workflow]}
           {run.workflow === 'correction' && run.request?.requested_by && (
             <>
               {' '}
@@ -189,7 +184,8 @@ function Event({ run }: { run: Run }) {
         )}
         {(run.workflow === 'expense' || run.workflow === 'correction') && run.mifos_transaction_id && (
           <p>
-            {run.workflow === 'correction' ? 'Posted instead' : 'Posted'} <EntryLink id={run.mifos_transaction_id} />
+            {run.workflow === 'correction' && !run.request?.post ? 'Posted instead' : 'Posted'}{' '}
+            <EntryLink id={run.mifos_transaction_id} />
           </p>
         )}
         {run.emails.length > 0 && (
@@ -205,11 +201,13 @@ function Event({ run }: { run: Run }) {
   );
 }
 
-const DID: Record<ActionKind, string> = {
-  done: 'Marked done',
+// Done and disapprove were kept on dev before Post journal entry and Close
+const DID: Record<ActionKind | 'done' | 'disapprove', string> = {
   approve: 'Approved',
-  disapprove: 'Disapproved',
+  close: 'Closed',
   comment: 'Commented',
+  done: 'Marked done',
+  disapprove: 'Disapproved',
 };
 
 // Something a person did from Ourfos: who, when, what they said, and what they added
@@ -250,21 +248,35 @@ function History({ s }: { s: Submission }) {
   return <ol className="ml-1.5 border-l pl-0">{story.map((x) => x.item)}</ol>;
 }
 
-// What you may do to it, now: mark a handed-over one done, and with approvals on, decide it or comment
+// Closed, under what closing was called on dev too
+const DECIDED = new Set(['approved', 'closed', 'disapproved']);
+
+// What you may do to it, now: a requisition's live entry corrected or reversed, or with nothing live, posted; and with
+// approvals on, approved, closed or commented on
 function Actions({ form, s, noun }: { form: string; s: Submission; noun: string }) {
   const can = useCan();
   const approvals = useFlag('approvals');
   const action = useAction(form, s.id);
-  const decided = s.status === 'approved' || s.status === 'disapproved';
+  // One for the entry's buttons: while one runs, none starts another
+  const correction = useCorrection(s.id);
+  const decided = DECIDED.has(s.status ?? '');
+  const live = s.journal_entries.find((e) => e.transaction_id === s.live_entry);
+  const edits = form === 'requisition' && can('journal_entries:edit');
   const kinds: ActionKind[] = [
-    ...(s.status === 'handed_over' && can(`forms:${form}:resolve`) ? (['done'] as const) : []),
     ...(approvals && !decided && can(`forms:${form}:approve`) ? (['approve'] as const) : []),
-    ...(approvals && !decided && can(`forms:${form}:disapprove`) ? (['disapprove'] as const) : []),
     ...(approvals && can(`forms:${form}:comment`) ? (['comment'] as const) : []),
+    ...(approvals && !decided && can(`forms:${form}:close`) ? (['close'] as const) : []),
   ];
-  return kinds.map((kind) => (
-    <ActionButton key={kind} kind={kind} noun={noun} reverses={s.live_entry} action={action} />
-  ));
+  return (
+    <>
+      {edits && live && <CorrectEntry e={live} correction={correction} />}
+      {edits && live && <ReverseEntry transaction={live.transaction_id} correction={correction} />}
+      {edits && s.posting && <PostEntry posting={s.posting} correction={correction} />}
+      {kinds.map((kind) => (
+        <ActionButton key={kind} kind={kind} noun={noun} reverses={s.live_entry} action={action} />
+      ))}
+    </>
+  );
 }
 
 /** A submission on its own page. Its form while it's new or a draft, the same page throughout: what's typed stays

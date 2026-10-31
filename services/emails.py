@@ -339,6 +339,14 @@ def corrected(id: str, posted: dict, reversed_: str, reversal: str, reason: str,
     return action("Lekkai's action: corrected", link, rows, posted["lines"], disclaimer=False)
 
 
+def posted_by_hand(id: str, posted: dict, reference: str, requested_by: str) -> tuple[str, str]:
+    """A post made on Ourfos where nothing was live: what was posted, filed where, and by whom. A person's lines, so no
+    disclaimer."""
+    rows = [*entry_rows(posted, reference), ("Posted by", requested_by)]
+    link = view("requisition", id, "View the posting on Ourfos", "journal")
+    return action(f"{requested_by} posted the journal entry", link, rows, posted["lines"], disclaimer=False)
+
+
 def reversed_only(id: str, reversal: dict, reversed_: str, reason: str, requested_by: str) -> tuple[str, str]:
     """A correction with no lines: the entry is reversed, by the mirror shown, and nothing takes its place."""
     rows = [
@@ -367,9 +375,8 @@ def handover(form: str, reason: str, id: str | None = None) -> tuple[str, str]:
 
 # What each action says it did, and its line for when
 ACTED = {
-    "done": ("marked this {noun} done", "Marked done"),
     "approve": ("approved this {noun}", "Approved"),
-    "disapprove": ("disapproved this {noun}", "Disapproved"),
+    "close": ("closed this {noun}", "Closed"),
     "comment": ("commented on this {noun}", "Commented"),
 }
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -79,12 +79,32 @@ class CorrectRequest(ReverseRequest):
     lines: CorrectedLines
 
 
+class PostRequest(BaseModel):
+    """Lines for a requisition with nothing live, and where Mifos files them: no reason, since it corrects nothing."""
+
+    lines: CorrectedLines
+    reference: str
+    transaction_date: date
+    comments: str
+
+
+class Posting(Model):
+    """What a requisition with nothing live would be posted as, from its answers, as Lekkai would have: each as the
+    dialog starts, None where the requisition doesn't say. Its tenant is demo for a test, else None, the
+    environment's own"""
+
+    reference: str | None
+    transaction_date: date | None
+    comments: str
+    tenant: str | None = None
+
+
 class ActionRequest(BaseModel):
     """What's done to a submission, said in its thread with its comment, and any files that show it: refs from
-    uploading them first. Done finishes a handed-over requisition; approve, disapprove and comment are for loan
-    approvals and write-offs."""
+    uploading them first. Approve and comment are for loan approvals and write-offs; close is for them and
+    requisitions."""
 
-    kind: Literal["done", "approve", "disapprove", "comment"]
+    kind: Literal["approve", "close", "comment"]
     comment: str = ""
     files: list[str] = []
 
@@ -103,7 +123,8 @@ class ActionState(Model):
 
 
 class Action(Model):
-    """What a person did to a submission from the UI, once its thread was told: done, for now."""
+    """What a person did to a submission from the UI, once its thread was told. Done and disapprove, kept on dev
+    before Post journal entry and close, still show"""
 
     id: str
     kind: str
@@ -222,6 +243,8 @@ class CorrectionRequest(Model):
     transaction_id: str | None = None
     debit: list[Line] = []
     credit: list[Line] = []
+    # A post's, where nothing was live: its reference, transaction date and comments
+    post: dict[str, str] | None = None
 
 
 class RunBase(Model):
@@ -315,6 +338,8 @@ class Submission(SubmissionSummary):
     journal_entries: list[JournalEntry] = []
     # What people did to it, the newest first
     actions: list[Action] = []
+    # A requisition's, while nothing is live and it isn't closed
+    posting: Posting | None = None
 
 
 class SubmissionPage(Model):

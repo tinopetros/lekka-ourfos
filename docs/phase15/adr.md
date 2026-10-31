@@ -145,6 +145,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
   switch while the flag is off, so it can be unmarked
 - Corrections are behind one after a post Mifos dropped (ADR 14): reversals stay for everyone who may edit entries
 
+Changed: corrections are live for everyone who may edit entries, and Enable corrections is gone (ADR 18).
+
 ### 16. Actions: done, approve, disapprove and comment, side effects first
 
 - A person acts on a submission from its page's top row, each button named in full: Mark as done on a handed-over
@@ -164,6 +166,8 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - Not taken: **recording first and emailing after.** A record of something nobody was told is the worse failure. Nor
   ourfos-api asking the services to email: a second route, and a write, through the caller check
 
+Changed: Mark as done is replaced by Post journal entry (ADR 19), and Disapprove by Close (ADR 20).
+
 ### 17. A dialog that changes something is left only by its own buttons
 
 - Correct, Reverse, every action, and the form's discard and submit: no ×, and neither a click outside nor Escape
@@ -171,3 +175,70 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - They say what's in the way when you try, beside what's missing: a comment or reason, an account, debits that don't
   balance, or corrected lines still the entry's own. A reason alone corrects nothing
 - Weightier ones become steps, with a review before anything is sent: #53
+
+### 18. Corrections go live
+
+- Ten corrections on dev, each post on a connection of its own (ADR 14), all landed in 10–14s with no uncertain post,
+  so Correct journal entry is for everyone who may edit entries, and Enable corrections is retired
+- Correct and Reverse journal entry are done on the requisition, from its top row with the other actions, rather
+  than on the entry. Every action button there is outline, in its own color; only the dialog's own confirm is solid,
+  so the step that sends something is the one that looks weighty
+
+### 19. Post journal entry, where nothing is live
+
+- Replaces Mark as done, which only said someone had dealt with it elsewhere. Shown on a requisition with no live
+  entry: handed over the first time, or left reversed with nothing posted after (#893). The server refuses one that
+  has a live entry, so a stale page can't post twice
+- The correction's dialog, sharing its lines editor, with no lines to start from: one empty debit and one empty
+  credit. Reference, transaction date and Mifos comments are filled in as Lekkai would have posted them, from the
+  requisition (its reference number or response number, its disbursed date, its subject and response number), and
+  shown so they can be checked and changed. Only what the requisition lacks is asked for. No reason is asked: a
+  handover isn't the poster's fault. The run's id is added to the comments when it posts, as Lekkai's are
+- The correction workflow posts it, without the reversal: the same fresh connection, the reply in the thread, the
+  live entry set and the requisition done. A test requisition's goes to demo, as its first post would have. Who:
+  whoever may edit entries, as for corrections
+- Mark as done's records stay in History, still labelled as they were
+- Disapprove is renamed Close here already, everywhere and in the store (kind `close`, status `closed`, permission
+  `forms:<form>:close`), since it was only ever used on dev; who may close is unchanged until follow-up 5
+
+### 20. Close, Comment for anyone, and every email's available next steps (planned: follow-up 5)
+
+Decided here so it isn't lost; built in phase 15's fifth follow-up.
+
+- **Close replaces Disapprove**, everywhere and in the store: kind `close`, status `closed`, permission
+  `forms:<form>:close`, renamed already in follow-up 4. It's for whatever is disapproved, a mistake or a duplicate. Closing a requisition reverses its
+  live entry first, so Reverse journal entry goes. Disapprovals already kept on dev keep their label in History; none
+  were made on prod
+- **Who:** Comment for anyone who can read the record, every form, requisitions included; the API checks nothing
+  more. Close for anyone who can read it too, so someone can close one on a submitter's behalf, except a requisition
+  with a live entry: closing that reverses it in Mifos, so only accountants and directors may. Approve on loan
+  approvals and write-offs for directors
+- **Approve doesn't move the status:** it's recorded and shown, and the record stays received. Some approvals need one
+  director and some two; that rule is #57. The same director can't approve twice
+- **Available next steps** end every email in a thread, under a short rule (about 120px, `---` in plain text), not one
+  across the page. By role, each action linked; actions anyone can take share an Anyone row, not repeated per role:
+  - Requisitions: Accountant and Directors: Correct journal entry (Post journal entry when nothing is live) | Close
+    when a live entry would be reversed. Anyone: Comment | Close
+  - Loan approvals and write-offs: Directors: Approve. Anyone: Comment | Close
+  - The note under them, for example: "Use the links above to correct, comment on or close this requisition in Ourfos
+    instead of replying in Gmail. Ourfos will send the email notifications for you." Its verbs are those listed
+- **One function decides what's available**, from the form, the record's state and the features on: the footer, the
+  top-row buttons and the API's checks all use it, so an email never offers what the page or the API would refuse. A
+  closed record lists none
+- **A link opens its dialog:** `?action=<kind>` on the record's page opens that dialog once the record loads, IAP's
+  sign-in keeping the URL. Cancel or a send takes the param off by replacing history, so a refresh or Back doesn't
+  reopen it. One no longer possible, or not yours, opens nothing and says so, leading with what was tried: "You
+  can't close this: this requisition is already closed"
+
+### 21. Backend features, per environment, in Terraform (planned: follow-up 5)
+
+- A feature with server-side parts is switched per environment in Terraform: a `features` map in each environment's
+  variables, handed to ourfos-api and ourfos-services as `FEATURES`, since ourfos-services sends the emails that list
+  next steps. Changing one is a PR and a Cloud Build apply, reviewed and on record. The API refuses an action whose
+  feature is off; the footer and the buttons leave it out
+- ourfos-api serves them at `/api/features`; the front end loads them into the same OpenFeature flags, read-only.
+  Browser switches (ADR 15) stay for front-end-only ones: tests in lists, test submissions
+- `approvals` is the first, moving from the browser: Approve, Comment, Close and the footer. On on dev, off on prod
+  until prod's variables say otherwise. Post and Correct journal entry aren't behind it
+- Not taken: a Firestore config doc, which flips without a deploy but needs a screen and a history of its own; a flag
+  service, too much for a handful. OpenFeature leaves the way open to one
