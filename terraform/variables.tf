@@ -87,8 +87,8 @@ variable "mifos_syncs" {
   type        = map(object({ schedule = string }))
   default     = {}
   validation {
-    condition     = alltrue([for k in keys(var.mifos_syncs) : contains(["clients", "loans"], k)])
-    error_message = "The mifos sync knows clients and loans only."
+    condition     = alltrue([for k in keys(var.mifos_syncs) : contains(["clients", "loans", "manual_journal_entries"], k)])
+    error_message = "The mifos sync knows clients, loans and manual_journal_entries only."
   }
   validation {
     condition     = length(var.mifos_syncs) == 0 || var.project_id == "ourfos-prod"

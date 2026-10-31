@@ -1,4 +1,4 @@
-# Mifos's clients and loans into the mifos bucket, one kind a run, each night from Cloud Scheduler. Its plumbing is
+# Mifos's clients, loans and manual journal entries into the mifos bucket, one kind a run, each night from Cloud Scheduler. Its plumbing is
 # lib.workflows.yaml's. Never retried: Mifos is easily overwhelmed, a failed night writes nothing, and the next one
 # catches up
 

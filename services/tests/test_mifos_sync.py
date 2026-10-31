@@ -29,9 +29,21 @@ class Listing:
         return {"pageItems": self.world["mifos"][start : start + params["limit"]], "totalFilteredRecords": 1}
 
 
+class Journal:
+    def __init__(self, world):
+        self.world = world
+
+    def list(self, params):
+        self.world["asked"].append(params)
+        assert params["manualEntriesOnly"] is True
+        found = [x for x in self.world["journal"] if params["fromDate"] <= x["transactionDate"] <= params["toDate"]]
+        return {"pageItems": found[params["offset"] : params["offset"] + params["limit"]]}
+
+
 class Client:
     def __init__(self, world):
         self.loans = self.clients = Listing(world)
+        self.journal_entries = Journal(world)
 
     def __enter__(self):
         return self
@@ -42,7 +54,7 @@ class Client:
 
 @pytest.fixture
 def world(monkeypatch):
-    world = {"mifos": [], "asked": [], "bucket": {}, "timeouts": []}
+    world = {"mifos": [], "journal": [], "asked": [], "bucket": {}, "timeouts": []}
     monkeypatch.setenv("MIFOS_BUCKET", "ourfos-prod-mifos")
     monkeypatch.setattr(mifos_sync, "PAGE", 2)
     world["clock"] = iter([])
@@ -159,3 +171,61 @@ def test_only_clients_and_loans(world):
     with pytest.raises(HTTPException) as e:
         mifos_sync.run("journal_entries")
     assert e.value.status_code == 404
+
+
+def line(id, txn, on, by="ZSaruchera"):
+    return {"id": id, "transactionId": txn, "transactionDate": on, "createdByUserName": by}
+
+
+def on(monkeypatch, day):
+    class Today(mifos_sync.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return mifos_sync.datetime.fromisoformat(f"{day}T05:30:00+02:00")
+
+    monkeypatch.setattr(mifos_sync, "datetime", Today)
+
+
+def test_last_month_is_read_again_only_in_a_month_s_first_week():
+    from datetime import date
+
+    assert mifos_sync.months(date(2026, 11, 3)) == [
+        (date(2026, 10, 1), date(2026, 10, 31)),
+        (date(2026, 11, 1), date(2026, 11, 30)),
+    ]
+    assert mifos_sync.months(date(2026, 11, 8)) == [(date(2026, 11, 1), date(2026, 11, 30))]
+    assert mifos_sync.months(date(2026, 3, 1))[0] == (date(2026, 2, 1), date(2026, 2, 28))
+
+
+def test_a_night_rewrites_only_this_month_and_counts_new_and_gone(world, monkeypatch):
+    on(monkeypatch, "2026-11-20")
+    older = "manual_journal_entries/from=2026-10-01/lines.jsonl"
+    world["bucket"][older] = "untouched\n"
+    this = "manual_journal_entries/from=2026-11-01/lines.jsonl"
+    world["bucket"][this] = (
+        json.dumps(line(1, "T1", "2026-11-02")) + "\n" + json.dumps(line(2, "T9", "2026-11-03")) + "\n"
+    )
+    world["journal"] = [
+        line(1, "T1", "2026-11-02"),
+        line(3, "T2", "2026-11-19", "lekkai@lekkacredit.com"),
+        line(4, "T0", "2026-10-30"),
+    ]
+    result = mifos_sync.run("manual_journal_entries")
+    assert world["bucket"][older] == "untouched\n"
+    assert [x["transactionId"] for x in lines(world, this)] == ["T1", "T2"]
+    (record,) = result["ranges"]
+    assert (record["from"], record["to"], record["complete"]) == ("2026-11-01", "2026-11-30", False)
+    assert (record["transactions"], record["new"], record["gone"]) == (2, 1, 1)
+    assert record["people"] == ["ZSaruchera", "lekkai@lekkacredit.com"]
+    assert lines(world, "manual_journal_entries/_perf.jsonl")[-1]["from"] == "2026-11-01"
+
+
+def test_in_a_month_s_first_week_last_month_is_finished_off_first(world, monkeypatch):
+    on(monkeypatch, "2026-11-02")
+    world["journal"] = [line(1, "T1", "2026-10-31"), line(2, "T2", "2026-11-01")]
+    result = mifos_sync.run("manual_journal_entries")
+    assert [(r["from"], r["transactions"], r["complete"]) for r in result["ranges"]] == [
+        ("2026-10-01", 1, True),
+        ("2026-11-01", 1, False),
+    ]
+    assert world["slept"] == [mifos_sync.PAUSE]

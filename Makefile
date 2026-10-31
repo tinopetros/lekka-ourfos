@@ -63,7 +63,7 @@ help:
 	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [MIFOS=false] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
 	@echo "                         wait, show its logs. TEST=1: a test run. MIFOS=false: posting off. SUBMISSION: run on that submission again"
 	@echo "make correct ID=<submission> [FIXTURE=correct]  run workflows/fixtures/requisition/corrections/<FIXTURE>.json on a requisition, and wait"
-	@echo "make mifos-sync KIND=loans  the nightly mifos sync of clients or loans, by hand, and wait (prod only)"
+	@echo "make mifos-sync KIND=loans  the nightly mifos sync of clients, loans or manual_journal_entries, by hand (prod only)"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               the UI turns away whoever isn't signed in, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
@@ -168,7 +168,7 @@ correct-start: check-env
 correct:
 	@id=$$($(MAKE) -s correct-start) && echo "execution $$id" && $(MAKE) -s wait WORKFLOW=correction ID=$$id
 
-# The nightly mifos sync of one kind, clients or loans, by hand: prod only, since dev mirrors nothing from Mifos
+# The nightly mifos sync of one kind, clients, loans or manual_journal_entries, by hand: prod only, since dev mirrors nothing from Mifos
 mifos-sync: check-env
 	@id=$$(gcloud workflows execute mifos-sync --location $(REGION) --project $(PROJECT) \
 		--data '{"kind": "$(KIND)"}' --format 'value(name)' | awk -F/ '{print $$NF}') \

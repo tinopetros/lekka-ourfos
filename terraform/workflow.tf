@@ -1,6 +1,7 @@
 # expense for requisitions, intake for every form that's only received and acknowledged (docs/phase10/tdd.md),
 # correction for a posted requisition (docs/phase12/tdd.md), action for what a person does from the UI, such as
-# marking a handed-over requisition done, and mifos-sync for Mifos's clients and loans into the mifos bucket.
+# marking a handed-over requisition done, and mifos-sync for Mifos's clients, loans and manual
+# journal entries into the mifos bucket.
 # Each gets lib's plumbing under its own steps: all are maps of subworkflows (docs/phase10/adr.md 2)
 resource "google_workflows_workflow" "this" {
   for_each                = toset(["expense", "intake", "correction", "action", "mifos-sync"])

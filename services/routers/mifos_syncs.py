@@ -1,4 +1,4 @@
-"""What the mifos-sync workflow calls each night, one kind a run: clients, loans."""
+"""What the mifos-sync workflow calls each night, one kind a run: clients, loans, manual_journal_entries."""
 
 from fastapi import APIRouter
 
