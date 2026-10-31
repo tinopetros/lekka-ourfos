@@ -73,9 +73,9 @@ Draft.
 - All of history once, by hand, a kind of data at a time, watched, and stopped at the first sign of strain (ADR 3)
 - Then scheduled jobs each night, catching up on that day. Clients and loans first (ADR 9): a whole list is a few
   pages, read gently in two minutes, so they needed no backfill beyond their first fetch
-- Manual journal entries back to Jan 2022 once Mifos is free of hand work again, a month a read. Lekka's data starts no earlier:
-  the oldest client was activated on 28 Oct 2022, the first loan disbursed the same day. Six empty months in a row
-  stop it sooner
+- Manual journal entries back to Jan 2022, a year a run, a month a read: done Oct 31. Lekka's lending starts on
+  28 Oct 2022, the oldest client's activation and the first disbursement, but April 2022 already has 4 entries, so
+  2021 may hold setup entries too: one read would tell
 
 ### 8. The sync into Firestore is replaced by the mifos sync
 
@@ -87,11 +87,14 @@ Draft.
   only it used
 - Closes phase 12 ADRs 6 and 7
 
-### 9. The mifos sync: clients and loans each night, prod only, never retried
+### 9. The mifos sync: clients, loans and manual journal entries each night, prod only, never retried
 
 - Named for what it does and where from: `mifos-sync`, the workflow, `/mifos-sync/{kind}` on the services, one Cloud
   Scheduler job a kind. Kept as ADR 6 says, under `clients/` and `loans/`. #55
-- 22:30 for clients and 22:45 for loans, **New York time**: 05:30–05:45 in Harare in winter, 04:30–04:45 in summer.
+- Manual journal entries too: this month's file rewritten each night, and in a month's first 7 days last month's
+  too, for entries booked late with past dates. Months by Harare's date, as Mifos books. Every older month is left as
+  the backfill wrote it
+- 22:30 for clients, 22:45 for loans and 23:00 for manual journal entries, **New York time**: 05:30–05:45 in Harare in winter, 04:30–04:45 in summer.
   Quiet in both, Harare above all since most use is there. After Mifos's own midnight jobs in Harare (accruals,
   penalties, arrears ageing, running balances, done by 00:08 on Oct 31), so the night's overdue figures are that day's,
   and clear of its SMS jobs at 05:00 there. Read off Mifos's `/jobs`, which took 31s

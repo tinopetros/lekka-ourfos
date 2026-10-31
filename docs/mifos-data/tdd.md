@@ -52,7 +52,9 @@ Implementation is worked out as we go.
   (October still open). Every read one page, 2.7–2.9s, but for one week at 21s, a week that timed out at 65s and
   read in 2.9s an hour later, and April cut off once and read in 2.8s minutes after. ZSaruchera booked nearly all;
   lekkai@ 3 in April, 2 in May and 14 in October; TPSuperUser 3 in April and 2 in May
-- Manual journal entries, 2022–2025: not yet, paused while Mifos is worked on by hand
+- Manual journal entries, 2022–2025, Oct 31, a year a run: 2025 1,300 transactions, 2024 624, 2023 336, 2022 41.
+  48 months, every read one page, 2.7–4.1s, no cut-offs. Nothing from Jan to Mar 2022, 4 in April 2022 (six months
+  before the first client), then none until October. In all: 64 files, 2,852 transactions, 5,982 lines
 - Clients, Oct 31: 353 (352 active, 1 closed) across Head Office, Belvedere, Kadoma and Marondera. 2 pages, about 1s
   each. First snapshot, `latest/` and the change log, as ADR 6. Nightly from #55, once released
 - Loans, Oct 31: 1,379, without associations, 7 pages of 1.2–1.4s, 6.2 MB. Kept as clients are, nightly from #55. A loan read with
