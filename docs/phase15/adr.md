@@ -102,3 +102,15 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - An entry's own tenant, or the services' when it has none. Prod reads `demo` only to correct a test entry, as it
   posts there only for a test run (ADR 8)
 - Not taken: **reading them only at startup.** We scale to zero, so that would be more often, not less
+
+### 11. Google's APIs bill the caller's own project
+
+- The directory and groups reads name no project to bill. On Cloud Run, ourfos-api@ bills its own, which takes no
+  right. Naming one takes `serviceusage.services.use`, so every name lookup was a 403 and showed the email
+- Locally, your ADC names its own, once: `gcloud auth application-default set-quota-project ourfos-dev`
+- Not taken: **granting ourfos-api@ `serviceUsageConsumer`.** A right it needs only because the code asked for it
+
+### 12. A name is asked for again after a week
+
+- Names rarely change: a day asked the directory seven times as often for nothing. Overrides release 1 ADR 5 in part
+- As before, a name saved stands when the directory can't say, and local reads dev's, so it falls back to it too

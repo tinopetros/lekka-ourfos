@@ -61,7 +61,7 @@ workflows/         the definitions, their shared lib, and fixtures per form for 
 make web
 ```
 
-The UI on http://localhost:5173, against the API run on your machine as your ADC account, reading dev's Firestore. It installs and makes the types first. `make types` after changing the API's models. See [phase 13](phase13/tdd.md).
+The UI on http://localhost:5173, against the API run on your machine as your ADC account, reading dev's Firestore. It installs and makes the types first. Your ADC names the project its directory and groups reads bill, once: `gcloud auth application-default set-quota-project ourfos-dev`. `make types` after changing the API's models. See [phase 13](phase13/tdd.md).
 
 ## Testing by hand
 

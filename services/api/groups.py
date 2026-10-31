@@ -3,7 +3,6 @@ it in the Admin console. Nested groups count, walked up one level at a time: the
 only. Kept 5 minutes a person, so a change in a group shows within 5 minutes."""
 
 import functools
-import os
 import threading
 import time
 
@@ -27,12 +26,8 @@ _lock = threading.Lock()
 
 @functools.cache
 def session() -> AuthorizedSession:
-    credentials, project = google.auth.default(
-        scopes=["https://www.googleapis.com/auth/cloud-identity.groups.readonly"]
-    )
-    # Locally, your own account's: Cloud Identity bills a quota project, which user credentials don't have by default
-    if not getattr(credentials, "quota_project_id", None) and hasattr(credentials, "with_quota_project"):
-        credentials = credentials.with_quota_project(os.environ.get("GOOGLE_CLOUD_PROJECT", project))
+    # Billed to the account's own project, as for names. Locally, your ADC names its own
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-identity.groups.readonly"])
     return AuthorizedSession(credentials)
 
 
