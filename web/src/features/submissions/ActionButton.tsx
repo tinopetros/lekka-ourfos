@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Loader2, MessageSquare, Paperclip, X } from 'lucide-react';
+import { Check, Loader2, MessageSquare, Paperclip, X } from 'lucide-react';
 import { useRef, useState, type ComponentProps } from 'react';
 import { ConfirmContent } from '@/components/ConfirmContent';
 import { Button } from '@/components/ui/button';
@@ -14,53 +14,49 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { ActionKind } from '@/lib/api/types';
+import { TONE } from '@/lib/styles';
 import type { useAction } from './actions';
 
 type Variant = ComponentProps<typeof Button>['variant'];
 
-// Each action's button, dialog and comment. All but an approval say why
+// Each action's button, in its color, its dialog's confirm, and its comment. All but an approval say why
 const KINDS: Record<
   ActionKind,
   {
     label: string;
     icon: typeof Check;
-    variant: Variant;
+    tone: keyof typeof TONE;
+    confirm: Variant;
     asks: string;
     placeholder: string;
     needed: boolean;
     missing?: string;
   }
 > = {
-  done: {
-    label: 'Mark as done',
-    icon: CheckCheck,
-    variant: 'success',
-    asks: 'How it was finished',
-    placeholder: 'e.g. Posted the corrected lines in Mifos by hand',
-    needed: true,
-    missing: 'Say how it was finished to mark it done.',
-  },
   approve: {
     label: 'Approve',
     icon: Check,
-    variant: 'success',
+    tone: 'success',
+    confirm: 'success',
     asks: 'Comment',
     placeholder: 'Anything to add, if you like',
     needed: false,
   },
-  disapprove: {
-    label: 'Disapprove',
+  close: {
+    label: 'Close',
     icon: X,
-    variant: 'destructive',
-    asks: 'Why it’s disapproved',
-    placeholder: 'e.g. Not a business expense',
+    tone: 'danger',
+    confirm: 'danger',
+    asks: 'Why it’s closed',
+    placeholder: 'e.g. Disapproved, a mistake or a duplicate',
     needed: true,
-    missing: 'A reason is needed to disapprove it.',
+    missing: 'A reason is needed to close it.',
   },
   comment: {
     label: 'Comment',
     icon: MessageSquare,
-    variant: 'outline',
+    tone: 'neutral',
+    confirm: 'default',
     asks: 'Comment',
     placeholder: 'e.g. Checked the client’s statements',
     needed: true,
@@ -78,7 +74,7 @@ export function ActionButton({
 }: {
   kind: ActionKind;
   noun: string;
-  // A requisition's live entry, which disapproving it reverses
+  // A requisition's live entry, which closing it reverses
   reverses?: string | null;
   action: ReturnType<typeof useAction>;
 }) {
@@ -92,18 +88,18 @@ export function ActionButton({
   const busy = action.isPending && action.variables.kind === kind;
   const Icon = k.icon;
   const what: Record<ActionKind, string> = {
-    done: `This ${noun} will be marked done, and its thread told how.`,
     approve: `This ${noun} will be approved, and its thread told.`,
-    disapprove: reverses
-      ? `Transaction ${reverses} will be reversed in Mifos first: the same lines, debits and credits swapped, on the same date. Then this ${noun} is disapproved, and its thread told why.`
-      : `This ${noun} will be disapproved, and its thread told why.`,
+    close: reverses
+      ? `Transaction ${reverses} will be reversed in Mifos first: the same lines, debits and credits swapped, on the same date. Then this ${noun} is closed, and its thread told why.`
+      : `This ${noun} will be closed, and its thread told why.`,
     comment: `Your comment goes on this ${noun}'s history and to its thread.`,
   };
   return (
     <>
       <Button
-        variant={k.variant}
+        variant="outline"
         size="sm"
+        className={TONE[k.tone]}
         disabled={action.isPending}
         onClick={() => {
           setComment('');
@@ -165,7 +161,7 @@ export function ActionButton({
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button
-              variant={k.variant === 'outline' ? 'default' : k.variant}
+              variant={k.confirm}
               disabled={action.isPending}
               onClick={() => {
                 if (missing) {

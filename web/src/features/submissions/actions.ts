@@ -9,9 +9,8 @@ const WAIT = 5 * 60_000;
 
 // What each says, as it runs, once it has, and when it hasn't
 export const SAID: Record<ActionKind, { doing: string; done: string; not: string }> = {
-  done: { doing: 'Marking it done…', done: 'Marked done', not: 'Not marked done' },
   approve: { doing: 'Approving…', done: 'Approved', not: 'Not approved' },
-  disapprove: { doing: 'Disapproving…', done: 'Disapproved', not: 'Not disapproved' },
+  close: { doing: 'Closing…', done: 'Closed', not: 'Not closed' },
   comment: { doing: 'Commenting…', done: 'Comment sent', not: 'Comment not sent' },
 };
 

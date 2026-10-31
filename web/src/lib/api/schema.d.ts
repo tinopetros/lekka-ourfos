@@ -262,6 +262,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/forms/requisition/submissions/{id}/post': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Post Entry
+     * @description Lines for a requisition with nothing live, filed as given: the correction workflow with nothing to reverse.
+     *     Refused where something is live, so a stale page can't post it twice, or where it's closed
+     */
+    post: operations['post_entry'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/accounts': {
     parameters: {
       query?: never;
@@ -386,7 +407,8 @@ export interface components {
     };
     /**
      * Action
-     * @description What a person did to a submission from the UI, once its thread was told: done, for now.
+     * @description What a person did to a submission from the UI, once its thread was told. Done and disapprove, kept on dev
+     *     before Post journal entry and close, still show
      */
     Action: {
       /** Id */
@@ -408,15 +430,15 @@ export interface components {
     /**
      * ActionRequest
      * @description What's done to a submission, said in its thread with its comment, and any files that show it: refs from
-     *     uploading them first. Done finishes a handed-over requisition; approve, disapprove and comment are for loan
-     *     approvals and write-offs.
+     *     uploading them first. Approve and comment are for loan approvals and write-offs; close is for them and
+     *     requisitions.
      */
     ActionRequest: {
       /**
        * Kind
        * @enum {string}
        */
-      kind: 'done' | 'approve' | 'disapprove' | 'comment';
+      kind: 'approve' | 'close' | 'comment';
       /**
        * Comment
        * @default
@@ -529,6 +551,10 @@ export interface components {
        * @default []
        */
       credit: components['schemas']['Line'][];
+      /** Post */
+      post: {
+        [key: string]: string;
+      } | null;
     };
     /**
      * CorrectionRun
@@ -812,6 +838,38 @@ export interface components {
       name: string | null;
     };
     /**
+     * PostRequest
+     * @description Lines for a requisition with nothing live, and where Mifos files them: no reason, since it corrects nothing.
+     */
+    PostRequest: {
+      lines: components['schemas']['CorrectedLines'];
+      /** Reference */
+      reference: string;
+      /**
+       * Transaction Date
+       * Format: date
+       */
+      transaction_date: string;
+      /** Comments */
+      comments: string;
+    };
+    /**
+     * Posting
+     * @description What a requisition with nothing live would be posted as, from its answers, as Lekkai would have: each as the
+     *     dialog starts, None where the requisition doesn't say. Its tenant is demo for a test, else None, the
+     *     environment's own
+     */
+    Posting: {
+      /** Reference */
+      reference: string | null;
+      /** Transaction Date */
+      transaction_date: string | null;
+      /** Comments */
+      comments: string;
+      /** Tenant */
+      tenant: string | null;
+    };
+    /**
      * Problem
      * @description What's wrong, and where: a question's name, or nothing for the whole form.
      */
@@ -904,6 +962,7 @@ export interface components {
        * @default []
        */
       actions: components['schemas']['Action'][];
+      posting: components['schemas']['Posting'] | null;
     };
     /** SubmissionPage */
     SubmissionPage: {
@@ -1490,6 +1549,41 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': components['schemas']['CorrectRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Reversing'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  post_entry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PostRequest'];
       };
     };
     responses: {

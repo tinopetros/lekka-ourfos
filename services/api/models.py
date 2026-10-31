@@ -243,6 +243,8 @@ class CorrectionRequest(Model):
     transaction_id: str | None = None
     debit: list[Line] = []
     credit: list[Line] = []
+    # A post's, where nothing was live: its reference, transaction date and comments
+    post: dict[str, str] | None = None
 
 
 class RunBase(Model):

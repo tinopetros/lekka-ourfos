@@ -236,6 +236,7 @@ def correction(doc: dict) -> dict:
             transaction_id=r.get("transaction_id"),
             debit=lines(r.get("debit")),
             credit=lines(r.get("credit")),
+            post=r.get("post"),
         )
         if r
         else None,

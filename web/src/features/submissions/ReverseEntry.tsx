@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { TONE } from '@/lib/styles';
 import type { useCorrection } from './api';
 
 export const REVERSE_TIP =
@@ -42,6 +43,7 @@ export function ReverseEntry({
           <Button
             variant="outline"
             size="sm"
+            className={TONE.danger}
             disabled={correction.isPending}
             onClick={() => {
               setTried(false);
@@ -90,7 +92,7 @@ export function ReverseEntry({
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button
-              variant="destructive"
+              variant="danger"
               disabled={correction.isPending}
               onClick={() => {
                 if (missing) {

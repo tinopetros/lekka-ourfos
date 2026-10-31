@@ -30,6 +30,7 @@ const RECORD: Submission = {
   journal_entries: [],
   draft: null,
   actions: [],
+  posting: null,
 };
 
 function open(
