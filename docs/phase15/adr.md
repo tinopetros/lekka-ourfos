@@ -166,7 +166,7 @@ Changed: corrections are live for everyone who may edit entries, and Enable corr
 - Not taken: **recording first and emailing after.** A record of something nobody was told is the worse failure. Nor
   ourfos-api asking the services to email: a second route, and a write, through the caller check
 
-Changed: Mark as done is replaced by Post journal entry (ADR 19), and Disapprove by Close (ADR 20).
+Changed: Mark as done is replaced by Post journal entry (ADR 19), and Disapprove by Close, to become Void (ADR 20).
 
 ### 17. A dialog that changes something is left only by its own buttons
 
@@ -201,34 +201,39 @@ Changed: Mark as done is replaced by Post journal entry (ADR 19), and Disapprove
 - Disapprove is renamed Close here already, everywhere and in the store (kind `close`, status `closed`, permission
   `forms:<form>:close`), since it was only ever used on dev; who may close is unchanged until follow-up 5
 
-### 20. Close, Comment for anyone, and every email's available next steps (planned: follow-up 5)
+### 20. Void, Comment for anyone, and every email's available next steps (planned: follow-up 5)
 
 Decided here so it isn't lost; built in phase 15's fifth follow-up.
 
-- **Close replaces Disapprove**, everywhere and in the store: kind `close`, status `closed`, permission
-  `forms:<form>:close`, renamed already in follow-up 4. It's for whatever is disapproved, a mistake or a duplicate. Closing a requisition reverses its
-  live entry first, so Reverse journal entry goes. Disapprovals already kept on dev keep their label in History; none
-  were made on prod
+- **Void replaces Disapprove and Close**, everywhere and in the store: kind `void`, status `voided`, permission
+  `forms:<form>:void`, labelled in full ("Void requisition"). It's for whatever is disapproved, a mistake or a
+  duplicate: the record and its books are kept, as voiding does in accounting, never deleted. Close, renamed from
+  Disapprove in follow-up 4, was only ever used on dev and stays unannounced until then; dev's closed and disapproved
+  records keep their labels and aren't migrated. Prod has no actions of any kind as of 0.58.0. Voiding a requisition
+  reverses its live entry first, so Reverse journal entry goes
 - **Who:** Comment for anyone who can read the record, every form, requisitions included; the API checks nothing
-  more. Close for anyone who can read it too, so someone can close one on a submitter's behalf, except a requisition
-  with a live entry: closing that reverses it in Mifos, so only accountants and directors may. Approve on loan
+  more. Void for anyone who can read it too, so someone can void one on a submitter's behalf, except a requisition
+  with a live entry: voiding that reverses it in Mifos, so only accountants and directors may. Approve on loan
   approvals and write-offs for directors
 - **Approve doesn't move the status:** it's recorded and shown, and the record stays received. Some approvals need one
   director and some two; that rule is #57. The same director can't approve twice
 - **Available next steps** end every email in a thread, under a short rule (about 120px, `---` in plain text), not one
   across the page. By role, each action linked; actions anyone can take share an Anyone row, not repeated per role:
-  - Requisitions: Accountant and Directors: Correct journal entry (Post journal entry when nothing is live) | Close
-    when a live entry would be reversed. Anyone: Comment | Close
-  - Loan approvals and write-offs: Directors: Approve. Anyone: Comment | Close
-  - The note under them, for example: "Use the links above to correct, comment on or close this requisition in Ourfos
+  - Requisitions: Accountant and Directors: Correct journal entry (Post journal entry when nothing is live) | Void
+    when a live entry would be reversed. Anyone: Comment | Void
+  - Loan approvals and write-offs: Directors: Approve. Anyone: Comment | Void
+  - The note under them, for example: "Use the links above to correct, comment on or void this requisition in Ourfos
     instead of replying in Gmail. Ourfos will send the email notifications for you." Its verbs are those listed
 - **One function decides what's available**, from the form, the record's state and the features on: the footer, the
   top-row buttons and the API's checks all use it, so an email never offers what the page or the API would refuse. A
-  closed record lists none
+  voided record lists none
 - **A link opens its dialog:** `?action=<kind>` on the record's page opens that dialog once the record loads, IAP's
   sign-in keeping the URL. Cancel or a send takes the param off by replacing history, so a refresh or Back doesn't
   reopen it. One no longer possible, or not yours, opens nothing and says so, leading with what was tried: "You
-  can't close this: this requisition is already closed"
+  can't void this: this requisition is already voided"
+- **Smaller things:** the record's breadcrumb gets a line of its own above its actions, so a long title never squeezes
+  them. A void that reverses a live entry is one item in History, the reversal under it, not a second item titled as
+  a correction
 
 ### 21. Backend features, per environment, in Terraform (planned: follow-up 5)
 
@@ -238,7 +243,7 @@ Decided here so it isn't lost; built in phase 15's fifth follow-up.
   feature is off; the footer and the buttons leave it out
 - ourfos-api serves them at `/api/features`; the front end loads them into the same OpenFeature flags, read-only.
   Browser switches (ADR 15) stay for front-end-only ones: tests in lists, test submissions
-- `approvals` is the first, moving from the browser: Approve, Comment, Close and the footer. On on dev, off on prod
+- `approvals` is the first, moving from the browser: Approve, Comment, Void and the footer. On on dev, off on prod
   until prod's variables say otherwise. Post and Correct journal entry aren't behind it
 - Not taken: a Firestore config doc, which flips without a deploy but needs a screen and a history of its own; a flag
   service, too much for a handful. OpenFeature leaves the way open to one
