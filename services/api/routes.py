@@ -1,6 +1,7 @@
 import itertools
 import os
 import re
+import uuid
 from typing import Annotated
 from urllib.parse import quote
 
@@ -20,6 +21,10 @@ from . import submit as submitting
 from .auth import current_user
 from .models import (
     Account,
+    Acting,
+    Action,
+    ActionRequest,
+    ActionState,
     CorrectRequest,
     Draft,
     DraftRequest,
@@ -146,8 +151,9 @@ def submission(form: str, id: str, user: Annotated[str, needs("forms:{form}:read
     ids = data.get("journal_entries") or []
     refs = [store.client().collection(JOURNAL).document(i) for i in ids]
     entries = {e.id: e for e in store.client().get_all(refs) if e.exists}
+    actions = [Action(id=a.id, **a.to_dict()) for a in ref.collection("actions").stream()]
     return views.submission(
-        form, id, data, runs, [views.journal_entry(i, entries[i].to_dict()) for i in ids if i in entries]
+        form, id, data, runs, [views.journal_entry(i, entries[i].to_dict()) for i in ids if i in entries], actions
     )
 
 
@@ -189,6 +195,95 @@ async def upload_file(
     content_type = request.headers.get("content-type", "application/octet-stream")
     ref = await run_in_threadpool(drafts.upload, form, id, name, data, content_type, user)
     return Uploaded(ref=ref)
+
+
+@router.post(
+    "/forms/{form}/submissions/{id}/actions/files",
+    openapi_extra={"requestBody": {"content": {"application/octet-stream": {"schema": {"type": "string"}}}}},
+)
+async def upload_action_file(form: str, id: str, name: str, request: Request, user: User) -> Uploaded:
+    """A file for an action, before it's taken: stored under the submission's actions, its gs:// ref back. For
+    whoever may take one on this form"""
+    known(form)
+    if not any(allowed(user, f"forms:{form}:{p}") for p, _, _ in ACTIONS.values()):
+        raise HTTPException(403, f"You may take no action on {form}")
+    if not ID.match(id):
+        raise HTTPException(400, "Not an id we can store")
+    if int(request.headers.get("content-length") or 0) > drafts.MAX_FILE:
+        raise HTTPException(413, "Files of up to 25 MB")
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "An empty file")
+    extension = match.group(0).lower() if (match := drafts.EXTENSION.search(name)) else ""
+    content_type = request.headers.get("content-type") or "application/octet-stream"
+    ref = await run_in_threadpool(
+        gcs.upload, f"{drafts.prefix(form, id)}actions/{uuid.uuid4().hex[:8]}{extension}", data, content_type
+    )
+    return Uploaded(ref=ref)
+
+
+# Each action's permission, the statuses it may be taken from (any but a draft, if None), and whether it needs a
+# comment. Who holds each, per form, is the policy's: a requisition is disapproved, never approved
+ACTIONS = {
+    "done": ("resolve", {"handed_over"}, True),
+    "approve": ("approve", None, False),
+    "disapprove": ("disapprove", None, True),
+    "comment": ("comment", None, True),
+}
+# Decided: not approved or disapproved again
+DECIDED = {"approved", "disapproved"}
+
+
+@router.post("/forms/{form}/submissions/{id}/actions")
+def act(form: str, id: str, body: ActionRequest, user: User) -> Acting:
+    """Something done to a submission by a person: its thread is told, then it's kept, through the action workflow.
+    Only its own files can go with it"""
+    known(form)
+    permission, statuses, worded = ACTIONS[body.kind]
+    if not allowed(user, f"forms:{form}:{permission}"):
+        raise HTTPException(403, f"You don't have forms:{form}:{permission}")
+    comment = body.comment.strip()
+    if worded and not comment:
+        raise HTTPException(422, "Say why, in a comment")
+    doc = store.client().collection(FORMS[form].collection).document(id).get()
+    status = (doc.to_dict() or {}).get("status") if doc.exists else None
+    if not doc.exists or status == drafts.DRAFT:
+        raise HTTPException(404, f"No {FORMS[form].noun} {id}")
+    if statuses is not None and status not in statuses:
+        raise HTTPException(409, f"Only a handed-over {FORMS[form].noun} is marked done")
+    if body.kind in ("approve", "disapprove") and status in DECIDED:
+        raise HTTPException(409, f"This {FORMS[form].noun} is already {status}")
+    own = f"gs://{os.environ.get('ATTACHMENTS_BUCKET')}/{drafts.prefix(form, id)}actions/"
+    if any(not f.startswith(own) or "/" in f.removeprefix(own) for f in body.files):
+        raise HTTPException(422, "Only files uploaded for this action")
+    # A requisition disapproved has its live entry reversed first, if it has one
+    live = (doc.to_dict() or {}).get("live_entry") if form == "requisition" and body.kind == "disapprove" else None
+    argument = {
+        "form": form,
+        "id": id,
+        "kind": body.kind,
+        **({"transaction_id": live} if live else {}),
+        "by": user,
+        "by_name": people.name(user),
+        "comment": comment,
+        "files": body.files,
+    }
+    run = workflows.start("action", argument)
+    log("action asked", kind=body.kind, form=form, id=id, run=run)
+    return Acting(run=run)
+
+
+@router.get("/forms/{form}/submissions/{id}/actions/{run}")
+def action_state(form: str, id: str, run: str, _: Annotated[str, needs("forms:{form}:read")]) -> ActionState:
+    """Done once it's recorded; failed, and why, if its run failed before it was"""
+    known(form)
+    ref = store.client().collection(FORMS[form].collection).document(id).collection("actions").document(run)
+    if ref.get().exists:
+        return ActionState(state="done")
+    state, reason = workflows.state("action", run)
+    if state in ("FAILED", "CANCELLED"):
+        return ActionState(state="failed", reason=reason or state.lower())
+    return ActionState(state="running")
 
 
 @router.get("/forms/{form}/drafts")

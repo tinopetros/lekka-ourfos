@@ -118,6 +118,68 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/forms/{form}/submissions/{id}/actions/files': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upload Action File
+     * @description A file for an action, before it's taken: stored under the submission's actions, its gs:// ref back. For
+     *     whoever may take one on this form
+     */
+    post: operations['upload_action_file'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/submissions/{id}/actions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Act
+     * @description Something done to a submission by a person: its thread is told, then it's kept, through the action workflow.
+     *     Only its own files can go with it
+     */
+    post: operations['act'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/forms/{form}/submissions/{id}/actions/{run}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Action State
+     * @description Done once it's recorded; failed, and why, if its run failed before it was
+     */
+    get: operations['action_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/forms/{form}/drafts': {
     parameters: {
       query?: never;
@@ -313,6 +375,71 @@ export interface components {
       type: string;
       /** Expenser */
       expenser: boolean;
+    };
+    /**
+     * Acting
+     * @description The action's run: the page asks how it went until it ends.
+     */
+    Acting: {
+      /** Run */
+      run: string;
+    };
+    /**
+     * Action
+     * @description What a person did to a submission from the UI, once its thread was told: done, for now.
+     */
+    Action: {
+      /** Id */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** By */
+      by: string;
+      /** Comment */
+      comment: string;
+      /**
+       * Files
+       * @default []
+       */
+      files: string[];
+      /** At */
+      at: string | null;
+    };
+    /**
+     * ActionRequest
+     * @description What's done to a submission, said in its thread with its comment, and any files that show it: refs from
+     *     uploading them first. Done finishes a handed-over requisition; approve, disapprove and comment are for loan
+     *     approvals and write-offs.
+     */
+    ActionRequest: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'done' | 'approve' | 'disapprove' | 'comment';
+      /**
+       * Comment
+       * @default
+       */
+      comment: string;
+      /**
+       * Files
+       * @default []
+       */
+      files: string[];
+    };
+    /**
+     * ActionState
+     * @description How an action's run went: running, done or failed, and why, if it failed.
+     */
+    ActionState: {
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'running' | 'done' | 'failed';
+      /** Reason */
+      reason: string | null;
     };
     /**
      * Answer
@@ -772,6 +899,11 @@ export interface components {
        * @default []
        */
       journal_entries: components['schemas']['JournalEntry'][];
+      /**
+       * Actions
+       * @default []
+       */
+      actions: components['schemas']['Action'][];
     };
     /** SubmissionPage */
     SubmissionPage: {
@@ -1124,6 +1256,113 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Uploaded'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  upload_action_file: {
+    parameters: {
+      query: {
+        name: string;
+      };
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/octet-stream': string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Uploaded'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  act: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ActionRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Acting'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  action_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        form: string;
+        id: string;
+        run: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ActionState'];
         };
       };
       /** @description Validation Error */

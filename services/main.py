@@ -8,7 +8,7 @@ from google.auth import jwt
 
 from common import execution_id
 from integrations import mifos
-from routers import accounts, corrections, forms, requisitions, syncs
+from routers import accounts, actions, corrections, forms, requisitions, syncs
 
 # What ourfos-api may call. Cloud Run lets any invoker reach every route, so the rest stay the workflow's here
 API_MAY = {"/mifos/accounts"}
@@ -27,6 +27,7 @@ app.include_router(corrections.router)
 app.include_router(forms.router)
 app.include_router(syncs.router)
 app.include_router(accounts.router)
+app.include_router(actions.router)
 
 
 @app.middleware("http")

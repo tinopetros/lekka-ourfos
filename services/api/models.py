@@ -79,6 +79,40 @@ class CorrectRequest(ReverseRequest):
     lines: CorrectedLines
 
 
+class ActionRequest(BaseModel):
+    """What's done to a submission, said in its thread with its comment, and any files that show it: refs from
+    uploading them first. Done finishes a handed-over requisition; approve, disapprove and comment are for loan
+    approvals and write-offs."""
+
+    kind: Literal["done", "approve", "disapprove", "comment"]
+    comment: str = ""
+    files: list[str] = []
+
+
+class Acting(Model):
+    """The action's run: the page asks how it went until it ends."""
+
+    run: str
+
+
+class ActionState(Model):
+    """How an action's run went: running, done or failed, and why, if it failed."""
+
+    state: Literal["running", "done", "failed"]
+    reason: str | None = None
+
+
+class Action(Model):
+    """What a person did to a submission from the UI, once its thread was told: done, for now."""
+
+    id: str
+    kind: str
+    by: str
+    comment: str
+    files: list[str] = []
+    at: datetime | None = None
+
+
 class Reversing(Model):
     """The correction run that reverses it: the page watches it until it ends."""
 
@@ -279,6 +313,8 @@ class Submission(SubmissionSummary):
     raw: dict | None = None
     runs: list[Run] = []
     journal_entries: list[JournalEntry] = []
+    # What people did to it, the newest first
+    actions: list[Action] = []
 
 
 class SubmissionPage(Model):

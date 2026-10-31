@@ -13,6 +13,7 @@ from requisition import Files, Requisition, RequisitionForm
 from submission import kinds
 
 from .models import (
+    Action,
     Answer,
     Classification,
     CorrectionRequest,
@@ -31,7 +32,13 @@ from .models import (
 )
 
 # Each workflow's run, by the name the store gives it
-RUNS: dict[str, type[RunBase]] = {"expense": ExpenseRun, "correction": CorrectionRun, "intake": IntakeRun}
+# An action's only run is a disapproved requisition's reversal, a correction with no lines
+RUNS: dict[str, type[RunBase]] = {
+    "expense": ExpenseRun,
+    "correction": CorrectionRun,
+    "intake": IntakeRun,
+    "action": CorrectionRun,
+}
 
 
 def summary(form: str, id: str, doc: dict) -> SubmissionSummary:
@@ -219,8 +226,11 @@ def journal_entry(id: str, doc: dict) -> JournalEntry:
     return JournalEntry.model_validate({"transaction_id": id} | doc | {"lines": lines(doc.get("lines"))})
 
 
-def submission(form: str, id: str, doc: dict, runs: list[Run], entries: list[JournalEntry]) -> Submission:
-    """The sheet: the row, its answers, every run newest first, and its entries in the order they were posted."""
+def submission(
+    form: str, id: str, doc: dict, runs: list[Run], entries: list[JournalEntry], actions: list[Action] = ()
+) -> Submission:
+    """The sheet: the row, its answers, every run and action newest first, and its entries in the order they were
+    posted."""
     shown = answers(form, id, doc)
     return Submission(
         **summary(form, id, doc).model_dump(),
@@ -229,4 +239,5 @@ def submission(form: str, id: str, doc: dict, runs: list[Run], entries: list[Jou
         runs=sorted(runs, key=lambda r: (r.started_at is not None, r.started_at), reverse=True),
         journal_entries=entries,
         draft=doc.get("draft") if doc.get("status") == "draft" else None,
+        actions=sorted(actions, key=lambda a: (a.at is not None, a.at), reverse=True),
     )

@@ -19,6 +19,20 @@ def session() -> AuthorizedSession:
     return AuthorizedSession(credentials)
 
 
+def state(workflow: str, execution_id: str) -> tuple[str, str | None]:
+    """A run's state, ACTIVE, SUCCEEDED, FAILED or CANCELLED, and its error's message when it failed"""
+    url = EXECUTIONS.format(project=os.environ["GOOGLE_CLOUD_PROJECT"], region=os.environ["REGION"], workflow=workflow)
+    response = session().get(f"{url}/{execution_id}", timeout=TIMEOUT)
+    response.raise_for_status()
+    execution = response.json()
+    error = (execution.get("error") or {}).get("payload")
+    try:
+        error = json.loads(error).get("message", error) if error else None
+    except (ValueError, AttributeError):
+        pass
+    return execution["state"], error
+
+
 def start(workflow: str, argument: dict) -> str:
     """A run of the workflow, with its argument. Its execution id."""
     url = EXECUTIONS.format(project=os.environ["GOOGLE_CLOUD_PROJECT"], region=os.environ["REGION"], workflow=workflow)
