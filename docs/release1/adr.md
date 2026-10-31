@@ -55,7 +55,6 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 
 ### 6. Backfilling the Google Forms' responses
 
-- Draft, on PR #48: written to dev as samples, not yet to prod. Responses only for now
 - Sources:
   - Requisitions: [Requisition Approval Request Form (Responses)](https://docs.google.com/spreadsheets/d/1dk_bw9WBry0PA4FGnyGIYOkKT8M4_VLCrAvM54FQvzU/edit), #1–885, 17 Nov 2024 to 23 Oct 2026
   - Loan approvals: [Loan Approvals Tracker](https://docs.google.com/spreadsheets/d/1JmPMUbdTm8iquUCKF68YHG9TqrnpNPWvomMQvfaRRDU/edit), #1–641, 5 Aug 2024 to 27 Oct 2026

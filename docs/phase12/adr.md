@@ -36,11 +36,13 @@
 - Manual entries only, and within the preload's dates. Fineract can't filter by created date, so it pages by entry id, newest first, back to a mark. The date range is there to keep Mifos's query small: by transaction date, it can't say what's new
 - 10 entries under the mark again each night, a buffer: Mifos numbers an entry when it starts saving it, so a slow one can show after a higher id
 - Our Mifos user's entries are skipped: the step that posts records them. So that user is Lekkai's alone, never a person's in Mifos's screens
+- **Closed** by [Mifos data ADR 8](../mifos-data/adr.md): the sync is deprecated. Mifos's data is archived in a bucket first, and Firestore filled from there
 
 ### 7. The preload is the sync from 1 Jan 2026
 
 - The same route and code, so it needs no prod credentials on a laptop
 - By hand, on each env, never in a build
+- **Closed** by [Mifos data ADRs 1 and 8](../mifos-data/adr.md): manual entries are fetched a week at a time into a bucket, not preloaded into Firestore
 
 ### 8. `mifos=false` is per request, like `test`
 
@@ -68,3 +70,4 @@
 - The start-up check reads our office instead
 - A post that times out still hands over, and finding it in Mifos by its workflow run is now a search of minutes
 - Closes phase 11 ADRs 2 and 3
+- **Narrowed** by [Mifos data ADR 1](../mifos-data/adr.md): Mifos is read after all, once, narrowly and slowly, into a bucket. Posts still aren't read back

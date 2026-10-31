@@ -8,8 +8,7 @@ Draft.
   queryable copy, a UI. Never Mifos again for the same data
 - Its own bucket, not attachments: attachments' lifecycle rules, when they come, mustn't reach it. 30-day soft delete
   and `prevent_destroy`, as attachments. In infra, lekka-ourfos-infra#26
-- Not `services/sync.py`: that copies manual entries straight into Firestore. The bucket comes first; Firestore can be
-  filled from it
+- Not `services/sync.py`, now deprecated (ADR 8)
 - Changes phase 12 ADR 7: not one preload request since 1 Jan 2026, but a week at a time. Narrows phase 12 ADR 11:
   Mifos can be read after all, once, narrowly and slowly
 
@@ -56,3 +55,12 @@ Draft.
 
 - All of history once, by hand, a kind of data at a time, watched, and stopped at the first sign of strain (ADR 3)
 - Then scheduled jobs each night, catching up on that day. Built once the backfill shows what Mifos can take
+
+### 8. The sync into Firestore is deprecated
+
+- Phase 12's `/sync/journal_entries` (`services/sync.py`) copied manual entries from Mifos straight into Firestore, each
+  night from a mark. Built, never scheduled, never preloaded on prod
+- Deprecated: Mifos is read into the bucket (ADR 1), and Firestore's `journal_entries`, when it holds people's entries,
+  is filled from the bucket. Nothing new is built on the sync
+- Its code, the `sync` workflow and Terraform's empty `syncs` stay until something replaces them, then go together
+- Closes phase 12 ADRs 6 and 7
