@@ -259,6 +259,8 @@ class JournalEntry(Model):
     reversed_by: str | None = None
     # The Mifos tenant it's in: demo for a test run's, on prod too
     tenant: str | None = None
+    # A test submission's: left out of the journal unless asked for
+    test: bool = False
     # A mirror was posted without hearing back: check Mifos
     reversing: str | None = None
     form: str | None = None

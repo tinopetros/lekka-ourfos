@@ -16,8 +16,11 @@ function trailOf(from: string): string[] {
   return new URLSearchParams(from).get('after')?.split(',').filter(Boolean) ?? [];
 }
 
-function searchOf(trail: string[]): string {
-  return trail.length ? new URLSearchParams({ after: trail.join(',') }).toString() : '';
+function searchOf(trail: string[], tests: boolean): string {
+  return new URLSearchParams({
+    ...(trail.length ? { after: trail.join(',') } : {}),
+    ...(tests ? { tests: '1' } : {}),
+  }).toString();
 }
 
 /** Previous and next through the list a record was opened from, into the neighbouring page when one runs out.
@@ -29,16 +32,17 @@ export function useNeighbours<T, K extends QueryKey>({
   pathOf,
 }: {
   id: string;
-  list: (cursor?: string) => UseQueryOptions<Page<T>, Error, Page<T>, K>;
+  list: (cursor: string | undefined, tests: boolean) => UseQueryOptions<Page<T>, Error, Page<T>, K>;
   idOf: (item: T) => string;
   pathOf: (item: T) => string;
 }) {
   const location = useLocation();
   const from = (location.state as FromList | null)?.from ?? '';
   const trail = trailOf(from);
+  const tests = new URLSearchParams(from).get('tests') === '1';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: page } = useQuery(list(trail.at(-1)));
+  const { data: page } = useQuery(list(trail.at(-1), tests));
   const items = page?.items ?? [];
   const i = items.findIndex((x) => idOf(x) === id);
 
@@ -46,7 +50,7 @@ export function useNeighbours<T, K extends QueryKey>({
   const go = (item: T, at: string[]) => {
     void navigate(
       { pathname: pathOf(item), search: location.search },
-      { state: { from: searchOf(at) } satisfies FromList },
+      { state: { from: searchOf(at, tests) } satisfies FromList },
     );
   };
   const hasPrev = i > 0 || (i === 0 && trail.length > 0);
@@ -58,7 +62,7 @@ export function useNeighbours<T, K extends QueryKey>({
       go(before, trail);
     } else if (i === 0 && trail.length) {
       const at = trail.slice(0, -1);
-      const last = (await queryClient.query(list(at.at(-1)))).items.at(-1);
+      const last = (await queryClient.query(list(at.at(-1), tests))).items.at(-1);
       if (last) go(last, at);
     }
   };
@@ -67,7 +71,7 @@ export function useNeighbours<T, K extends QueryKey>({
     if (i >= 0 && after) {
       go(after, trail);
     } else if (i >= 0 && page?.next) {
-      const first = (await queryClient.query(list(page.next))).items[0];
+      const first = (await queryClient.query(list(page.next, tests))).items[0];
       if (first) go(first, [...trail, page.next]);
     }
   };

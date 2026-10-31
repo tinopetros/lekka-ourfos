@@ -1,3 +1,4 @@
+import itertools
 import os
 import re
 from typing import Annotated
@@ -50,17 +51,50 @@ def known(form: str):
         raise HTTPException(404, f"No form {form}")
 
 
-def page(collection, field: str, cursor: str | None, limit: int):
+def page(collection, field: str, cursor: str | None, limit: int, keep=None):
     """Newest first, cursor paginated. The cursor is the last document's id: the next page starts after it. One more
-    than asked for says whether there's a next page."""
+    than asked for says whether there's a next page. keep, if given, picks from each batch read the documents to show:
+    read on until there are enough, so a page is full however many it leaves out."""
     query = collection.order_by(field, direction=firestore.Query.DESCENDING)
     if cursor:
         after = collection.document(cursor).get()
         if not after.exists:
             raise HTTPException(400, "That page is gone: start again")
         query = query.start_after(after)
-    docs = list(query.limit(limit + 1).stream())
+    if keep is None:
+        docs = list(query.limit(limit + 1).stream())
+    else:
+        docs = []
+        for batch in itertools.batched(query.stream(), limit + 1):
+            docs += keep(list(batch))
+            if len(docs) > limit:
+                break
     return docs[:limit], docs[limit - 1].id if len(docs) > limit else None
+
+
+def shows_tests(user: str, permission: str, tests: bool) -> bool:
+    """Tests are left out of a list unless asked for, by someone who may make them"""
+    if tests and not allowed(user, permission):
+        raise HTTPException(403, f"You don't have {permission}")
+    return tests
+
+
+def no_tests(docs):
+    return [d for d in docs if not (d.to_dict() or {}).get("test")]
+
+
+def test_entries(docs) -> set[str]:
+    """Which are tests: an entry recorded before entries said so is one if its submission is"""
+    data = {d.id: d.to_dict() or {} for d in docs}
+    unsaid = [e for e in data.values() if "test" not in e and e.get("form") in FORMS and e.get("submission")]
+    refs = [store.client().collection(FORMS[e["form"]].collection).document(e["submission"]) for e in unsaid]
+    tests = {s.id for s in store.client().get_all(refs) if s.exists and s.to_dict().get("test")} if refs else set()
+    return {id for id, e in data.items() if e.get("test") or e.get("submission") in tests}
+
+
+def no_test_entries(docs):
+    tests = test_entries(docs)
+    return [d for d in docs if d.id not in tests]
 
 
 @router.get("/me")
@@ -86,11 +120,16 @@ def forms(_: User) -> list[FormInfo]:
 
 @router.get("/forms/{form}/submissions")
 def submissions(
-    form: str, _: Annotated[str, needs("forms:{form}:read")], cursor: str | None = None, limit: Limit = 25
+    form: str,
+    user: Annotated[str, needs("forms:{form}:read")],
+    cursor: str | None = None,
+    limit: Limit = 25,
+    tests: bool = False,
 ) -> SubmissionPage:
     known(form)
     collection = store.client().collection(FORMS[form].collection)
-    docs, next = page(collection, "received_at", cursor, limit)
+    keep = None if shows_tests(user, f"forms:{form}:test", tests) else no_tests
+    docs, next = page(collection, "received_at", cursor, limit, keep)
     return SubmissionPage(items=[views.summary(form, d.id, d.to_dict()) for d in docs], next=next)
 
 
@@ -231,11 +270,19 @@ def accounts(_: Annotated[str, needs("journal_entries:edit")], tenant: str | Non
 
 @router.get("/journal_entries")
 def journal_entries(
-    _: Annotated[str, needs("journal_entries:read")], cursor: str | None = None, limit: Limit = 25
+    user: Annotated[str, needs("journal_entries:read")],
+    cursor: str | None = None,
+    limit: Limit = 25,
+    tests: bool = False,
 ) -> JournalEntryPage:
     collection = store.client().collection(JOURNAL)
-    docs, next = page(collection, "recorded_at", cursor, limit)
-    return JournalEntryPage(items=[views.journal_entry(d.id, d.to_dict()) for d in docs], next=next)
+    # Entries are requisitions': whoever may make test requisitions may see their entries
+    keep = None if shows_tests(user, "forms:requisition:test", tests) else no_test_entries
+    docs, next = page(collection, "recorded_at", cursor, limit, keep)
+    tests = test_entries(docs) if keep is None else set()
+    return JournalEntryPage(
+        items=[views.journal_entry(d.id, d.to_dict() | {"test": d.id in tests}) for d in docs], next=next
+    )
 
 
 @router.get("/journal_entries/{transaction_id}")

@@ -114,3 +114,12 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 
 - Names rarely change: a day asked the directory seven times as often for nothing. Overrides release 1 ADR 5 in part
 - As before, a name saved stands when the directory can't say, and local reads dev's, so it falls back to it too
+
+### 13. Tests are left out of lists, on dev and prod
+
+- Submissions and the journal leave out tests: a test submission and its entries. Whoever may make them
+  (`forms:<form>:test`, the journal by requisitions') can show them, with a toggle at the list's foot, as in the form.
+  It's in the URL, so the way back and previous/next keep it
+- Left out by the API, which reads on until a page is full: filtered in the UI, a page could come back empty
+- An entry says it's a test from now on. One recorded before is a test if its submission is, read with its page
+- A record opened by its link still shows, test or not

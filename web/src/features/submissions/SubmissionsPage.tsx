@@ -77,10 +77,10 @@ function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boo
 // A form's submissions, the newest we received first. A row opens its own page
 export function SubmissionsPage() {
   const { form = '' } = useParams();
-  const { cursor, search } = usePages();
+  const { cursor, search, tests } = usePages();
   const navigate = useNavigate();
   const { data: forms } = useForms();
-  const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor);
+  const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor, tests);
   const spec = forms?.find((f) => f.key === form);
   const amounts = form === 'requisition';
   const tracked = spec?.tracks_status ?? false;
@@ -154,7 +154,7 @@ export function SubmissionsPage() {
               </TableBody>
             </Table>
           </div>
-          <Pager next={data.next} fetching={isFetching} />
+          <Pager next={data.next} fetching={isFetching} tests={`forms:${form}:test`} />
         </>
       )}
     </div>

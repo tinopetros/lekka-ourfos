@@ -6,12 +6,14 @@ import type { SubmissionSummary } from '@/lib/api/types';
 import type { components } from '@/lib/api/schema';
 
 export const submissionQueries = {
-  list: (form: string, cursor?: string) =>
+  list: (form: string, cursor?: string, tests = false) =>
     queryOptions({
-      queryKey: ['submissions', form, cursor ?? null],
+      queryKey: ['submissions', form, cursor ?? null, tests],
       queryFn: () =>
         unwrap(
-          api.GET('/api/forms/{form}/submissions', { params: { path: { form }, query: { cursor, limit: PAGE_SIZE } } }),
+          api.GET('/api/forms/{form}/submissions', {
+            params: { path: { form }, query: { cursor, limit: PAGE_SIZE, tests } },
+          }),
         ),
     }),
   one: (form: string, id: string) =>
@@ -22,8 +24,8 @@ export const submissionQueries = {
 };
 
 // The page you were on stays while the next one loads
-export const useSubmissions = (form: string, cursor?: string) =>
-  useQuery({ ...submissionQueries.list(form, cursor), placeholderData: keepPreviousData });
+export const useSubmissions = (form: string, cursor?: string, tests = false) =>
+  useQuery({ ...submissionQueries.list(form, cursor, tests), placeholderData: keepPreviousData });
 
 // The sheet opens at once with the row it was opened from, and fills in the rest when it comes. Off until there's
 // one to fetch

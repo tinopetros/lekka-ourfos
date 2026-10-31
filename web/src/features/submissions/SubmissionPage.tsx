@@ -240,7 +240,7 @@ function Record({ form, id }: { form: string; id: string }) {
   const { data: forms } = useForms();
   const neighbours = useNeighbours({
     id,
-    list: (cursor) => submissionQueries.list(form, cursor),
+    list: (cursor, tests) => submissionQueries.list(form, cursor, tests),
     idOf: (row) => row.id,
     pathOf: (row) => `/forms/${form}/${row.id}`,
   });
