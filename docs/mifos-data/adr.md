@@ -16,8 +16,8 @@ Draft.
 
 - Each record as Mifos's API answered it, plus `_fetched_at`. No cleaning or reshaping on the way in: that's
   downstream, and can be redone from the raw copy
-- JSONL, in `name=value` folders (`week=2026-01-05/`, `dt=2026-10-31/`), so BigQuery can read the bucket as a
-  partitioned external table as it is
+- JSONL, in `name=value` folders (`from=2026-04-01/`, `dt=2026-10-31/`): they sort, and BigQuery can read them as a
+  partitioned external table as they are. Not that partitioning matters at kilobytes a month
 - Each kind of data keeps a `_perf.jsonl` beside it: every fetch's timing and counts, whether or not it stored anything
 
 ### 3. Mifos is protected over speed
@@ -36,8 +36,12 @@ Draft.
 
 ### 5. Events by week, things by snapshot
 
-- Journal entries don't change once booked: one file a Monday–Sunday week, by transaction date. A week fetched again
-  is rewritten whole, so a re-fetch is safe and catches entries booked late with past dates
+- Journal entries don't change once booked: one file a date range, by transaction date, `from=<first day>/`. Ranges
+  never overlap and can be any length. A range fetched again is rewritten whole, so a re-fetch is safe and catches
+  entries booked late with past dates
+- Calendar months from April 2026. A month read in 2.9s as a week did: Mifos's slowness comes in spells, not with
+  the data, so fewer, wider reads mean fewer chances to hit one. Before that, weeks from 29 Dec 2025, 16 Feb–15 Mar
+  and 16–31 Mar, as the backfill went. The month still open is rewritten each night
 - Clients and loans change: each fetch is the whole list, compared with the one before (ADR 6)
 
 ### 6. Clients and loans: the first snapshot, the latest, and a log of what changed

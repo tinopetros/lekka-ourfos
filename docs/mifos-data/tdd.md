@@ -48,9 +48,9 @@ Implementation is worked out as we go.
 ## Where it stands
 
 - `gs://ourfos-prod-mifos` and `ourfos-dev-mifos`, lekka-ourfos-infra#26, infra 0.26.0 (ADR 1)
-- Manual journal entries, Oct 31: 29 Dec 2025 to 15 Feb 2026, 7 weeks, 103 transactions. Most weeks read in 2.8s,
-  one in 21s; the week of 16 Feb timed out at 65s and the run stopped itself. Still to fetch: 16 Feb on, and before
-  2026
+- Manual journal entries, Oct 31: 29 Dec 2025 to 15 Mar 2026, 165 transactions. Weeks read in 2.8s, one in 21s, and
+  16 Feb's timed out at 65s, stopping that run; the month from 16 Feb read in 2.9s an hour later. Still to fetch:
+  16 Mar on, a calendar month a read, and before 2026
 - Clients, Oct 31: 353 (352 active, 1 closed) across Head Office, Belvedere, Kadoma and Marondera. 2 pages, about 1s
   each. First snapshot, `latest/` and the change log, as ADR 6
 - Loans, Oct 31: 1,379, without associations, 7 pages of 1.2–1.4s, 6.2 MB. Kept as clients are. A loan read with
