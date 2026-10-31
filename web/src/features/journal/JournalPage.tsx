@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router';
 import { Lines } from '@/components/Lines';
 import { Pager } from '@/components/Pager';
+import { Name } from '@/components/Person';
 import { QueryState } from '@/components/QueryState';
 import { TableSkeleton } from '@/components/Skeletons';
 import { Time } from '@/components/Time';
-import { StatusBadge } from '@/components/StatusBadge';
+import { StatusBadge, TestBadge } from '@/components/StatusBadge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { JournalEntry } from '@/lib/api/types';
@@ -12,6 +13,7 @@ import { day, money } from '@/lib/format';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
+import { useTests } from '@/features/submissions/api';
 import { useJournalEntries } from './api';
 
 const total = (e: JournalEntry) => e.lines.filter((l) => l.type === 'DEBIT').reduce((sum, l) => sum + l.amount, 0);
@@ -19,8 +21,10 @@ const total = (e: JournalEntry) => e.lines.filter((l) => l.type === 'DEBIT').red
 // The journal entries we posted to Mifos, latest first. Mifos itself is never read
 export function JournalPage() {
   const { cursor, search } = usePages();
+  // Entries are requisitions': whoever may make test requisitions may see their entries
+  const tests = useTests('requisition');
   const navigate = useNavigate();
-  const { data, error, isFetching, isPlaceholderData } = useJournalEntries(cursor);
+  const { data, error, isFetching, isPlaceholderData } = useJournalEntries(cursor, tests);
   const open = (id: string) => void navigate(`/journal/${id}`, { state: { from: search } satisfies FromList });
 
   return (
@@ -37,8 +41,8 @@ export function JournalPage() {
                   <TableHead>Transaction ID</TableHead>
                   <TableHead className="hidden sm:table-cell">Transaction date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="hidden lg:table-cell">Recorded</TableHead>
                   <TableHead className="hidden md:table-cell">Recorded by</TableHead>
+                  <TableHead className="hidden lg:table-cell">Recorded</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -60,13 +64,20 @@ export function JournalPage() {
                         <TableCell className="max-w-36 truncate text-xs sm:max-w-none">
                           {e.transaction_id}
                           {e.reverses && <span className="ml-2 text-muted-foreground">mirror</span>}
+                          {e.test && (
+                            <span className="ml-2">
+                              <TestBadge />
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">{day(e.transaction_date)}</TableCell>
                         <TableCell className="text-right">{money(total(e), e.currency ?? 'USD')}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <Name email={e.by} />
+                        </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <Time at={e.recorded_at} />
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{e.by ?? '—'}</TableCell>
                         <TableCell>
                           <StatusBadge status={e.status} />
                         </TableCell>

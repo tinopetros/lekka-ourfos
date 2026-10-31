@@ -63,6 +63,8 @@ def posted(
 
     After the side effect, so a failure is logged and never raised: what happened already happened."""
     try:
+        parent = store.submission(form, submission)
+        before = parent.get()
         entry(transaction_id).save(
             **sent(transaction_id, debit, credit, on),
             reference_number=reference,
@@ -73,14 +75,15 @@ def posted(
             submission=submission,
             run=run,
             status="live",
+            # A test submission's entries are tests too, so lists can leave them out
+            test=bool(before.get("test")),
             **({"reverses": reverses} if reverses else {}),
             **({"tenant": tenant} if tenant else {}),
             recorded_at=store.NOW,
         )
         if reverses:
             entry(reverses).save(status="reversed", reversed_by=transaction_id)
-        parent = store.submission(form, submission)
-        listed = parent.get().get("journal_entries") or []
+        listed = before.get("journal_entries") or []
         # A reversal leaves nothing live until the corrected lines are posted
         parent.save(
             journal_entries=listed + ([] if transaction_id in listed else [transaction_id]),

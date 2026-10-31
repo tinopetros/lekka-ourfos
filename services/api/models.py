@@ -50,6 +50,69 @@ class ReverseRequest(BaseModel):
     reason: str
 
 
+class Account(Model):
+    """A GL account a correction can post to, as Mifos has it."""
+
+    glId: int
+    glCode: str
+    name: str
+    type: str
+    # One expenser picks from: listed first
+    expenser: bool
+
+
+class CorrectedLine(BaseModel):
+    """An account and an amount: the rest of the line is Mifos's, looked up."""
+
+    glId: int
+    amount: Annotated[float, Field(gt=0)]
+
+
+class CorrectedLines(BaseModel):
+    debit: Annotated[list[CorrectedLine], Field(min_length=1)]
+    credit: Annotated[list[CorrectedLine], Field(min_length=1)]
+
+
+class CorrectRequest(ReverseRequest):
+    """A reversal's, and the lines posted after it."""
+
+    lines: CorrectedLines
+
+
+class ActionRequest(BaseModel):
+    """What's done to a submission, said in its thread with its comment, and any files that show it: refs from
+    uploading them first. Done finishes a handed-over requisition; approve, disapprove and comment are for loan
+    approvals and write-offs."""
+
+    kind: Literal["done", "approve", "disapprove", "comment"]
+    comment: str = ""
+    files: list[str] = []
+
+
+class Acting(Model):
+    """The action's run: the page asks how it went until it ends."""
+
+    run: str
+
+
+class ActionState(Model):
+    """How an action's run went: running, done or failed, and why, if it failed."""
+
+    state: Literal["running", "done", "failed"]
+    reason: str | None = None
+
+
+class Action(Model):
+    """What a person did to a submission from the UI, once its thread was told: done, for now."""
+
+    id: str
+    kind: str
+    by: str
+    comment: str
+    files: list[str] = []
+    at: datetime | None = None
+
+
 class Reversing(Model):
     """The correction run that reverses it: the page watches it until it ends."""
 
@@ -230,6 +293,8 @@ class JournalEntry(Model):
     reversed_by: str | None = None
     # The Mifos tenant it's in: demo for a test run's, on prod too
     tenant: str | None = None
+    # A test submission's: left out of the journal unless asked for
+    test: bool = False
     # A mirror was posted without hearing back: check Mifos
     reversing: str | None = None
     form: str | None = None
@@ -248,6 +313,8 @@ class Submission(SubmissionSummary):
     raw: dict | None = None
     runs: list[Run] = []
     journal_entries: list[JournalEntry] = []
+    # What people did to it, the newest first
+    actions: list[Action] = []
 
 
 class SubmissionPage(Model):

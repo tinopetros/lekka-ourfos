@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, LinkIcon } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 import {
   Breadcrumb,
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tip } from './Tip';
 
-// Back to the list, on the page you came from, and previous and next through it
+// Back to the list, on the page you came from, what can be done to it, and previous and next through it
 export function RecordHeader({
   list,
   listPath,
@@ -20,6 +20,7 @@ export function RecordHeader({
   current,
   noun,
   neighbours,
+  actions,
 }: {
   list: string;
   listPath: string;
@@ -27,6 +28,8 @@ export function RecordHeader({
   current: string;
   noun: string;
   neighbours: { prev: () => Promise<void>; next: () => Promise<void>; hasPrev: boolean; hasNext: boolean };
+  // Its actions' buttons, named in full, before the icons
+  actions?: ReactNode;
 }) {
   return (
     <div className="mb-6 flex items-center gap-2">
@@ -43,7 +46,8 @@ export function RecordHeader({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto flex gap-1">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+        {actions && <div className="mr-2 flex flex-wrap gap-2">{actions}</div>}
         <CopyLink noun={noun} />
         <Tip label={`Previous ${noun}`}>
           <Button

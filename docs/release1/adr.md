@@ -51,6 +51,7 @@ Phases 1 to 9 and what follows them are release 1. Each phase kept its own ADR; 
 - Only lekkacredit.com addresses are looked up: the directory knows nobody else
 - Not signing in with the profile scope: a second sign-in beside IAP, and it only ever knows who's signed in
 - **Revisit** with the admin page: a name someone picks for themselves would go beside the directory's, not instead of it
+- **Changed** by [phase 15 ADRs 11 and 12](../phase15/adr.md): a week, not a day, and billed to ourfos-api's own project
 
 ### 6. Backfilling the Google Forms' responses
 

@@ -19,7 +19,7 @@ import { LINK } from '@/lib/styles';
 import type { FromList } from '@/lib/useNeighbours';
 import { usePages } from '@/lib/usePages';
 import { cn } from '@/lib/utils';
-import { submissionQueries, useSubmissions } from './api';
+import { submissionQueries, useSubmissions, useTests } from './api';
 
 // Yours alone, unsubmitted, above the list: a draft is in no list until it's submitted
 function YourDrafts({ form }: { form: string }) {
@@ -78,9 +78,10 @@ function Peek({ row, tracked, children }: { row: SubmissionSummary; tracked: boo
 export function SubmissionsPage() {
   const { form = '' } = useParams();
   const { cursor, search } = usePages();
+  const tests = useTests(form);
   const navigate = useNavigate();
   const { data: forms } = useForms();
-  const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor);
+  const { data, error, isFetching, isPlaceholderData } = useSubmissions(form, cursor, tests);
   const spec = forms?.find((f) => f.key === form);
   const amounts = form === 'requisition';
   const tracked = spec?.tracks_status ?? false;

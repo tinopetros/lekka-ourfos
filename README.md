@@ -71,7 +71,7 @@ Each was written down when it was made, with what wasn't chosen and why ([phase 
 - **Types flow from the API to the browser.** The API's Pydantic models generate its OpenAPI, which generates the app's TypeScript. A response the UI misreads fails to compile, and CI fails if the two drift apart (ADR 4)
 - **The API's data in TanStack Query, what only the browser knows in Zustand.** Caching, refetching and stale data are Query's job, never a hand-rolled store's (ADR 6)
 - **No auth code in the app.** Google's IAP signs people in before a request reaches us. The API checks one signed header (ADR 3)
-- **A backend for the frontend.** The UI's API is its own service, with its own account that can read and can't post: browsers never reach the routes that touch money (ADR 2)
+- **A backend for the frontend.** The UI's API is its own service, with its own account and no Mifos credentials: browsers never reach the routes that touch money, and Mifos is read through `ourfos-services` (ADR 2, [phase 15 ADR 9](docs/phase15/adr.md))
 - **Conventions written down**, after [bulletproof-react](https://github.com/alan2207/bulletproof-react): a folder per feature with its own queries, imports from `@/`, tests beside what they test (ADR 12)
 - **Read only, first.** Seeing everything clearly comes before changing anything from the UI. Actions, then permissions by group, come next
 

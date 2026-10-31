@@ -51,7 +51,9 @@ resource "google_cloud_run_v2_service" "services" {
           MIFOS_CURRENCY            = var.mifos.currency
           MIFOS_VERIFY_SSL          = tostring(var.mifos.verify_ssl)
           # Where the emails link our files to: the UI, which streams them behind its sign-in
-          UI_URL = var.api_domain == null ? google_cloud_run_v2_service.api.uri : "https://${var.api_domain}"
+          # ourfos-api may invoke the services, but reads only accounts: it's told apart by this
+          API_ACCOUNT = local.sa.api
+          UI_URL      = var.api_domain == null ? google_cloud_run_v2_service.api.uri : "https://${var.api_domain}"
         }
         content {
           name  = env.key
@@ -77,10 +79,17 @@ resource "google_cloud_run_v2_service" "services" {
   }
 }
 
-# Private: only the workflow can call it
-resource "google_cloud_run_v2_service_iam_member" "workflow_invokes_services" {
+# Private: only the workflow can call it, and ourfos-api, which main.py lets read accounts only
+resource "google_cloud_run_v2_service_iam_member" "invokes_services" {
+  for_each = { workflow = local.sa.workflow, api = local.sa.api }
+
   name     = google_cloud_run_v2_service.services.name
   location = var.region
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${local.sa.workflow}"
+  member   = "serviceAccount:${each.value}"
+}
+
+moved {
+  from = google_cloud_run_v2_service_iam_member.workflow_invokes_services
+  to   = google_cloud_run_v2_service_iam_member.invokes_services["workflow"]
 }

@@ -42,13 +42,13 @@ def test_a_name_comes_from_the_directory_and_is_kept(db, asked):
     assert asked == [ADA]
 
 
-def test_a_name_a_day_old_is_asked_again(db, asked):
-    db.docs[("users", ADA)] = {"name": "Ada", "name_checked_at": datetime.now(UTC) - timedelta(days=2)}
+def test_a_name_a_week_old_is_asked_again(db, asked):
+    db.docs[("users", ADA)] = {"name": "Ada", "name_checked_at": datetime.now(UTC) - timedelta(days=8)}
     assert people.name(ADA) == "Ada Moyo" and asked == [ADA]
 
 
-def test_a_fresh_name_isnt_asked_again(db, asked):
-    db.docs[("users", ADA)] = {"name": "Ada", "name_checked_at": datetime.now(UTC) - timedelta(hours=1)}
+def test_a_name_under_a_week_old_isnt_asked_again(db, asked):
+    db.docs[("users", ADA)] = {"name": "Ada", "name_checked_at": datetime.now(UTC) - timedelta(days=6)}
     assert people.name(ADA) == "Ada" and asked == []
 
 

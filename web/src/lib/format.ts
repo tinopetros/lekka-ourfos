@@ -24,3 +24,6 @@ export function money(amount: number | null | undefined, currency = 'USD'): stri
   if (amount === null || amount === undefined) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
+
+// Name first, as Mifos lists them, and what's searched by most
+export const accountLabel = (a: { glCode?: string | null; name: string }) => `${a.name} (${a.glCode})`;

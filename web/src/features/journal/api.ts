@@ -3,10 +3,11 @@ import { api, unwrap } from '@/lib/api/client';
 import { PAGE_SIZE } from '@/lib/api/queries';
 
 export const journalQueries = {
-  list: (cursor?: string) =>
+  list: (cursor?: string, tests = false) =>
     queryOptions({
-      queryKey: ['journal_entries', cursor ?? null],
-      queryFn: () => unwrap(api.GET('/api/journal_entries', { params: { query: { cursor, limit: PAGE_SIZE } } })),
+      queryKey: ['journal_entries', cursor ?? null, tests],
+      queryFn: () =>
+        unwrap(api.GET('/api/journal_entries', { params: { query: { cursor, limit: PAGE_SIZE, tests } } })),
     }),
   one: (id: string) =>
     queryOptions({
@@ -17,7 +18,7 @@ export const journalQueries = {
 };
 
 // The page you were on stays while the next one loads
-export const useJournalEntries = (cursor?: string) =>
-  useQuery({ ...journalQueries.list(cursor), placeholderData: keepPreviousData });
+export const useJournalEntries = (cursor?: string, tests = false) =>
+  useQuery({ ...journalQueries.list(cursor, tests), placeholderData: keepPreviousData });
 
 export const useJournalEntry = (id: string) => useQuery(journalQueries.one(id));
