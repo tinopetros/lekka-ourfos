@@ -1,0 +1,23 @@
+# Mifos's clients and loans into the mifos bucket, one kind a run, each night from Cloud Scheduler. Its plumbing is
+# lib.workflows.yaml's. Never retried: Mifos is easily overwhelmed, a failed night writes nothing, and the next one
+# catches up
+
+main:
+  params: [args]
+  steps:
+    - call:
+        call: call_service
+        args:
+          at: ${"/mifos-sync/" + args.kind}
+          method: POST
+          path: ""
+          # Loans' pages and the pauses between them take about two minutes; Cloud Run's own limit is 300s
+          timeout: 300
+        result: result
+    - log:
+        call: sys.log
+        args:
+          severity: INFO
+          json: { message: '${"mifos sync done: " + args.kind}', execution_id: '${sys.get_env("GOOGLE_CLOUD_WORKFLOW_EXECUTION_ID")}', result: '${result}' }
+    - done:
+        return: ${result}

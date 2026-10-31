@@ -3,7 +3,7 @@
 
 Ours are written in the step that posts them, so the record is never behind what we did: what we sent, and the
 transaction id Mifos answered with. Mifos isn't read back, since its reads take minutes (docs/phase12/adr.md 11).
-People's would come in through the sync (sync.py), paused for now.
+People's would come from the copy of Mifos in the mifos bucket, once there is one.
 """
 
 import os

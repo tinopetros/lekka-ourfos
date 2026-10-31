@@ -54,7 +54,7 @@ SCHEMA := web/src/lib/api/schema.d.ts
 FORM_SCHEMAS := web/src/lib/api/forms.json
 
 .DEFAULT_GOAL := help
-.PHONY: help check-env package build build-services build-api stage stage-api deploy destroy run start wait correct-start correct sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
+.PHONY: help check-env package build build-services build-api stage stage-api deploy destroy run start wait correct-start correct mifos-sync logs doc smoke evals eval-cases eval-report check test lint lock-check \
 	web types types-check web-check \
 	agent agent-web copy copy-to-cloudshell tf-init tf-fmt-check tf-validate-ci tf-plan tf-apply tf-destroy tf-output clean
 
@@ -63,7 +63,7 @@ help:
 	@echo "make run [FORM=requisition] [FIXTURE=happy] [TEST=1] [MIFOS=false] [SUBMISSION=<id>]  run workflows/fixtures/<FORM>/<FIXTURE>.json,"
 	@echo "                         wait, show its logs. TEST=1: a test run. MIFOS=false: posting off. SUBMISSION: run on that submission again"
 	@echo "make correct ID=<submission> [FIXTURE=correct]  run workflows/fixtures/requisition/corrections/<FIXTURE>.json on a requisition, and wait"
-	@echo "make sync [FROM=2026-01-01]  the nightly journal_entries sync, or with FROM the preload, and wait"
+	@echo "make mifos-sync KIND=loans  the nightly mifos sync of clients or loans, by hand, and wait (prod only)"
 	@echo "make logs ID=<execution> everything logged for one execution"
 	@echo "make doc [FORM=requisition] ID=<submission>  its document and its runs, from Firestore"
 	@echo "make smoke               the UI turns away whoever isn't signed in, then requisition's happy posted to demo, happy-gcs and google-doc done, mifos-off"
@@ -168,11 +168,11 @@ correct-start: check-env
 correct:
 	@id=$$($(MAKE) -s correct-start) && echo "execution $$id" && $(MAKE) -s wait WORKFLOW=correction ID=$$id
 
-# The nightly sync by hand, or with FROM, the preload (docs/phase12/tdd.md, step 6)
-sync: check-env
-	@id=$$(gcloud workflows execute sync --location $(REGION) --project $(PROJECT) \
-		--data '{"kind": "journal_entries"$(if $(FROM),$(comma) "from": "$(FROM)")}' --format 'value(name)' | awk -F/ '{print $$NF}') \
-		&& echo "execution $$id" && $(MAKE) -s wait WORKFLOW=sync ID=$$id
+# The nightly mifos sync of one kind, clients or loans, by hand: prod only, since dev mirrors nothing from Mifos
+mifos-sync: check-env
+	@id=$$(gcloud workflows execute mifos-sync --location $(REGION) --project $(PROJECT) \
+		--data '{"kind": "$(KIND)"}' --format 'value(name)' | awk -F/ '{print $$NF}') \
+		&& echo "execution $$id" && $(MAKE) -s wait WORKFLOW=mifos-sync ID=$$id
 
 # Starts a run, waits for it to finish, then shows its logs (which land a few seconds late)
 run:

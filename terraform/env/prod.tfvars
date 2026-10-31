@@ -21,3 +21,8 @@ mifos = {
   verify_ssl = false
 }
 ui_access = ["domain:lekkacredit.com"]
+# After Mifos's own midnight jobs in Harare, and its SMS jobs at 5:00 there
+mifos_syncs = {
+  clients = { schedule = "30 22 * * *" }
+  loans   = { schedule = "45 22 * * *" }
+}
