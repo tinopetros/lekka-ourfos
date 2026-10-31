@@ -21,7 +21,15 @@ type Variant = ComponentProps<typeof Button>['variant'];
 // Each action's button, dialog and comment. All but an approval say why
 const KINDS: Record<
   ActionKind,
-  { label: string; icon: typeof Check; variant: Variant; asks: string; placeholder: string; needed: boolean }
+  {
+    label: string;
+    icon: typeof Check;
+    variant: Variant;
+    asks: string;
+    placeholder: string;
+    needed: boolean;
+    missing?: string;
+  }
 > = {
   done: {
     label: 'Mark as done',
@@ -30,6 +38,7 @@ const KINDS: Record<
     asks: 'How it was finished',
     placeholder: 'e.g. Posted the corrected lines in Mifos by hand',
     needed: true,
+    missing: 'Say how it was finished to mark it done.',
   },
   approve: {
     label: 'Approve',
@@ -46,6 +55,7 @@ const KINDS: Record<
     asks: 'Why it’s disapproved',
     placeholder: 'e.g. Not a business expense',
     needed: true,
+    missing: 'A reason is needed to disapprove it.',
   },
   comment: {
     label: 'Comment',
@@ -54,6 +64,7 @@ const KINDS: Record<
     asks: 'Comment',
     placeholder: 'e.g. Checked the client’s statements',
     needed: true,
+    missing: 'Write your comment first.',
   },
 };
 
@@ -127,7 +138,7 @@ export function ActionButton({
             />
             {tried && missing && (
               <p role="alert" className="text-sm text-destructive">
-                A comment is needed to {k.label.toLowerCase()}.
+                {k.missing}
               </p>
             )}
           </div>
