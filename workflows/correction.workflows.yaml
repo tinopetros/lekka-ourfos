@@ -85,6 +85,7 @@ process:
                         requested_by: ${map.get(args, "requested_by")}
                         lines: ${map.get(args, "lines")}
                         transaction_id: ${map.get(args, "transaction_id")}
+                        post: ${map.get(args, "post")}
                         simulate: ${simulate}
                         workflow: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID")}
                         revision: ${sys.get_env("GOOGLE_CLOUD_WORKFLOW_REVISION_ID")}
