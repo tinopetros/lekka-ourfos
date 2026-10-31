@@ -157,6 +157,17 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - Kept on `actions/{execution}` under the submission, beside its runs, as what a person did rather than what a
   workflow did: who, what, their comment, files and when. History shows both, newest first. Approve and disapprove set
   the status, shown even on forms whose status isn't otherwise tracked; a comment leaves it
+- Who, for now, in the policy: Mark as done and a requisition's Disapprove for whoever may reverse entries (directors,
+  zsaruchera); Approve and Disapprove on loan approvals and write-offs for directors; Comment for everyone who can read
+  them. Lekkai@ is kept out of deciding anything
 - The page waits for the record, as it does for a correction: the action's execution says if it failed, and why
 - Not taken: **recording first and emailing after.** A record of something nobody was told is the worse failure. Nor
   ourfos-api asking the services to email: a second route, and a write, through the caller check
+
+### 17. A dialog that changes something is left only by its own buttons
+
+- Correct, Reverse, every action, and the form's discard and submit: no ×, and neither a click outside nor Escape
+  closes them, so a slip loses nothing and does nothing. Cancel is said on purpose
+- They say what's in the way when you try, beside what's missing: a comment or reason, an account, debits that don't
+  balance, or corrected lines still the entry's own. A reason alone corrects nothing
+- Weightier ones become steps, with a review before anything is sent: #53
