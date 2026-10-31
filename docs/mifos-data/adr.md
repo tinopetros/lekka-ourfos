@@ -38,18 +38,28 @@ Draft.
 
 - Journal entries don't change once booked: one file a Monday–Sunday week, by transaction date. A week fetched again
   is rewritten whole, so a re-fetch is safe and catches entries booked late with past dates
-- Clients and loans change: each fetch is a whole snapshot, `dt=<date>/`, and what changed is worked out by comparing
-  snapshots
+- Clients and loans change: each fetch is the whole list, compared with the one before (ADR 6)
 
-### 6. Only the latest client snapshot is kept, unless a client disappears
+### 6. Clients and loans: the first snapshot, the latest, and a log of what changed
 
-- Mifos deletes only pending clients, before activation; an active client can only be closed, and only once their
-  loans are. So we assume no one deletes clients
-- Each snapshot is compared with the last. No client gone: the new one replaces it. A client gone: the last snapshot
-  that had them is kept, and the new one becomes the latest. Few snapshots, nothing lost
-- `_perf.jsonl` records every fetch and its comparison, kept or not
-- What's lost: a pending client created and deleted between two snapshots, who never had a loan
-- 374 of ids 2–728 aren't listed today, in gaps of at most 14: consistent with pending clients deleted early on
+- Kept: `dt=<date>/`, the first snapshot, never rewritten; `latest/`, replaced by each fetch; and `_changes.jsonl`,
+  a line for each client or loan that's new, changed or gone, with the date. Not a snapshot a day: storage stays at
+  two copies and a log of kilobytes, and any day's list can be rebuilt from the first and the changes after it
+- A change is a field someone moves: status, dates, people (loan officer, staff, office), amounts disbursed, repaid,
+  waived or written off, charges, contact details. The line keeps each field's old and new value
+- Not a change: what the calendar moves on its own, overdue amounts, days in arrears, overdue since, NPA and
+  delinquency. Every active loan moves on those each night, which would drown the rest. They're still in `latest/`
+- A client or loan gone keeps its last whole record on its line. Mifos deletes only pending clients and loans not yet
+  approved, so we assume none are, but a disappearance costs nothing to keep
+- What's expected to change: the active loans (90 on Oct 31) and new applications, now and then a client's details.
+  A closed or rejected loan that changes is a finding, e.g. a reversal that reopened it; overpaid and written-off ones
+  can change for real, a refund or a recovery
+- `_perf.jsonl` records every fetch, its timings and how many were new, changed or gone
+- Once loans' transactions and schedules are fetched, past balances come from them too; the log stays the record of
+  what the lists said
+- What's lost: anything created and deleted between two fetches, which never had a loan or a transaction
+- Gaps in the ids: 374 of clients' 2–728 and 172 of loans' 1–1,551 aren't listed on Oct 31, consistent with
+  applications deleted before activation or approval
 
 ### 7. Backfilled by hand, then nightly
 

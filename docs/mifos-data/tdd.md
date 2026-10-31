@@ -3,6 +3,8 @@
 Draft. A copy of everything that matters in Mifos, kept by us: first archived in a bucket, later a live copy that
 ourfos and people can read without going near Mifos.
 
+Mifos's API reference: https://demo.mifos.io/api-docs/apiLive.htm
+
 ## Why
 
 Mifos is our core banking system, and it hasn't served us well. Some of that is malfunction; most of it is
@@ -49,9 +51,10 @@ Implementation is worked out as we go.
 - Manual journal entries, Oct 31: 29 Dec 2025 to 15 Feb 2026, 7 weeks, 103 transactions. Most weeks read in 2.8s,
   one in 21s; the week of 16 Feb timed out at 65s and the run stopped itself. Still to fetch: 16 Feb on, and before
   2026
-- Clients, Oct 31: 353 (352 active, 1 closed) across Head Office, Belvedere, Kadoma and Marondera, 2 pages of about
-  a second each
-- Loans: 1,379, counted, not fetched
+- Clients, Oct 31: 353 (352 active, 1 closed) across Head Office, Belvedere, Kadoma and Marondera. 2 pages, about 1s
+  each. First snapshot, `latest/` and the change log, as ADR 6
+- Loans, Oct 31: 1,379, without associations, 7 pages of 1.2–1.4s, 6.2 MB. Kept as clients are. A loan read with
+  `associations=all` had Mifos drop the connection: transactions and schedules come later, an association at a time
 
 ## Open
 
