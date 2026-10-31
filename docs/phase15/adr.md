@@ -123,3 +123,12 @@ directory) were decided this phase too; phase 16's notes hold what comes next.
 - Left out by the API, which reads on until a page is full: filtered in the UI, a page could come back empty
 - An entry says it's a test from now on. One recorded before is a test if its submission is, read with its page
 - A record opened by its link still shows, test or not
+
+### 14. Each Mifos post has a connection of its own
+
+- A correction's lines went out 0.3s after its reversal, on the connection the reversal had used, and Mifos closed it
+  without answering. Nothing landed, but a dropped post can't say so: the run was handed over, the books left without
+  the expense
+- So each post opens its own connection and closes it after. Reads keep one client a tenant, its connections reused
+- Tried on dev, ten corrections in a row, before it went to prod. If it hadn't held, corrections would have gone
+  behind a flag, leaving reversals
