@@ -22,9 +22,12 @@ Draft.
 
 ### 3. Mifos is protected over speed
 
-- One read at a time, 15s apart, never retried. A read over 60s stops the run: Mifos slows in spells, and retrying
-  into one made it worse before (phase 12 ADR 11)
-- Always narrow: a week of journal entries, a page of 200 of a list
+- One read at a time, 15–30s apart. A read over 60s, or timing out, stops the run: Mifos slows in spells, and
+  retrying into one made it worse before (phase 12 ADR 11)
+- Mifos cutting a connection off, which it did once in each of April's and a loan's reads on Oct 31, is a backfill's to
+  try again: after 2 then 5 minutes, and 3 in a row stop the run. The nightly sync doesn't: a missed night is
+  caught up the next (ADR 9)
+- Always narrow: a month of journal entries, a page of 200 of a list
 - Paged until a page comes back short, never by `totalFilteredRecords`: it said 1 for a week of 25 lines
 - Restarted by hand after a stop, from where it stopped, not straight away
 
@@ -68,13 +71,44 @@ Draft.
 ### 7. Backfilled by hand, then nightly
 
 - All of history once, by hand, a kind of data at a time, watched, and stopped at the first sign of strain (ADR 3)
-- Then scheduled jobs each night, catching up on that day. Built once the backfill shows what Mifos can take
+- Then scheduled jobs each night, catching up on that day. Clients and loans first (ADR 9): a whole list is a few
+  pages, read gently in two minutes, so they needed no backfill beyond their first fetch
+- Manual journal entries back to Jan 2022 once Mifos is free of hand work again, a month a read. Lekka's data starts no earlier:
+  the oldest client was activated on 28 Oct 2022, the first loan disbursed the same day. Six empty months in a row
+  stop it sooner
 
-### 8. The sync into Firestore is deprecated
+### 8. The sync into Firestore is replaced by the mifos sync
 
 - Phase 12's `/sync/journal_entries` (`services/sync.py`) copied manual entries from Mifos straight into Firestore, each
   night from a mark. Built, never scheduled, never preloaded on prod
-- Deprecated: Mifos is read into the bucket (ADR 1), and Firestore's `journal_entries`, when it holds people's entries,
-  is filled from the bucket. Nothing new is built on the sync
-- Its code, the `sync` workflow and Terraform's empty `syncs` stay until something replaces them, then go together
+- Replaced: Mifos is read into the bucket (ADR 1) by the mifos sync (ADR 9), and Firestore's `journal_entries`, when it
+  holds people's entries, is filled from the bucket
+- Its code, its tests, the `sync` workflow, Terraform's empty `syncs` and `make sync` go in #55, with the Mifos reads
+  only it used
 - Closes phase 12 ADRs 6 and 7
+
+### 9. The mifos sync: clients and loans each night, prod only, never retried
+
+- Named for what it does and where from: `mifos-sync`, the workflow, `/mifos-sync/{kind}` on the services, one Cloud
+  Scheduler job a kind. Kept as ADR 6 says, under `clients/` and `loans/`. #55
+- 22:30 for clients and 22:45 for loans, **New York time**: 05:30–05:45 in Harare in winter, 04:30–04:45 in summer.
+  Quiet in both, Harare above all since most use is there. After Mifos's own midnight jobs in Harare (accruals,
+  penalties, arrears ageing, running balances, done by 00:08 on Oct 31), so the night's overdue figures are that day's,
+  and clear of its SMS jobs at 05:00 there. Read off Mifos's `/jobs`, which took 31s
+- A page at a time, 15s apart, as ADR 3. Loans' 7 pages and pauses take about two minutes, inside Cloud Run's 300s
+- **Never retried**, by the route, the workflow or Scheduler past starting it. A page over 60s or any failure stops the
+  night: nothing written but its line in `_perf.jsonl`, an ERROR logged, the workflow failed. The next night compares
+  against the last good `latest/`, so nothing is missed; a change found late is dated the night it was found, and the
+  loan's own timeline keeps the real dates. An alert on failed nights comes with #29
+- **Prod only.** Dev's Mifos tenant copies prod's and is overloaded already, so dev mirrors nothing: Terraform refuses
+  `mifos_syncs` anywhere else, `MIFOS_BUCKET` is set only where it's scheduled, and without it the route answers 409.
+  `ourfos-dev-mifos` stays empty
+- The services may write `ourfos-prod-mifos` only, as Storage Object User, not Creator: replacing `latest/` and
+  rewriting the logs needs delete. lekka-ourfos-infra#27, infra 0.27.0
+- Reads as prod's Mifos user, read only, until the read-only user on the 1.0.0 list
+
+### 10. Legacy lekkai's suggestions aren't backfilled on their own
+
+- Expenser v1's suggestions were kept in MongoDB. They were also sent in each requisition's email thread
+- So they come along once requisitions are linked to their threads (#56), and aren't backfilled separately. The
+  MongoDB copy stays where it is, in case a thread is missing one
