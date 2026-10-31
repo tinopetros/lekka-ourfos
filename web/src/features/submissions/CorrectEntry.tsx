@@ -1,11 +1,11 @@
 import { Loader2, PencilLine, Plus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Tip } from '@/components/Tip';
+import { ConfirmContent } from '@/components/ConfirmContent';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -72,6 +72,8 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
     !(picked.some((x) => x.side === 'DEBIT') && picked.some((x) => x.side === 'CREDIT')) &&
       'Have at least one debit and one credit',
     debits !== credits && 'Make debits equal credits',
+    // A reason alone corrects nothing
+    same && 'The journal entry hasn’t been corrected yet: change at least one line',
   ].filter((x) => x !== false);
 
   const set = (key: number, change: Partial<Row>) => {
@@ -100,7 +102,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
         </span>
       </Tip>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="gap-6 sm:max-w-3xl">
+        <ConfirmContent className="gap-6 sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Correct journal entry</DialogTitle>
             <DialogDescription>
@@ -223,8 +225,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
             <Button
               disabled={correction.isPending}
               onClick={() => {
-                // Lines left as they were need no word: the dialog's short, and that's plain
-                if (problems.length || same || missing) {
+                if (problems.length || missing) {
                   setTried(true);
                   if (missing) why.current?.focus();
                   return;
@@ -240,7 +241,7 @@ export function CorrectEntry({ e, correction }: { e: JournalEntry; correction: R
               Correct journal entry
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ConfirmContent>
       </Dialog>
     </>
   );

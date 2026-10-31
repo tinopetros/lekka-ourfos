@@ -13,11 +13,11 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmContent } from '@/components/ConfirmContent';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -388,7 +388,7 @@ export function SubmissionForm({
                 >
                   Discard
                 </Button>
-                <DialogContent>
+                <ConfirmContent>
                   <DialogHeader>
                     <DialogTitle>Discard this {isDraft ? 'draft' : noun}?</DialogTitle>
                     <DialogDescription>
@@ -418,7 +418,7 @@ export function SubmissionForm({
                       {discard.isPending ? 'Discarding…' : 'Discard'}
                     </Button>
                   </DialogFooter>
-                </DialogContent>
+                </ConfirmContent>
               </Dialog>
               <Button
                 type="button"
@@ -446,7 +446,7 @@ export function SubmissionForm({
                   if (!open && !submit.isPending) setReady(null);
                 }}
               >
-                <DialogContent>
+                <ConfirmContent>
                   <DialogHeader>
                     <DialogTitle>Submit this {noun}?</DialogTitle>
                     <DialogDescription>
@@ -465,7 +465,7 @@ export function SubmissionForm({
                       {submit.isPending ? 'Submitting…' : 'Submit'}
                     </Button>
                   </DialogFooter>
-                </DialogContent>
+                </ConfirmContent>
               </Dialog>
             </div>
           </div>

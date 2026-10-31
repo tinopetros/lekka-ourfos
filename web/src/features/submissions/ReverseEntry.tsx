@@ -1,11 +1,11 @@
 import { Loader2, Undo2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Tip } from '@/components/Tip';
+import { ConfirmContent } from '@/components/ConfirmContent';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -54,7 +54,7 @@ export function ReverseEntry({
         </span>
       </Tip>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <ConfirmContent>
           <DialogHeader>
             <DialogTitle>Reverse journal entry?</DialogTitle>
             <DialogDescription>
@@ -105,7 +105,7 @@ export function ReverseEntry({
               Reverse journal entry
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </ConfirmContent>
       </Dialog>
     </>
   );
